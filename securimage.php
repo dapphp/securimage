@@ -37,6 +37,9 @@
 /**
  ChangeLog
 
+ 2.0.2
+ - Fix pathing to make integration into libraries easier (Nathan Phillip Brink ohnobinki@ohnopublishing.net)
+
  2.0.1
  - Add support for browsers with cookies disabled (requires php5, sqlite) maps users to md5 hashed ip addresses and md5 hashed codes for security
  - Add fallback to gd fonts if ttf support is not enabled or font file not found (Mike Challis http://www.642weather.com/weather/scripts.php)
@@ -105,6 +108,13 @@ if (!defined('SI_IMAGE_GIF'))
  *
  */
 class Securimage {
+
+	/**
+	 * The path which contains securimage.php.
+	 *
+	 * @var string	The path to the securimage installation.
+	 */
+	var $basepath;
 
 	/**
 	 * The desired width of the CAPTCHA image.
@@ -513,6 +523,9 @@ class Securimage {
 			session_start();
 		}
 
+		// Calculated value
+		$this->basepath = dirname(__FILE__);
+
 		// Set Default Values
 		$this->image_width   = 230;
 		$this->image_height  = 80;
@@ -520,7 +533,7 @@ class Securimage {
 
 		$this->code_length   = 6;
 		$this->charset       = 'ABCDEFGHKLMNPRSTUVWYZabcdefghklmnprstuvwyz23456789';
-		$this->wordlist_file = './words/words.txt';
+		$this->wordlist_file = $this->basepath . '/words/words.txt';
 		$this->use_wordlist  = false;
 
 		$this->gd_font_file  = 'gdfonts/automatic.gdf';
@@ -528,7 +541,7 @@ class Securimage {
 		$this->gd_font_size  = 24;
 		$this->text_x_start  = 15;
 
-		$this->ttf_file      = './AHGBold.ttf';
+		$this->ttf_file      = $this->basepath . '/AHGBold.ttf';
 
 		$this->perturbation       = 0.75;
 		$this->iscale             = 5;
@@ -553,9 +566,9 @@ class Securimage {
 
 		$this->image_signature = '';
 		$this->signature_color = new Securimage_Color(0x20, 0x50, 0xCC);
-		$this->signature_font  = './AHGBold.ttf';
+		$this->signature_font  = $this->basepath . '/AHGBold.ttf';
 
-		$this->audio_path   = './audio/';
+		$this->audio_path   = $this->basepath . '/audio/';
 		$this->audio_format = 'mp3';
 		$this->session_name = '';
 		$this->expiry_time  = 900;
