@@ -113,6 +113,8 @@ class Securimage
     public $use_wordlist;
     public $wordlist_file;
     
+    public $num_lines;
+    
     public $use_sqlite_db;
     public $sqlite_database;
     
@@ -173,14 +175,19 @@ class Securimage
 
         $this->createCode();
 
-        if (!$this->draw_lines_over_text && $this->num_lines > 0) $this->drawLines();
-
         $this->drawWord();
-        if ($this->use_gd_font == false && is_readable($this->ttf_file)) $this->distortedCopy();
+        
+        if ($this->perturbation > 0 && is_readable($this->ttf_file)) {
+            $this->distortedCopy();
+        }
 
-        if ($this->draw_lines_over_text && $this->num_lines > 0) $this->drawLines();
+        if ($this->num_lines > 0) {
+            $this->drawLines();
+        }
 
-        if (trim($this->image_signature) != '')    $this->addSignature();
+        if (trim($this->image_signature) != '') {
+            $this->addSignature();
+        }
 
         $this->output();
 	}
@@ -303,6 +310,31 @@ class Securimage
         $this->saveData();
     }
     
+    protected function drawWord()
+    {
+        $width2  = $this->image_width * $this->iscale;
+        $height2 = $this->image_height * $this->iscale;
+         
+        if (!is_readable($this->ttf_file)) {
+            imagestring($this->im, 4, 10, ($this->image_height / 2) - 5, 'Failed to load TTF font file!', $this->gdtextcolor);
+        } else {
+            $font_size = $height2 * .35;
+            $bb = imageftbbox($font_size, 0, $this->ttf_file, $this->code);
+            $tx = $bb[4] - $bb[0];
+            $ty = $bb[5] - $bb[1];
+            $x  = floor($width2 / 2 - $tx / 2 - $bb[0]);
+            $y  = round($height2 / 2 - $ty / 2 - $bb[1]);
+
+            imagettftext($this->tmpimg, $font_size, 0, $x, $y, $this->gdtextcolor, $this->ttf_file, $this->code);
+        }
+        
+        /*
+        // DEBUG
+        $this->im = $this->tmpimg;
+        $this->output();
+        */
+    }
+    
     protected function readCodeFromFile()
     {
         $fp = @fopen($this->wordlist_file, 'rb');
@@ -355,13 +387,86 @@ class Securimage
         if ($this->use_sqlite_db && $this->sqlite_handle !== false) {
             $ip      = $_SERVER['REMOTE_ADDR'];
             $time    = time();
-            $code    = $_SESSION['securimage_code_value'][$this->namespace]; // hash code for security - if cookies are disabled the session still exists at this point
+            $code    = $_SESSION['securimage_code_value'][$this->namespace]; // if cookies are disabled the session still exists at this point
             $success = sqlite_query($this->sqlite_handle,
-                                    "INSERT OR REPLACE INTO codes(ip, code, namespace created)
+                                    "INSERT OR REPLACE INTO codes(ip, code, namespace, created)
                                     VALUES('$ip', '$code', '{$this->namespace}', $time)");
         }
         
         return $success !== false;
+    }
+    
+    protected function openDatabase()
+    {
+        $this->sqlite_handle = false;
+        
+        if ($this->use_sqlite_db && function_exists('sqlite_open')) {
+            $this->sqlite_handle = sqlite_open($this->sqlite_database, 0666, $error);
+            
+            if ($this->sqlite_handle !== false) {
+                $res = sqlite_query($this->sqlite_handle, "PRAGMA table_info(codes)");
+                if (sqlite_num_rows($res) == 0) {
+                    sqlite_query($this->sqlite_handle, "CREATE TABLE codes (ip VARCHAR(32) PRIMARY KEY, code VARCHAR(32) NOT NULL, namespace VARCHAR(32) NOT NULL, created INTEGER)");
+                }
+            }
+            
+            return $this->sqlite_handle != false;
+        }
+        
+        return $this->sqlite_handle;
+    }
+    
+    protected function getCodeFromDatabase()
+    {
+        $code = '';
+
+        if ($this->use_sqlite_db && $this->sqlite_handle !== false) {
+            $ip = $_SERVER['REMOTE_ADDR'];
+            $ns = sqlite_escape_string($this->namespace);
+
+            $res = sqlite_query($this->sqlite_handle, "SELECT * FROM codes WHERE ip = '$ip' AND namespace = '$ns'");
+            if ($res && sqlite_num_rows($res) > 0) {
+                $res = sqlite_fetch_array($res);
+
+                if ($this->isCodeExpired($res['created']) == false) {
+                    $code = $res['code'];
+                }
+            }
+        }
+        return $code;
+    }
+    
+    protected function clearCodeFromDatabase()
+    {
+        if ($this->sqlite_handle !== false) {
+            $ip = $_SERVER['REMOTE_ADDR'];
+            $ns = sqlite_escape_string($this->namespace);
+            
+            sqlite_query($this->sqlite_handle, "DELETE FROM codes WHERE ip = '$ip' AND namespace = '$ns'");
+        }
+    }
+    
+    protected function purgeOldCodesFromDatabase()
+    {
+        if ($this->use_sqlite_db && $this->sqlite_handle !== false) {
+            $now   = time();
+            $limit = (!is_numeric($this->expiry_time) || $this->expiry_time < 1) ? 86400 : $this->expiry_time;
+            
+            sqlite_query($this->sqlite_handle, "DELETE FROM codes WHERE $now - created > $limit");
+        }
+    }
+    
+    protected function isCodeExpired($creation_time)
+    {
+        $expired = true;
+        
+        if (!is_numeric($this->expiry_time) || $this->expiry_time < 1) {
+            $expired = false;
+        } else if (time() - $creation_time < $this->expiry_time) {
+            $expired = false;
+        }
+        
+        return $expired;
     }
 }
 
