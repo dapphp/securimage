@@ -123,6 +123,7 @@ class Securimage
     public $code_length;
     public $case_sensitive;
     public $charset;
+    public $expiry_time;
     
     public $session_name;
     
@@ -145,6 +146,8 @@ class Securimage
     public $securimage_path;
     public $code;
     public $code_display;
+    
+    public $audio_path;
     
     public $captcha_type;
     
@@ -221,7 +224,15 @@ class Securimage
             $this->namespace = 'default';
         }
         
-        $this->captcha_type   = self::CAPTCHA_MATH;
+        if ($this->audio_path == null) {
+            $this->audio_path = $this->securimage_path . '/audio/';
+        }
+        
+        if ($this->expiry_time == null) {
+            $this->expiry_time = 900;
+        }
+        
+        //$this->captcha_type   = self::CAPTCHA_MATH;
         $this->case_sensitive = false;
         $this->charset        = 'ABCDEFGHKLMNPRSTUVWYZabcdefghklmnprstuvwyz23456789';
     }
@@ -245,19 +256,23 @@ class Securimage
     public function outputAudioFile()
     {
         if (strtolower($this->audio_format) == 'wav') {
-            header('Content-type: audio/x-wav');
+            //header('Content-type: audio/x-wav');
             $ext = 'wav';
         } else {
             header('Content-type: audio/mpeg'); // default to mp3
             $ext = 'mp3';
         }
+        
+        //die('here');
 
-        header("Content-Disposition: attachment; filename=\"securimage_audio.{$ext}\"");
+        //header("Content-Disposition: attachment; filename=\"securimage_audio.{$ext}\"");
         header('Cache-Control: no-store, no-cache, must-revalidate');
         header('Expires: Sun, 1 Jan 2000 12:00:00 GMT');
         header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . 'GMT');
 
         $audio = $this->getAudibleCode($ext);
+        
+        die($audio);
 
         header('Content-Length: ' . strlen($audio));
 
@@ -609,7 +624,7 @@ class Securimage
         for($i = 0; $i < strlen($code); ++$i) {
             $letters[] = $code{$i};
         }
-
+        
         if ($format == 'mp3') {
             return $this->generateMP3($letters);
         } else {
@@ -816,74 +831,79 @@ class Securimage
     
     protected function generateWAV($letters)
     {
-        $data_len    = 0;
-        $files       = array();
-        $out_data    = '';
+        $data_len       = 0;
+        $files          = array();
+        $out_data       = '';
+        $out_channels   = 0;
+        $out_samplert   = 0;
+        $out_bpersample = 0;
+        $numSamples     = 0;
 
-        foreach ($letters as $letter) {
+        for ($i = 0; $i < sizeof($letters); ++$i) {
+            $letter   = $letters[$i];
             $filename = $this->audio_path . strtoupper($letter) . '.wav';
-
-            $fp = fopen($filename, 'rb');
-
-            $file = array();
-
-            $data = fread($fp, filesize($filename)); // read file in
+            $file     = array();
+            $data     = @file_get_contents($filename);
+            
+            if ($data === false) {
+                echo 'read failed';
+                var_dump($filename);
+                var_dump($letters);
+                var_dump($letter);
+                return false;
+            }
 
             $header = substr($data, 0, 36);
-            $body   = substr($data, 44);
-
-
-            $data = unpack('NChunkID/VChunkSize/NFormat/NSubChunk1ID/VSubChunk1Size/vAudioFormat/vNumChannels/VSampleRate/VByteRate/vBlockAlign/vBitsPerSample', $header);
-
-            $file['sub_chunk1_id']   = $data['SubChunk1ID'];
-            $file['bits_per_sample'] = $data['BitsPerSample'];
-            $file['channels']        = $data['NumChannels'];
-            $file['format']          = $data['AudioFormat'];
-            $file['sample_rate']     = $data['SampleRate'];
-            $file['size']            = $data['ChunkSize'] + 8;
-            $file['data']            = $body;
-
-            if ( ($p = strpos($file['data'], 'LIST')) !== false) {
-                // If the LIST data is not at the end of the file, this will probably break your sound file
-                $info         = substr($file['data'], $p + 4, 8);
-                $data         = unpack('Vlength/Vjunk', $info);
-                $file['data'] = substr($file['data'], 0, $p);
-                $file['size'] = $file['size'] - (strlen($file['data']) - $p);
+            $info   = unpack('NChunkID/VChunkSize/NFormat/NSubChunk1ID/'
+                            .'VSubChunk1Size/vAudioFormat/vNumChannels/'
+                            .'VSampleRate/VByteRate/vBlockAlign/vBitsPerSample',
+                             $header);
+            
+            $dataPos        = strpos($data, 'data');
+            $out_channels   = $info['NumChannels'];
+            $out_samplert   = $info['SampleRate'];
+            $out_bpersample = $info['BitsPerSample'];
+            
+            if ($dataPos === false) {
+                // wav file with no data?
+                echo 'no data';
+                return false;
             }
-
-            $files[] = $file;
-            $data    = null;
-            $header  = null;
-            $body    = null;
-
-            $data_len += strlen($file['data']);
-
-            fclose($fp);
+            
+            if ($info['AudioFormat'] != 1) {
+                // only work with PCM audio
+                echo 'not pcm';
+                return false;
+            }
+            
+            if ($info['SubChunk1Size'] != 16 && $info['SubChunk1Size'] != 18) {
+                // probably unsupported extension
+                echo 'bad size';
+                var_dump($info['SubChunk1Size']);
+                return false;
+            }
+            
+            if ($info['SubChunk1Size'] > 16) {
+                $header .= substr($data, 36, $info['SubChunk1Size'] - 16);
+            }
+            
+            if ($i == 0) {
+                // create the final file's header, size will be adjusted later
+                $out_data = $header . 'data';
+            }
+            
+            $samples     = unpack('VSamples', substr($data, $dataPos + 4, 4));
+            $out_data   .= substr($data, $dataPos + 8, $samples['Samples']);
+            $numSamples += $samples['Samples'];
         }
 
-        $out_data = '';
-        for($i = 0; $i < sizeof($files); ++$i) {
-            if ($i == 0) { // output header
-                $out_data .= pack('C4VC8', ord('R'), ord('I'), ord('F'), ord('F'), $data_len + 36, ord('W'), ord('A'), ord('V'), ord('E'), ord('f'), ord('m'), ord('t'), ord(' '));
+        $filesize  = strlen($out_data);
+        $chunkSize = $filesize - 8;
+        $dataCSize = $numSamples;
+        
+        $out_data = substr_replace($out_data, pack('V', $filesize), 4, 4);
+        $out_data = substr_replace($out_data, pack('V', $numSamples), 40 + ($info['SubChunk1Size'] - 16), 4);
 
-                $out_data .= pack('VvvVVvv',
-                16,
-                $files[$i]['format'],
-                $files[$i]['channels'],
-                $files[$i]['sample_rate'],
-                $files[$i]['sample_rate'] * (($files[$i]['bits_per_sample'] * $files[$i]['channels']) / 8),
-                ($files[$i]['bits_per_sample'] * $files[$i]['channels']) / 8,
-                $files[$i]['bits_per_sample'] );
-
-                $out_data .= pack('C4', ord('d'), ord('a'), ord('t'), ord('a'));
-
-                $out_data .= pack('V', $data_len);
-            }
-
-            $out_data .= $files[$i]['data'];
-        }
-
-        $this->scrambleAudioData($out_data, 'wav');
         return $out_data;
     }
     
