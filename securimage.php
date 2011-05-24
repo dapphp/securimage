@@ -107,54 +107,57 @@ class Securimage
     const SI_IMAGE_PNG  = 2;
     const SI_IMAGE_GIF  = 3;
     
-    const CAPTCHA_MATH = 'math';
+    const SI_CAPTCHA_STRING     = 0;
+    const SI_CAPTCHA_MATHEMATIC = 1;
     
-    public $image_width;
-    public $image_height;
-    public $image_type;
+    public $image_width  = 200;
+    public $image_height = 80;
+    public $image_type   = self::SI_IMAGE_PNG;
 
-    public $image_bg_color;
-    public $text_color;
-    public $line_color;
-    public $ttf_file;
-    public $text_transparency_percentage;
-    public $use_transparent_text;
+    public $image_bg_color = '#ffffff';
+    public $text_color     = '#707070';
+    public $line_color     = '#707070';
     
-    public $code_length;
-    public $case_sensitive;
-    public $charset;
-    public $expiry_time;
+    public $text_transparency_percentage = 50;
+    public $use_transparent_text         = false;
     
-    public $session_name;
+    public $code_length    = 6;
+    public $case_sensitive = false;
+    public $charset        = 'ABCDEFGHKLMNPRSTUVWYZabcdefghklmnprstuvwyz23456789';
+    public $expiry_time    = 900;
     
-    public $background_directory;
-    public $use_wordlist;
-    public $wordlist_file;
+    public $session_name   = null;
     
-    public $perturbation;
-    public $num_lines;
-    public $noise_level;
+    public $use_wordlist   = false;
+
     
-    public $image_signature;
-    public $signature_color;
+    public $perturbation = 0.75;
+    public $num_lines    = 4;
+    public $noise_level  = 0;
     
-    public $use_sqlite_db;
-    public $sqlite_database;
+    public $image_signature = '';
+    public $signature_color = '#707070';
+    
+    public $use_sqlite_db = false;
+    public $captcha_type  = self::SI_CAPTCHA_STRING;
     
     public $namespace;
-    
-    public $securimage_path;
-    public $code;
-    public $code_display;
-    
+    public $ttf_file;
+    public $wordlist_file;
+    public $background_directory;
+    public $sqlite_database;
     public $audio_path;
-    
-    public $captcha_type;
+
     
     protected $im;
     protected $tmpimg;
     protected $bgimg;
     protected $iscale = 5;
+    
+    protected $securimage_path = null;
+    
+    protected $code;
+    protected $code_display;
     
     protected $captcha_code;
     protected $sqlite_handle;
@@ -166,75 +169,48 @@ class Securimage
     
     public function __construct()
     {
-        // Initialize session or attach to existing
-        if ( session_id() == '' ) { // no session has been started yet, which is needed for validation
-            if (trim($this->session_name) != '') {
-                session_name($this->session_name); // set session name if provided
-            }
-            session_start();
-        }
-        
         $this->securimage_path = dirname(__FILE__);
-        
-        if ($this->image_height == null) {
-            $this->image_height = 90;
-        }
-        
-        if ($this->image_width == null) {
-            $this->image_width = 254;
-        }
-            
-        if ($this->image_bg_color == null) {
-            $this->image_bg_color = new Securimage_Color(255, 255, 255);
-        }
 
-        if ($this->text_color == null) {
-            $this->text_color = new Securimage_Color(61, 61, 61);
-        }
-        
-        if ($this->line_color == null) {
-            $this->line_color = $this->text_color;
-        }
-        
-        if ($this->signature_color == null) {
-            $this->signature_color = $this->text_color;
-        }
-        
-        if ($this->num_lines == null) {
-            $this->num_lines = 5;
-        }
-        
-        if ($this->noise_level == null) {
-            $this->noise_level = 5;
-        }
-        
-        if (!is_readable($this->ttf_file)) {
+        $this->image_bg_color  = $this->initColor($this->image_bg_color,  '#ffffff');
+        $this->text_color      = $this->initColor($this->text_color,      '#616161');
+        $this->line_color      = $this->initColor($this->line_color,      '#616161');
+        $this->signature_color = $this->initColor($this->signature_color, '#616161');
+
+        if ($this->ttf_file == null) {
             $this->ttf_file = $this->securimage_path . '/AHGBold.ttf';
         }
         
-        if ($this->code_length == null || $this->code_length < 1) {
-            $this->code_length = 6;
+        if ($this->wordlist_file == null) {
+            $this->wordlist_file = $this->securimage_path . '/words/words.txt';
         }
         
-        if ($this->perturbation == null) {
-            $this->perturbation = 0.7;
-        }
-        
-        if ($this->namespace == null) {
-            $this->namespace = 'default';
+        if ($this->sqlite_database == null) {
+            $this->sqlite_database = $this->securimage_path . '/database/securimage.sqlite';
         }
         
         if ($this->audio_path == null) {
             $this->audio_path = $this->securimage_path . '/audio/';
         }
         
-        if ($this->expiry_time == null) {
-            $this->expiry_time = 900;
+        if ($this->code_length == null || $this->code_length < 1) {
+            $this->code_length = 6;
         }
         
-        //$this->captcha_type   = self::CAPTCHA_MATH;
-        $this->case_sensitive = false;
-        $this->charset        = 'ABCDEFGHKLMNPRSTUVWYZabcdefghklmnprstuvwyz23456789';
+        if ($this->perturbation == null || !is_numeric($this->perturbation)) {
+            $this->perturbation = 0.75;
+        }
+        
+        if ($this->namespace == null || !is_string($this->namespace)) {
+            $this->namespace = 'default';
+        }
+
+        // Initialize session or attach to existing
+        if ( session_id() == '' ) { // no session has been started yet, which is needed for validation
+            if ($this->session_name == null || trim($this->session_name) != '') {
+                session_name(trim($this->session_name)); // set session name if provided
+            }
+            session_start();
+        }
     }
     
     public function show($background_image = '')
@@ -255,24 +231,15 @@ class Securimage
     
     public function outputAudioFile()
     {
-        if (strtolower($this->audio_format) == 'wav') {
-            //header('Content-type: audio/x-wav');
-            $ext = 'wav';
-        } else {
-            header('Content-type: audio/mpeg'); // default to mp3
-            $ext = 'mp3';
-        }
+        $ext = 'wav';
         
-        //die('here');
-
-        //header("Content-Disposition: attachment; filename=\"securimage_audio.{$ext}\"");
+        header("Content-Disposition: attachment; filename=\"securimage_audio.{$ext}\"");
         header('Cache-Control: no-store, no-cache, must-revalidate');
         header('Expires: Sun, 1 Jan 2000 12:00:00 GMT');
         header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . 'GMT');
-
-        $audio = $this->getAudibleCode($ext);
+        header('Content-type: audio/x-wav');
         
-        die($audio);
+        $audio = $this->getAudibleCode($ext);
 
         header('Content-Length: ' . strlen($audio));
 
@@ -298,11 +265,11 @@ class Securimage
 
         $this->createCode();
 
-        $this->drawWord();
-        
         if ($this->noise_level > 0) {
             $this->drawNoise();
         }
+        
+        $this->drawWord();
         
         if ($this->perturbation > 0 && is_readable($this->ttf_file)) {
             $this->distortedCopy();
@@ -313,7 +280,7 @@ class Securimage
         }
 
         if (trim($this->image_signature) != '') {
-            //$this->addSignature();
+            $this->addSignature();
         }
 
         $this->output();
@@ -389,7 +356,7 @@ class Securimage
             return;
         }
 
-        switch($dat[r2]) {
+        switch($dat[2]) {
             case 1:  $newim = @imagecreatefromgif($this->bgimg); break;
             case 2:  $newim = @imagecreatefromjpeg($this->bgimg); break;
             case 3:  $newim = @imagecreatefrompng($this->bgimg); break;
@@ -427,7 +394,7 @@ class Securimage
         $this->code = false;
 
         switch($this->captcha_type) {
-            case self::CAPTCHA_MATH:
+            case self::SI_CAPTCHA_MATHEMATIC:
             {
                 $signs = array('+', '-', 'x');
                 $left  = rand(1, 10);
@@ -471,14 +438,25 @@ class Securimage
         if (!is_readable($this->ttf_file)) {
             imagestring($this->im, 4, 10, ($this->image_height / 2) - 5, 'Failed to load TTF font file!', $this->gdtextcolor);
         } else {
-            $font_size = $height2 * .35;
-            $bb = imageftbbox($font_size, 0, $this->ttf_file, $this->code_display);
-            $tx = $bb[4] - $bb[0];
-            $ty = $bb[5] - $bb[1];
-            $x  = floor($width2 / 2 - $tx / 2 - $bb[0]);
-            $y  = round($height2 / 2 - $ty / 2 - $bb[1]);
+            if ($this->perturbation > 0) {
+                $font_size = $height2 * .4;
+                $bb = imageftbbox($font_size, 0, $this->ttf_file, $this->code_display);
+                $tx = $bb[4] - $bb[0];
+                $ty = $bb[5] - $bb[1];
+                $x  = floor($width2 / 2 - $tx / 2 - $bb[0]);
+                $y  = round($height2 / 2 - $ty / 2 - $bb[1]);
 
-            imagettftext($this->tmpimg, $font_size    , 0, $x, $y, $this->gdtextcolor, $this->ttf_file, $this->code_display);
+                imagettftext($this->tmpimg, $font_size, 0, $x, $y, $this->gdtextcolor, $this->ttf_file, $this->code_display);
+            } else {
+                $font_size = $this->image_height * .4;
+                $bb = imageftbbox($font_size, 0, $this->ttf_file, $this->code_display);
+                $tx = $bb[4] - $bb[0];
+                $ty = $bb[5] - $bb[1];
+                $x  = floor($this->image_width / 2 - $tx / 2 - $bb[0]);
+                $y  = round($this->image_height / 2 - $ty / 2 - $bb[1]);
+
+                imagettftext($this->im, $font_size, 0, $x, $y, $this->gdtextcolor, $this->ttf_file, $this->code_display);
+            }
         }
         
         // DEBUG
@@ -491,12 +469,13 @@ class Securimage
         $numpoles = 3; // distortion factor
         // make array of poles AKA attractor points
         for ($i = 0; $i < $numpoles; ++ $i) {
-            $px[$i] = rand($this->image_width * 0.3, $this->image_width * 0.7);
-            $py[$i] = rand($this->image_height * 0.3, $this->image_height * 0.7);
-            $rad[$i] = rand($this->image_width * 0.4, $this->image_width * 0.7);
-            $tmp = - $this->frand() * 0.15 - 0.15;
+            $px[$i]  = rand($this->image_width  * 0.2, $this->image_width  * 0.8);
+            $py[$i]  = rand($this->image_height * 0.2, $this->image_height * 0.8);
+            $rad[$i] = rand($this->image_height * 0.2, $this->image_height * 0.8);
+            $tmp     = ((- $this->frand()) * 0.15) - .15;
             $amp[$i] = $this->perturbation * $tmp;
         }
+        
         $bgCol = imagecolorat($this->tmpimg, 0, 0);
         $width2 = $this->iscale * $this->image_width;
         $height2 = $this->iscale * $this->image_height;
@@ -568,9 +547,16 @@ class Securimage
     }
     
     protected function drawNoise()
-    {return;
-        $noise_level = 10;
-        $noise_level *= 150;
+    {
+        if ($this->noise_level > 10) {
+            $noise_level = 10;
+        } else {
+            $noise_level = $this->noise_level;
+        }
+
+        $t0 = microtime(true);
+        
+        $noise_level *= 125; // an arbitrary number that works well on a 1-10 scale
         
         $points = $this->image_width * $this->image_height * $this->iscale;
         $height = $this->image_height * $this->iscale;
@@ -578,10 +564,22 @@ class Securimage
         for ($i = 0; $i < $noise_level; ++$i) {
             $x = rand(10, $width);
             $y = rand(10, $height);
-            $size = rand(7, 8);
+            $size = rand(7, 10);
             if ($x - $size <= 0 && $y - $size <= 0) continue; // dont cover 0,0 since it is used by imagedistortedcopy
             imagefilledarc($this->tmpimg, $x, $y, $size, $size, 0, 360, $this->gdlinecolor, IMG_ARC_PIE);
         }
+        
+        $t1 = microtime(true);
+        
+        $t = $t1 - $t0;
+        
+        /*
+        // DEBUG
+        imagestring($this->tmpimg, 5, 25, 30, "$t", $this->gdlinecolor);
+        header('content-type: image/png');
+        imagepng($this->tmpimg);
+        exit;
+        */
     }
     
     protected function output()
@@ -611,8 +609,14 @@ class Securimage
         exit();
     }
     
-    protected function getAudibleCode($format = 'mp3')
+    protected function getAudibleCode($format = 'wav')
     {
+        // override any format other than wav for now
+        // this is due to security issues with MP3 files
+        // now even wav files are probably vulnerable
+        // 
+        $format  = 'wav';
+        
         $letters = array();
         $code    = $this->getCode();
 
@@ -807,26 +811,15 @@ class Securimage
         return $expired;
     }
     
+    /**
+     * 
+     * Generate an MP3 audio file of the captcha image
+     * 
+     * @deprecated 3.0
+     */
     protected function generateMP3()
     {
-        $data_len = 0;
-        $files    = array();
-        $out_data = '';
-
-        foreach ($letters as $letter) {
-            $filename = $this->audio_path . strtoupper($letter) . '.mp3';
-
-            $fp   = fopen($filename, 'rb');
-            $data = fread($fp, filesize($filename)); // read file in
-
-            $this->scrambleAudioData($data, 'mp3');
-            $out_data .= $data;
-
-            fclose($fp);
-        }
-
-
-        return $out_data;
+        return false;
     }
     
     protected function generateWAV($letters)
@@ -929,7 +922,24 @@ class Securimage
     
     function frand()
     {
-        return 0.0001*rand(0,9999);
+        return 0.0001 * rand(0,9999);
+    }
+    
+    protected function initColor($color, $default)
+    {
+        if ($color == null) {
+            return new Securimage_Color($default);
+        } else if (is_string($color)) {
+            try {
+                return new Securimage_Color($color);
+            } catch(Exception $e) {
+                return new Securimage_Color($default);
+            }
+        } else if (is_array($color) && sizeof($array) == 3) {
+            return new Securimage_Color($color[0], $color[1], $color[2]);
+        } else {
+            return new Securimage_Color($default);
+        }
     }
 }
 
