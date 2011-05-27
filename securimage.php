@@ -897,6 +897,8 @@ class Securimage
         $out_data = substr_replace($out_data, pack('V', $filesize), 4, 4);
         $out_data = substr_replace($out_data, pack('V', $numSamples), 40 + ($info['SubChunk1Size'] - 16), 4);
 
+        $this->scrambleAudioData(&$out_data, 'wav');
+        
         return $out_data;
     }
     
@@ -911,12 +913,19 @@ class Securimage
          
         $start  += rand(1, 64); // randomize starting offset
         $datalen = strlen($data) - $start - 256; // leave last 256 bytes unchanged
-         
+        $step    = 16;
+        
         for ($i = $start; $i < $datalen; $i += 64) {
             $ch = ord($data{$i});
             if ($ch < 9 || $ch > 119) continue;
 
             $data{$i} = chr($ch + rand(-8, 8)); // slightly change value of the byte to create blips or distortions of sound
+            
+            if ($format == 'wav') {
+                $step = rand(1, 16);
+            } else {
+                $step = 64;
+            }
         }
     }
     
