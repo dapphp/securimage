@@ -1,8 +1,8 @@
 NAME:
 
-    Securimage - A PHP class for creating and managing form CAPTCHA images
+    Securimage - A PHP class for creating captcha images and audio with many options.
 
-VERSION: 2.0 BETA
+VERSION: 3.0
 
 AUTHOR:
 
@@ -19,9 +19,9 @@ DOCUMENTATION:
     be found at http://www.phpcaptcha.org/Securimage_Docs/
 
 REQUIREMENTS:
-    PHP 4.3.0
+    PHP 5.2 or greater
     GD  2.0
-    FreeType (recommended, required for TTF support)
+    FreeType (Required, for TTF fonts)
 
 SYNOPSIS:
 
@@ -48,16 +48,36 @@ DESCRIPTION:
     The classes uses an existing PHP session or creates its own if none is found to store the
     CAPTCHA code.  Variables within the class are used to control the style and display of the image.
     The class supports TTF fonts and effects for strengthening the security of the image.
-    If TTF support is not available, GD fonts can be used as well, but certain options such as
-    transparent text and angled letters cannot be used.
+    An audible code can also be streamed to the browser for visually impared users.
 
 
 COPYRIGHT:
-    Copyright (c) 2009 Drew Phillips. All rights reserved.
-    This software is released under the GNU Lesser General Public License.
+    Copyright (c) 2011 Drew Phillips
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without modification,
+    are permitted provided that the following conditions are met:
+
+    - Redistributions of source code must retain the above copyright notice,
+      this list of conditions and the following disclaimer.
+    - Redistributions in binary form must reproduce the above copyright notice,
+      this list of conditions and the following disclaimer in the documentation
+      and/or other materials provided with the distribution.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+    AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+    ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+    LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+    CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+    SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+    INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+    CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+    ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+    POSSIBILITY OF SUCH DAMAGE.
 
     -----------------------------------------------------------------------------
-    Flash code created for Securimage by Douglas Walsh (www.douglaswalsh.net)
+    Flash code created for Securimage by Mario Romero (animario@hotmail.com)
     Many thanks for releasing this to the project!
 
     ------------------------------------------------------------------------------

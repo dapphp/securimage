@@ -27,17 +27,21 @@
  * @link http://www.phpcaptcha.org Securimage PHP CAPTCHA
  * @link http://www.phpcaptcha.org/latest.zip Download Latest Version
  * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
- * @copyright 2009 Drew Phillips
- * @author drew010 <drew@drew-phillips.com>
- * @version 2.0.1 BETA (December 6th, 2009)
+ * @copyright 2011 Drew Phillips
+ * @author Drew Phillips <drew@drew-phillips.com>
+ * @version 3.0 (October 2011)
  * @package Securimage
  *
  */
 
-include 'securimage.php';
+require_once dirname(__FILE__) . '/securimage.php';
 
-$img    = new Securimage();
-$img->audio_format = (isset($_GET['format']) && in_array(strtolower($_GET['format']), array('mp3', 'wav')) ? strtolower($_GET['format']) : 'mp3');
-//$img->setAudioPath('/path/to/securimage/audio/');
+$img = new Securimage();
+
+// To use an alternate language, uncomment the following and download the files from phpcaptcha.org
+// $img->audio_path = $img->securimage_path . '/audio/es/';
+
+// If you have more than one captcha on a page, one must use a custom namespace
+// $img->namespace = 'form2';
 
 $img->outputAudioFile();
