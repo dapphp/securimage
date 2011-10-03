@@ -258,7 +258,7 @@ class Securimage
      */
     public $signature_color = '#707070';
     /**
-     * The path to the ttf font file to use for the signature text, defaults to $ttf_file
+     * The path to the ttf font file to use for the signature text, defaults to $ttf_file (AHGBold.ttf)
      * @var string
      */
     public $signature_font;
@@ -294,12 +294,12 @@ class Securimage
     public $namespace;
     
     /**
-     * The font file to use to draw the captcha code
-     * @var unknown_type
+     * The font file to use to draw the captcha code, leave blank for default font AHGBold.ttf
+     * @var string
      */
     public $ttf_file;
     /**
-     * The path to the wordlist file to use
+     * The path to the wordlist file to use, leave blank for default words/words.txt
      * @var string
      */
     public $wordlist_file;
@@ -1262,7 +1262,7 @@ class Securimage
         $out_data = substr_replace($out_data, pack('V', $chunkSize), 4, 4);
         $out_data = substr_replace($out_data, pack('V', $numSamples), 40 + ($info['SubChunk1Size'] - 16), 4);
 
-        $out_data = $this->scrambleAudioData($out_data, 'wav');
+        $this->scrambleAudioData($out_data, 'wav');
         
         return $out_data;
     }
@@ -1272,7 +1272,7 @@ class Securimage
      * @param string $data  The binary audio file data
      * @param string $format The format of the sound file (wav only)
      */
-    protected function scrambleAudioData($data, $format)
+    protected function scrambleAudioData(&$data, $format)
     {
         $start = strpos($data, 'data') + 4; // look for "data" indicator
         if ($start === false) $start = 44;  // if not found assume 44 byte header
