@@ -37,9 +37,9 @@ $GLOBALS['ct_msg_subject'] = 'Securimage Test Contact Form';
 
 process_si_contact_form(); // Process the form, if it was submitted
 
-if ($_SESSION['ctform']['error'] == true): /* The last form submission had 1 or more errors */ ?>
+if (isset($_SESSION['ctform']['error']) &&  $_SESSION['ctform']['error'] == true): /* The last form submission had 1 or more errors */ ?>
 <span class="error">There was a problem with your submission.  Errors are displayed below in red.</span><br /><br />
-<?php elseif ($_SESSION['ctform']['success'] == true): /* form was processed successfully */ ?>
+<?php elseif (isset($_SESSION['ctform']['success']) && $_SESSION['ctform']['success'] == true): /* form was processed successfully */ ?>
 <span class="success">The captcha was correct and the message has been sent!</span><br /><br />
 <?php endif; ?>
 
