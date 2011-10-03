@@ -1262,7 +1262,7 @@ class Securimage
         $out_data = substr_replace($out_data, pack('V', $chunkSize), 4, 4);
         $out_data = substr_replace($out_data, pack('V', $numSamples), 40 + ($info['SubChunk1Size'] - 16), 4);
 
-        $this->scrambleAudioData(&$out_data, 'wav');
+        $out_data = $this->scrambleAudioData($out_data, 'wav');
         
         return $out_data;
     }
@@ -1272,7 +1272,7 @@ class Securimage
      * @param string $data  The binary audio file data
      * @param string $format The format of the sound file (wav only)
      */
-    protected function scrambleAudioData(&$data, $format)
+    protected function scrambleAudioData($data, $format)
     {
         $start = strpos($data, 'data') + 4; // look for "data" indicator
         if ($start === false) $start = 44;  // if not found assume 44 byte header
@@ -1297,6 +1297,8 @@ class Securimage
             
             $step = rand(1,4);
         }
+
+        return $data;
     }
     
     /**
