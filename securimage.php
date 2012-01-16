@@ -41,13 +41,16 @@
  * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
  * @copyright 2011 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
- * @version 3.0 (October 2011)
+ * @version 3.0.1 (January 2012)
  * @package Securimage
  *
  */
 
 /**
  ChangeLog
+
+ 3.1
+ - Bugfix: removed use of deprecated variable in addSignature method that would cause errors with display_errors on
  
  3.0
  - Rewrite class using PHP5 OOP
@@ -118,10 +121,10 @@
  */
 class Securimage
 {
-	// All of the public variables below are securimage options
-	// They can be passed as an array to the Securimage constructor, set below,
-	// or set from securimage_show.php and securimage_play.php
-	
+    // All of the public variables below are securimage options
+    // They can be passed as an array to the Securimage constructor, set below,
+    // or set from securimage_show.php and securimage_play.php
+    
     /**
      * Renders captcha as a JPEG image
      * @var int
@@ -863,22 +866,17 @@ class Securimage
         */
     }
     
-	/**
-	* Print signature text on image
-	*/
+    /**
+    * Print signature text on image
+    */
     protected function addSignature()
-    {
-        if ($this->use_gd_font) {
-            imagestring($this->im, 5, $this->image_width - (strlen($this->image_signature) * 10), $this->image_height - 20, $this->image_signature, $this->gdsignaturecolor);
-        } else {
+    { 
+        $bbox = imagettfbbox(10, 0, $this->signature_font, $this->image_signature);
+        $textlen = $bbox[2] - $bbox[0];
+        $x = $this->image_width - $textlen - 5;
+        $y = $this->image_height - 3;
              
-            $bbox = imagettfbbox(10, 0, $this->signature_font, $this->image_signature);
-            $textlen = $bbox[2] - $bbox[0];
-            $x = $this->image_width - $textlen - 5;
-            $y = $this->image_height - 3;
-             
-            imagettftext($this->im, 10, 0, $x, $y, $this->gdsignaturecolor, $this->signature_font, $this->image_signature);
-        }
+        imagettftext($this->im, 10, 0, $x, $y, $this->gdsignaturecolor, $this->signature_font, $this->image_signature); 
     }
     
     /**
