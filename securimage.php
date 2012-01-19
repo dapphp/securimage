@@ -6,7 +6,7 @@
  * Project:     Securimage: A PHP class for creating and managing form CAPTCHA images<br />
  * File:        securimage.php<br />
  *
- * Copyright (c) 2011, Drew Phillips
+ * Copyright (c) 2012, Drew Phillips
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without modification,
@@ -39,15 +39,22 @@
  * @link http://www.phpcaptcha.org Securimage PHP CAPTCHA
  * @link http://www.phpcaptcha.org/latest.zip Download Latest Version
  * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
- * @copyright 2011 Drew Phillips
+ * @copyright 2012 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
- * @version 3.0 (October 2011)
+ * @version 3.0.2Beta (January 2012)
  * @package Securimage
  *
  */
 
 /**
  ChangeLog
+ 
+ 3.0.2Beta
+ - Fix issue with session variables when upgrading from 2.0 - 3.0
+ - Improve audio captcha, switch to use WavFile class, make mathematical captcha audio work
+ 
+ 3.0.1
+ - Bugfix: removed use of deprecated variable in addSignature method that would cause errors with display_errors on
  
  3.0
  - Rewrite class using PHP5 OOP
@@ -118,10 +125,10 @@
  */
 class Securimage
 {
-	// All of the public variables below are securimage options
-	// They can be passed as an array to the Securimage constructor, set below,
-	// or set from securimage_show.php and securimage_play.php
-	
+    // All of the public variables below are securimage options
+    // They can be passed as an array to the Securimage constructor, set below,
+    // or set from securimage_show.php and securimage_play.php
+    
     /**
      * Renders captcha as a JPEG image
      * @var int
@@ -274,7 +281,7 @@ class Securimage
      * Securimage::SI_CAPTCHA_STRING or Securimage::SI_CAPTCHA_MATHEMATIC
      * @var int
      */
-    public $captcha_type  = self::SI_CAPTCHA_STRING;
+    public $captcha_type  = self::SI_CAPTCHA_STRING; // or self::SI_CAPTCHA_MATHEMATIC;
     
     /**
      * The captcha namespace, use this if you have multiple forms on a single page, blank if you do not use multiple forms on one page
@@ -475,15 +482,16 @@ class Securimage
      */
     public function outputAudioFile()
     {
-        $ext = 'wav'; // force wav - mp3 is insecure
+        require_once dirname(__FILE__) . '/WavFile.php';
         
-        header("Content-Disposition: attachment; filename=\"securimage_audio.{$ext}\"");
+        $uniq = md5(uniqid(microtime()));
+        header("Content-Disposition: attachment; filename=\"securimage_audio-{$uniq}.wav\"");
         header('Cache-Control: no-store, no-cache, must-revalidate');
         header('Expires: Sun, 1 Jan 2000 12:00:00 GMT');
         header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . 'GMT');
         header('Content-type: audio/x-wav');
         
-        $audio = $this->getAudibleCode($ext);
+        $audio = $this->getAudibleCode();
 
         header('Content-Length: ' . strlen($audio));
 
@@ -664,16 +672,18 @@ class Securimage
         switch($this->captcha_type) {
             case self::SI_CAPTCHA_MATHEMATIC:
             {
-                $signs = array('+', '-', 'x');
-                $left  = rand(1, 10);
-                $right = rand(1, 5);
-                $sign  = $signs[rand(0, 2)];
-                
-                switch($sign) {
-                    case 'x': $c = $left * $right; break;
-                    case '-': $c = $left - $right; break;
-                    default:  $c = $left + $right; break;
-                }
+            	do {
+	                $signs = array('+', '-', 'x');
+	                $left  = rand(1, 10);
+	                $right = rand(1, 5);
+	                $sign  = $signs[rand(0, 2)];
+	                
+	                switch($sign) {
+	                    case 'x': $c = $left * $right; break;
+	                    case '-': $c = $left - $right; break;
+	                    default:  $c = $left + $right; break;
+	                }
+            	} while ($c < 0); // no negative #'s
                 
                 $this->code         = $c;
                 $this->code_display = "$left $sign $right";
@@ -863,22 +873,17 @@ class Securimage
         */
     }
     
-	/**
-	* Print signature text on image
-	*/
+    /**
+    * Print signature text on image
+    */
     protected function addSignature()
     {
-        if ($this->use_gd_font) {
-            imagestring($this->im, 5, $this->image_width - (strlen($this->image_signature) * 10), $this->image_height - 20, $this->image_signature, $this->gdsignaturecolor);
-        } else {
+        $bbox = imagettfbbox(10, 0, $this->signature_font, $this->image_signature);
+        $textlen = $bbox[2] - $bbox[0];
+        $x = $this->image_width - $textlen - 5;
+        $y = $this->image_height - 3;
              
-            $bbox = imagettfbbox(10, 0, $this->signature_font, $this->image_signature);
-            $textlen = $bbox[2] - $bbox[0];
-            $x = $this->image_width - $textlen - 5;
-            $y = $this->image_height - 3;
-             
-            imagettftext($this->im, 10, 0, $x, $y, $this->gdsignaturecolor, $this->signature_font, $this->image_signature);
-        }
+        imagettftext($this->im, 10, 0, $x, $y, $this->gdsignaturecolor, $this->signature_font, $this->image_signature);
     }
     
     /**
@@ -913,31 +918,39 @@ class Securimage
     
     /**
      * Gets the code and returns the binary audio file for the stored captcha code
-     * @param string $format WAV only
+     * 
+     * @return The audio representation of the captcha in Wav format
      */
-    protected function getAudibleCode($format = 'wav')
+    protected function getAudibleCode()
     {
-        // override any format other than wav for now
-        // this is due to security issues with MP3 files
-        $format  = 'wav';
-        
         $letters = array();
-        $code    = $this->getCode();
+        $code    = $this->getCode(true);
 
-        if ($code == '') {
+        if ($code['code'] == '') {
             $this->createCode();
-            $code = $this->getCode();
-        }
-
-        for($i = 0; $i < strlen($code); ++$i) {
-            $letters[] = $code{$i};
+            $code = $this->getCode(true);
         }
         
-        if ($format == 'mp3') {
-            return $this->generateMP3($letters);
+        if (preg_match('/(\d+) (\+|-|x) (\d+)/i', $code['display'], $eq)) {
+            $math = true;
+            
+            $left  = $eq[1];
+            $sign  = str_replace(array('+', '-', 'x'), array('plus', 'minus', 'times'), $eq[2]);
+            $right = $eq[3];
+            
+            $letters = array($left, $sign, $right);
         } else {
-            return $this->generateWAV($letters);
+            $math = false;
+            
+            $length = strlen($code['display']);
+            
+            for($i = 0; $i < $length; ++$i) {
+                $letter    = $code['display']{$i};
+                $letters[] = $letter;
+            }
         }
+        
+        return $this->generateWAV($letters);
     }
 
     /**
@@ -1017,16 +1030,22 @@ class Securimage
     
     /**
      * Return the code from the session or sqlite database if used.  If none exists yet, an empty string is returned
+     * 
+     * @param $array bool   True to receive an array containing the code and properties
+     * @return array|string Array if $array = true, otherwise a string containing the code
      */
-    protected function getCode()
+    protected function getCode($array = false)
     {
         $code = '';
+        $time = 0;
         
         if (isset($_SESSION['securimage_code_value'][$this->namespace]) &&
          trim($_SESSION['securimage_code_value'][$this->namespace]) != '') {
             if ($this->isCodeExpired(
             $_SESSION['securimage_code_ctime'][$this->namespace]) == false) {
                 $code = $_SESSION['securimage_code_value'][$this->namespace];
+                $time = $_SESSION['securimage_code_ctime'][$this->namespace];
+                $disp = $_SESSION['securimage_code_disp'] [$this->namespace];
             }
         } else if ($this->use_sqlite_db == true && function_exists('sqlite_open')) {
             // no code in session - may mean user has cookies turned off
@@ -1034,7 +1053,11 @@ class Securimage
             $code = $this->getCodeFromDatabase();
         } else { /* no code stored in session or sqlite database, validation will fail */ }
         
-        return $code;
+        if ($array == true) {
+            return array('code' => $code, 'ctime' => $time, 'display' => $disp);
+        } else {
+            return $code;
+        }
     }
     
     /**
@@ -1042,6 +1065,15 @@ class Securimage
      */
     protected function saveData()
     {
+        if (is_scalar($_SESSION['securimage_code_value'])) {
+            // fix for migration from v2 - v3
+            unset($_SESSION['securimage_code_value']);
+            unset($_SESSION['securimage_code_ctime']);
+            $_SESSION['securimage_code_value'];
+            $_SESSION['securimage_code_ctime'];
+        }
+        
+        $_SESSION['securimage_code_disp'] [$this->namespace] = $this->code_display;
         $_SESSION['securimage_code_value'][$this->namespace] = $this->code;
         $_SESSION['securimage_code_ctime'][$this->namespace] = time();
         
@@ -1177,100 +1209,57 @@ class Securimage
      */
     protected function generateWAV($letters)
     {
-        $data_len       = 0;
-        $files          = array();
-        $out_data       = '';
-        $out_channels   = 0;
-        $out_samplert   = 0;
-        $out_bpersample = 0;
-        $numSamples     = 0;
-        $removeChunks   = array('LIST', 'DISP', 'NOTE');
-
-        for ($i = 0; $i < sizeof($letters); ++$i) {
-            $letter   = $letters[$i];
-            $filename = $this->audio_path . strtoupper($letter) . '.wav';
-            $file     = array();
-            $data     = @file_get_contents($filename);
+        $wavCaptcha = new WavFile();
+        $wavs       = array();  // WavFiles of each letter
+        $first      = true;     // reading first wav file    
+        $mid        = (int)(sizeof($letters) / 2);
+        $gapper     = $mid + rand(-$mid - 1, $mid + 1);
+        $i = 0;
+        
+        foreach ($letters as $letter) {
+            $letter = strtoupper($letter);
             
-            if ($data === false) {
-                // echo "Failed to read $filename";
-                return $this->audioError();
-            }
-
-            $header = substr($data, 0, 36);
-            $info   = unpack('NChunkID/VChunkSize/NFormat/NSubChunk1ID/'
-                            .'VSubChunk1Size/vAudioFormat/vNumChannels/'
-                            .'VSampleRate/VByteRate/vBlockAlign/vBitsPerSample',
-                             $header);
-            
-            $dataPos        = strpos($data, 'data');
-            $out_channels   = $info['NumChannels'];
-            $out_samplert   = $info['SampleRate'];
-            $out_bpersample = $info['BitsPerSample'];
-            
-            if ($dataPos === false) {
-                // wav file with no data?
-                // echo "Failed to find DATA segment in $filename";
-                return $this->audioError();
-            }
-            
-            if ($info['AudioFormat'] != 1) {
-                // only work with PCM audio
-                // echo "$filename was not PCM audio, only PCM is supported";
-                return $this->audioError();
-            }
-            
-            if ($info['SubChunk1Size'] != 16 && $info['SubChunk1Size'] != 18) {
-                // probably unsupported extension
-                // echo "Bad SubChunk1Size in $filename - Size was {$info['SubChunk1Size']}";
-                return $this->audioError();
-            }
-            
-            if ($info['SubChunk1Size'] > 16) {
-                $header .= substr($data, 36, $info['SubChunk1Size'] - 16);
-            }
-            
-            if ($i == 0) {
-                // create the final file's header, size will be adjusted later
-                $out_data = $header . 'data';
-            }
-            
-            $removed = 0;
-            
-            foreach($removeChunks as $chunk) {
-                $chunkPos = strpos($data, $chunk);
-                if ($chunkPos !== false) {
-                    $listSize = unpack('VSize', substr($data, $chunkPos + 4, 4));
+            if (!isset($wavs[$letter])) {
+                try {
+                    $l = new WavFile($this->audio_path . '/' . $letter . '.wav');
+                    $wavs[$letter] = $l;
                     
-                    $data = substr($data, 0, $chunkPos) .
-                            substr($data, $chunkPos + 8 + $listSize['Size']);
-                            
-                    $removed += $listSize['Size'] + 8;
+                    if ($first) {
+                        $wavCaptcha->setSampleRate($l->getSampleRate())
+                                   ->setBitsPerSample($l->getBitsPerSample())
+                                   ->setNumChannels($l->getNumChannels());
+                        $first = false;
+                    }
+                } catch (Exception $ex) {
+                    //     failed to open file, or the wav file is broken or not supported
+                    // TODO: log to error file for easy troubleshooting
+                    return $this->audioError();
                 }
             }
-            
-            $dataSize    = unpack('VSubchunk2Size', substr($data, $dataPos + 4, 4));
-            $dataSize['Subchunk2Size'] -= $removed;
-            $out_data   .= substr($data, $dataPos + 8, $dataSize['Subchunk2Size'] * ($out_bpersample / 8));
-            $numSamples += $dataSize['Subchunk2Size'];
+
+            try {
+                $wavCaptcha->appendWav($wavs[$letter]);
+                if ($i ++ == $gapper) {
+                	$wavCaptcha->insertSilence( 2 );
+                } else {
+                	$wavCaptcha->insertSilence( rand(30, 100) / 100 );
+                }
+            } catch(Exception $ex) {
+                // 2 wav files were not compatible, different # channels, bits/sample, or sample rate
+                return $this->audioError();
+            }
         }
 
-        $filesize  = strlen($out_data);
-        $chunkSize = $filesize - 8;
-        $dataCSize = $numSamples;
+        $wavCaptcha->degrade( rand(78, 90) / 100 );
         
-        $out_data = substr_replace($out_data, pack('V', $chunkSize), 4, 4);
-        $out_data = substr_replace($out_data, pack('V', $numSamples), 40 + ($info['SubChunk1Size'] - 16), 4);
-
-        $this->scrambleAudioData($out_data, 'wav');
-        
-        return $out_data;
+        return $wavCaptcha->__toString();
     }
     
     /**
      * Randomizes the audio data to add noise and prevent binary recognition
      * @param string $data  The binary audio file data
      * @param string $format The format of the sound file (wav only)
+     * @deprecated 3.0.1
      */
     protected function scrambleAudioData(&$data, $format)
     {
