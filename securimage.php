@@ -48,7 +48,7 @@
 
 /**
  ChangeLog
- 
+
  3.0.2Beta
  - Fix issue with session variables when upgrading from 2.0 - 3.0
  - Improve audio captcha, switch to use WavFile class, make mathematical captcha audio work
@@ -877,12 +877,12 @@ class Securimage
     * Print signature text on image
     */
     protected function addSignature()
-    {
+    { 
         $bbox = imagettfbbox(10, 0, $this->signature_font, $this->image_signature);
         $textlen = $bbox[2] - $bbox[0];
         $x = $this->image_width - $textlen - 5;
         $y = $this->image_height - 3;
-             
+
         imagettftext($this->im, 10, 0, $x, $y, $this->gdsignaturecolor, $this->signature_font, $this->image_signature);
     }
     
@@ -1231,7 +1231,7 @@ class Securimage
                         $first = false;
                     }
                 } catch (Exception $ex) {
-                    //     failed to open file, or the wav file is broken or not supported
+                    // failed to open file, or the wav file is broken or not supported
                     // TODO: log to error file for easy troubleshooting
                     return $this->audioError();
                 }
