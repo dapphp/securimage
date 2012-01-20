@@ -672,18 +672,18 @@ class Securimage
         switch($this->captcha_type) {
             case self::SI_CAPTCHA_MATHEMATIC:
             {
-            	do {
-	                $signs = array('+', '-', 'x');
-	                $left  = rand(1, 10);
-	                $right = rand(1, 5);
-	                $sign  = $signs[rand(0, 2)];
-	                
-	                switch($sign) {
-	                    case 'x': $c = $left * $right; break;
-	                    case '-': $c = $left - $right; break;
-	                    default:  $c = $left + $right; break;
-	                }
-            	} while ($c < 0); // no negative #'s
+                do {
+                    $signs = array('+', '-', 'x');
+                    $left  = rand(1, 10);
+                    $right = rand(1, 5);
+                    $sign  = $signs[rand(0, 2)];
+                    
+                    switch($sign) {
+                        case 'x': $c = $left * $right; break;
+                        case '-': $c = $left - $right; break;
+                        default:  $c = $left + $right; break;
+                    }
+                } while ($c < 0); // no negative #'s
                 
                 $this->code         = $c;
                 $this->code_display = "$left $sign $right";
@@ -1215,7 +1215,7 @@ class Securimage
         $mid        = (int)(sizeof($letters) / 2);
         $gapper     = $mid + rand(-$mid - 1, $mid + 1);
         $i = 0;
-        
+
         foreach ($letters as $letter) {
             $letter = strtoupper($letter);
             
@@ -1240,9 +1240,9 @@ class Securimage
             try {
                 $wavCaptcha->appendWav($wavs[$letter]);
                 if ($i ++ == $gapper) {
-                	$wavCaptcha->insertSilence( 2 );
+                    $wavCaptcha->insertSilence( 2 );
                 } else {
-                	$wavCaptcha->insertSilence( rand(30, 100) / 100 );
+                    $wavCaptcha->insertSilence( rand(30, 100) / 100 );
                 }
             } catch(Exception $ex) {
                 // 2 wav files were not compatible, different # channels, bits/sample, or sample rate
@@ -1250,7 +1250,7 @@ class Securimage
             }
         }
 
-        $wavCaptcha->degrade( rand(78, 90) / 100 );
+        $wavCaptcha->degrade( rand(91, 97) / 100 );
         
         return $wavCaptcha->__toString();
     }

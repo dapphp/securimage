@@ -482,7 +482,7 @@ class WavFile
     	
     	for ($s = 0; $s < $numSamples; ++$s) {
     		$smpl = '';
-    		for ($c = 1; $c < $numChannels; ++$c) {
+    		for ($c = 0; $c < $numChannels; ++$c) {
     			$smpl .= $this->packSample(0);
     		}
     		
