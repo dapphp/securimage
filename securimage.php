@@ -492,10 +492,18 @@ class Securimage
         header('Content-type: audio/x-wav');
         
         $audio = $this->getAudibleCode();
-
-        header('Content-Length: ' . strlen($audio));
+        
+        if (extension_loaded('zlib')) {
+            ini_set('zlib.output_compression', true);  // compress output if supported by browser
+        } else {
+            header('Content-Length: ' . strlen($audio));
+        }
 
         echo $audio;
+        
+        $fp = fopen('/tmp/perf.log', 'a+');
+        fwrite($fp, memory_get_peak_usage() . "\t" . memory_get_peak_usage(true) . "\n");
+        fclose($fp);
         exit;
     }
     
@@ -1210,47 +1218,36 @@ class Securimage
     protected function generateWAV($letters)
     {
         $wavCaptcha = new WavFile();
-        $wavs       = array();  // WavFiles of each letter
         $first      = true;     // reading first wav file    
-        $mid        = (int)(sizeof($letters) / 2);
-        $gapper     = $mid + rand(-$mid - 1, $mid + 1);
-        $i = 0;
-
+        
         foreach ($letters as $letter) {
             $letter = strtoupper($letter);
             
-            if (!isset($wavs[$letter])) {
-                try {
-                    $l = new WavFile($this->audio_path . '/' . $letter . '.wav');
-                    $wavs[$letter] = $l;
-                    
-                    if ($first) {
-                        $wavCaptcha->setSampleRate($l->getSampleRate())
-                                   ->setBitsPerSample($l->getBitsPerSample())
-                                   ->setNumChannels($l->getNumChannels());
-                        $first = false;
-                    }
-                } catch (Exception $ex) {
-                    // failed to open file, or the wav file is broken or not supported
-                    // TODO: log to error file for easy troubleshooting
-                    return $this->audioError();
-                }
-            }
-
             try {
-                $wavCaptcha->appendWav($wavs[$letter]);
-                if ($i ++ == $gapper) {
-                    $wavCaptcha->insertSilence( 2 );
-                } else {
-                    $wavCaptcha->insertSilence( rand(30, 100) / 100 );
+                $l = new WavFile($this->audio_path . '/' . $letter . '.wav');
+       
+                if ($first) {
+                    $wavCaptcha->setSampleRate($l->getSampleRate())
+                               ->setBitsPerSample($l->getBitsPerSample())
+                               ->setNumChannels($l->getNumChannels());
+                    $first = false;
                 }
-            } catch(Exception $ex) {
+
+                $wavCaptcha->appendWav($l);
+                $wavCaptcha->insertSilence( rand(0, 50) / 100 ); // random length of silence from 0s to 0.5s
+            } catch (Exception $ex) {
+                // failed to open file, or the wav file is broken or not supported
                 // 2 wav files were not compatible, different # channels, bits/sample, or sample rate
+                if (($fp = @fopen(dirname(__FILE__) . '/si.error_log', 'a+')) !== false) {
+                    fwrite($fp, date('Y-m-d H:i:s') . ': Securimage audio error "' . $ex->getMessage() . '"' . "\n");
+                    fclose($fp);
+                }
+                
                 return $this->audioError();
             }
         }
 
-        $wavCaptcha->degrade( rand(91, 97) / 100 );
+        $wavCaptcha->degrade( rand(89, 96) / 100 );
         
         return $wavCaptcha->__toString();
     }

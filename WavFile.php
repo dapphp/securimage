@@ -415,8 +415,12 @@ class WavFile
             throw new Exception("Number of channels for wav files do not match");
         }
         
-        foreach ($wav->getSamples() as $sample) {
-            $this->_samples[] = $sample;
+        if (sizeof($this->_samples) == 0) {
+            $this->_samples = $wav->getSamples();
+        } else {
+            foreach ($wav->getSamples() as $sample) {
+                $this->_samples[] = $sample;
+            }
         }
         
         return $this;
@@ -477,19 +481,19 @@ class WavFile
      */
     public function insertSilence($duration = 1.0)
     {
-    	$numSamples  = $this->getSampleRate() * $duration;
-    	$numChannels = $this->getNumChannels();
-    	
-    	for ($s = 0; $s < $numSamples; ++$s) {
-    		$smpl = '';
-    		for ($c = 0; $c < $numChannels; ++$c) {
-    			$smpl .= $this->packSample(0);
-    		}
-    		
-    		$this->_samples[] = $smpl;
-    	}
+        $numSamples  = $this->getSampleRate() * $duration;
+        $numChannels = $this->getNumChannels();
+        
+        $smpl = '';
+        for ($c = 0; $c < $numChannels; ++$c) {
+            $smpl .= $this->packSample(0);
+        }
+        
+        for ($s = 0; $s < $numSamples; ++$s) {
+            $this->_samples[] = $smpl;
+        }
     }
-    
+
     /**
      * Degrade the quality of the wav file by a random intensity
      * 
@@ -499,20 +503,25 @@ class WavFile
     public function degrade($quality = 1.0)
     {
         if ($quality < 0 || $quality > 1) $quality = 1;
-        
+
+        if ($quality == 1.0) {
+            // nothing to do
+            return ;
+        }
+
         $numChannels = $this->getNumChannels();
         $maxAmp      = $this->getAmplitude();
         $maxThresh   = (int)((1 - $quality) * $maxAmp);
     
         foreach($this->_samples as $index => $sample) {
             $degraded = '';
-    
+
             for ($channel = 0; $channel < $numChannels; ++$channel) {
                 $c = $this->getChannelData($sample, $channel+1);
                 $c += rand(-($maxThresh+1), $maxThresh);
                 $degraded .= $this->packSample($c);
             }
-    
+
             $this->_samples[$index] = $degraded;
         }
     }
