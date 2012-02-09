@@ -484,27 +484,72 @@ class Securimage
     {
         require_once dirname(__FILE__) . '/WavFile.php';
         
-        $uniq = md5(uniqid(microtime()));
-        header("Content-Disposition: attachment; filename=\"securimage_audio-{$uniq}.wav\"");
-        header('Cache-Control: no-store, no-cache, must-revalidate');
-        header('Expires: Sun, 1 Jan 2000 12:00:00 GMT');
-        header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . 'GMT');
-        header('Content-type: audio/x-wav');
-        
-        $audio = $this->getAudibleCode();
-        
-        if (extension_loaded('zlib')) {
-            ini_set('zlib.output_compression', true);  // compress output if supported by browser
-        } else {
-            header('Content-Length: ' . strlen($audio));
+        try {
+            $audio = $this->getAudibleCode();
+        } catch (Exception $ex) {
+            if (($fp = @fopen(dirname(__FILE__) . '/si.error_log', 'a+')) !== false) {
+                fwrite($fp, date('Y-m-d H:i:s') . ': Securimage audio error "' . $ex->getMessage() . '"' . "\n");
+                fclose($fp);
+            }
+            
+            $audio = $this->audioError();
         }
 
-        echo $audio;
+        if ($this->canSendHeaders()) {
+            $uniq = md5(uniqid(microtime()));
+            header("Content-Disposition: attachment; filename=\"securimage_audio-{$uniq}.wav\"");
+            header('Cache-Control: no-store, no-cache, must-revalidate');
+            header('Expires: Sun, 1 Jan 2000 12:00:00 GMT');
+            header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . 'GMT');
+            header('Content-type: audio/x-wav');
+            
+            if (extension_loaded('zlib')) {
+                ini_set('zlib.output_compression', true);  // compress output if supported by browser
+            } else {
+                header('Content-Length: ' . strlen($audio));
+            }
+    
+            echo $audio;
+        } else {
+            echo '<hr /><strong>'
+                .'Failed to generate audio file, content has already been '
+                .'output.<br />This is most likely due to misconfiguration or '
+                .'a PHP error was sent to the browser.</strong>';
+        }
         
-        $fp = fopen('/tmp/perf.log', 'a+');
-        fwrite($fp, memory_get_peak_usage() . "\t" . memory_get_peak_usage(true) . "\n");
-        fclose($fp);
         exit;
+    }
+    
+    /**
+     * Return the code from the session or sqlite database if used.  If none exists yet, an empty string is returned
+     *
+     * @param $array bool   True to receive an array containing the code and properties
+     * @return array|string Array if $array = true, otherwise a string containing the code
+     */
+    public function getCode($array = false)
+    {
+        $code = '';
+        $time = 0;
+    
+        if (isset($_SESSION['securimage_code_value'][$this->namespace]) &&
+                trim($_SESSION['securimage_code_value'][$this->namespace]) != '') {
+            if ($this->isCodeExpired(
+                    $_SESSION['securimage_code_ctime'][$this->namespace]) == false) {
+                $code = $_SESSION['securimage_code_value'][$this->namespace];
+                $time = $_SESSION['securimage_code_ctime'][$this->namespace];
+                $disp = $_SESSION['securimage_code_disp'] [$this->namespace];
+            }
+        } else if ($this->use_sqlite_db == true && function_exists('sqlite_open')) {
+            // no code in session - may mean user has cookies turned off
+            $this->openDatabase();
+            $code = $this->getCodeFromDatabase();
+        } else { /* no code stored in session or sqlite database, validation will fail */ }
+    
+        if ($array == true) {
+            return array('code' => $code, 'ctime' => $time, 'display' => $disp);
+        } else {
+            return $code;
+        }
     }
     
     /**
@@ -893,31 +938,42 @@ class Securimage
 
         imagettftext($this->im, 10, 0, $x, $y, $this->gdsignaturecolor, $this->signature_font, $this->image_signature);
     }
-    
+
     /**
      * Sends the appropriate image and cache headers and outputs image to the browser
      */
     protected function output()
     {
-        header("Expires: Mon, 26 Jul 1997 05:00:00 GMT");
-        header("Last-Modified: " . gmdate("D, d M Y H:i:s") . "GMT");
-        header("Cache-Control: no-store, no-cache, must-revalidate");
-        header("Cache-Control: post-check=0, pre-check=0", false);
-        header("Pragma: no-cache");
-        
-        switch ($this->image_type) {
-            case self::SI_IMAGE_JPEG:
-                header("Content-Type: image/jpeg");
-                imagejpeg($this->im, null, 90);
-                break;
-            case self::SI_IMAGE_GIF:
-                header("Content-Type: image/gif");
-                imagegif($this->im);
-                break;
-            default:
-                header("Content-Type: image/png");
-                imagepng($this->im);
-                break;
+        if ($this->canSendHeaders()) {
+            // only send the content-type headers if no headers have been output
+            // this will ease debugging on misconfigured servers where warnings
+            // may have been output which break the image and prevent easily viewing
+            // source to see the error.
+            header("Expires: Mon, 26 Jul 1997 05:00:00 GMT");
+            header("Last-Modified: " . gmdate("D, d M Y H:i:s") . "GMT");
+            header("Cache-Control: no-store, no-cache, must-revalidate");
+            header("Cache-Control: post-check=0, pre-check=0", false);
+            header("Pragma: no-cache");
+            
+            switch ($this->image_type) {
+                case self::SI_IMAGE_JPEG:
+                    header("Content-Type: image/jpeg");
+                    imagejpeg($this->im, null, 90);
+                    break;
+                case self::SI_IMAGE_GIF:
+                    header("Content-Type: image/gif");
+                    imagegif($this->im);
+                    break;
+                default:
+                    header("Content-Type: image/png");
+                    imagepng($this->im);
+                    break;
+            }
+        } else {
+            echo '<hr /><strong>'
+                .'Failed to generate captcha image, content has already been '
+                .'output.<br />This is most likely due to misconfiguration or '
+                .'a PHP error was sent to the browser.</strong>';
         }
         
         imagedestroy($this->im);
@@ -958,7 +1014,11 @@ class Securimage
             }
         }
         
-        return $this->generateWAV($letters);
+        try {
+            return $this->generateWAV($letters);
+        } catch(Exception $ex) {
+            throw $ex;
+        }
     }
 
     /**
@@ -1037,48 +1097,14 @@ class Securimage
     }
     
     /**
-     * Return the code from the session or sqlite database if used.  If none exists yet, an empty string is returned
-     * 
-     * @param $array bool   True to receive an array containing the code and properties
-     * @return array|string Array if $array = true, otherwise a string containing the code
-     */
-    protected function getCode($array = false)
-    {
-        $code = '';
-        $time = 0;
-        
-        if (isset($_SESSION['securimage_code_value'][$this->namespace]) &&
-         trim($_SESSION['securimage_code_value'][$this->namespace]) != '') {
-            if ($this->isCodeExpired(
-            $_SESSION['securimage_code_ctime'][$this->namespace]) == false) {
-                $code = $_SESSION['securimage_code_value'][$this->namespace];
-                $time = $_SESSION['securimage_code_ctime'][$this->namespace];
-                $disp = $_SESSION['securimage_code_disp'] [$this->namespace];
-            }
-        } else if ($this->use_sqlite_db == true && function_exists('sqlite_open')) {
-            // no code in session - may mean user has cookies turned off
-            $this->openDatabase();
-            $code = $this->getCodeFromDatabase();
-        } else { /* no code stored in session or sqlite database, validation will fail */ }
-        
-        if ($array == true) {
-            return array('code' => $code, 'ctime' => $time, 'display' => $disp);
-        } else {
-            return $code;
-        }
-    }
-    
-    /**
      * Save data to session namespace and database if used
      */
     protected function saveData()
     {
-        if (is_scalar($_SESSION['securimage_code_value'])) {
+        if (isset($_SESSION['securimage_code_value']) && is_scalar($_SESSION['securimage_code_value'])) {
             // fix for migration from v2 - v3
             unset($_SESSION['securimage_code_value']);
             unset($_SESSION['securimage_code_ctime']);
-            $_SESSION['securimage_code_value'];
-            $_SESSION['securimage_code_ctime'];
         }
         
         $_SESSION['securimage_code_disp'] [$this->namespace] = $this->code_display;
@@ -1232,22 +1258,20 @@ class Securimage
                                ->setNumChannels($l->getNumChannels());
                     $first = false;
                 }
+                
+                $l->degrade(rand(89, 96) / 100);
 
                 $wavCaptcha->appendWav($l);
-                $wavCaptcha->insertSilence( rand(0, 50) / 100 ); // random length of silence from 0s to 0.5s
+                //$wavCaptcha->insertSilence( rand(0, 50) / 100 ); // random length of silence from 0s to 0.5s
+                //$wavCaptcha->generateNoise(rand(0, 50) / 100, 10);
             } catch (Exception $ex) {
                 // failed to open file, or the wav file is broken or not supported
                 // 2 wav files were not compatible, different # channels, bits/sample, or sample rate
-                if (($fp = @fopen(dirname(__FILE__) . '/si.error_log', 'a+')) !== false) {
-                    fwrite($fp, date('Y-m-d H:i:s') . ': Securimage audio error "' . $ex->getMessage() . '"' . "\n");
-                    fclose($fp);
-                }
-                
-                return $this->audioError();
+                throw $ex;
             }
         }
 
-        $wavCaptcha->degrade( rand(89, 96) / 100 );
+        //$wavCaptcha->degrade( rand(89, 96) / 100 );
         
         return $wavCaptcha->__toString();
     }
@@ -1297,6 +1321,32 @@ class Securimage
         return @file_get_contents(dirname(__FILE__) . '/audio/error.wav');
     }
     
+    /**
+     * Checks to see if headers can be sent and if any error has been output to the browser
+     * 
+     * @return bool true if headers haven't been sent and no output/errors will break audio/images, false if unsafe
+     */
+    protected function canSendHeaders()
+    {
+        if (headers_sent()) {
+            // output has been flushed and headers have already been sent
+            return false;
+        } else if (function_exists('error_get_last') && null !== error_get_last() && ini_get('display_errors') != false) {
+            // an error has been output and display_errors is on
+            return false;
+        } else if (strlen((string)ob_get_contents()) > 0) {
+            // headers haven't been sent, but there is data in the buffer that will break image and audio data
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Return a random float between 0 and 0.9999
+     * 
+     * @return float Random float between 0 and 0.9999
+     */
     function frand()
     {
         return 0.0001 * rand(0,9999);
