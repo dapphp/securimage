@@ -35,7 +35,7 @@
 *
 * @copyright 2012 Drew Phillips
 * @author Drew Phillips <drew@drew-phillips.com>
-* @version 0.2-alpha (January 2012)
+* @version 0.3-alpha (January 2012)
 * @package PHPWavUtils
 * @license BSD License
 *
@@ -439,38 +439,67 @@ class WavFile
         } else if ($wav->getNumChannels() != $this->getNumChannels()) {
             throw new Exception("Number of channels for wav files does not match");
         }
-        
+
         $numSamples = sizeof($this->_samples);
         $numChannels = $this->getNumChannels();
         $packChr     = $this->getPackFormatString();
-        
+        $BitDepth    = $this->getBitsPerSample();
+
         for ($s = 0; $s < $numSamples; ++$s) {
             $sample1 = $this->getSample($s);
             $sample2 = $wav->getSample($s);
-            
+
             // TODO: option to extend/rewind buffer to extend to for the longest wav
             if ($sample1 == null || $sample2 == null) break;
-            
+
             $sample = '';
-            
+
             for ($c = 1; $c <= $numChannels; ++$c) {
                 $c1 = $this->getChannelData($sample1, $c);
                 $c2 = $this->getChannelData($sample2, $c);
-                
+
                 if ($c1 == 0) {
                     $smpl = $c2;
                 } else if ($c2 == 0) {
                     $smpl = $c1;
                 } else {
-                    $smpl = (int)(($this->getChannelData($sample1, $c) + $this->getChannelData($sample2, $c)) / 2);
+                    /**
+                     * $ai = (signed) integer sample 1st wav
+                     * $bi = (signed) integer sample 2nd wav
+                     * $BitDepth = bit depth of $a and $b (8, 16, 24)
+                     * $result = (signed) integer sample of the mixed wav in $BitDepth bit depth
+                     **/
+                    $ai = (int)$c1;
+                    $bi = (int)$c2;
+
+                    $d = pow(2, $BitDepth);
+                    if ($BitDepth <= 8) { // make at / below 8 bit wav signed -> adjust baseline to 0
+                        $ai -= $d / 2;
+                        $bi -= $d / 2;
+                    }
+                    
+                    // transform signed values from [-$d/2, $d/2-1] into the [0,1] domain (float) - with 0.5 as baseline = silence
+                    $a = $ai <= 0 ? 0.5 + $ai / $d : 0.5 + $ai / ($d - 2);
+                    $b = $bi <= 0 ? 0.5 + $bi / $d : 0.5 + $bi / ($d - 2);
+
+                    // mix $a and $b
+                    $ab = $a < 0.5 && $b < 0.5 ? 2 * $a * $b : 2 * ($a + $b) - 2 * $a * $b - 1;
+
+                    // transform back to signed values in the $BitDepth domain [-$d/2, $d/2-1]
+                    $ab = $ab <= 0.5 ? ($ab - 0.5) * $d : ($ab - 0.5) * ($d - 2);
+                    if ($BitDepth <= 8) { // adjust baseline if at / below 8 bit
+                        $ab += $d / 2;
+                    }
+                    
+                    $smpl = (int)round($ab); //quantize float back to integer values
                 }
-                
+
                 $sample .= $this->packSample($smpl);
             }
-            
+
             $this->_samples[$s] = $sample;
         }
-        
+
         return $this;
     }
     
@@ -526,6 +555,31 @@ class WavFile
         }
     }
     
+    /**
+     * Generate white noise at the end of the Wav for the specified duration and volume
+     * 
+     * @param float $duration  Number of seconds of noise to generate
+     * @param float $percent   The percentage of the maximum amplitude to use 100% = full amplitude
+     */
+    public function generateNoise($duration = 1.0, $percent = 100)
+    {
+        $numChannels = $this->getNumChannels();
+        $numSamples  = $this->getSampleRate() * $duration;
+        $minAmp      = $this->getMinAmplitude();
+        $maxAmp      = $this->getAmplitude();
+
+        for ($s = 0; $s < $numSamples; ++$s) {
+            $sample = '';
+            $val = rand($minAmp, $maxAmp);
+            $val = (int)($val * $percent / 100);
+            for ($channel = 0; $channel < $numChannels; ++$channel) {
+                $sample .= $this->packSample($val);
+            }
+
+            $this->_samples[] = $sample;
+        }
+    }
+
     /**
      * Save the wav data to a file
      * 
