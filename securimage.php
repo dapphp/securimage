@@ -1,6 +1,6 @@
 <?php
 
-// error_reporting(E_ALL); ini_set('display_errors', 1); // uncomment this line for debugging
+ error_reporting(E_ALL); ini_set('display_errors', 1); // uncomment this line for debugging
 
 /**
  * Project:     Securimage: A PHP class for creating and managing form CAPTCHA images<br />
@@ -530,6 +530,7 @@ class Securimage
     {
         $code = '';
         $time = 0;
+        $disp = '';
     
         if (isset($_SESSION['securimage_code_value'][$this->namespace]) &&
                 trim($_SESSION['securimage_code_value'][$this->namespace]) != '') {
@@ -736,7 +737,7 @@ class Securimage
                         case '-': $c = $left - $right; break;
                         default:  $c = $left + $right; break;
                     }
-                } while ($c < 0); // no negative #'s
+                } while ($c <= 0); // no negative #'s or 0
                 
                 $this->code         = $c;
                 $this->code_display = "$left $sign $right";
@@ -1258,22 +1259,57 @@ class Securimage
                                ->setNumChannels($l->getNumChannels());
                     $first = false;
                 }
-                
-                $l->degrade(rand(89, 96) / 100);
 
                 $wavCaptcha->appendWav($l);
-                //$wavCaptcha->insertSilence( rand(0, 50) / 100 ); // random length of silence from 0s to 0.5s
-                //$wavCaptcha->generateNoise(rand(0, 50) / 100, 10);
+                $wavCaptcha->insertSilence( rand(0, 50) / 100 ); // random length of silence from 0s to 0.5s
             } catch (Exception $ex) {
                 // failed to open file, or the wav file is broken or not supported
                 // 2 wav files were not compatible, different # channels, bits/sample, or sample rate
                 throw $ex;
             }
         }
+        
+        $filters    = WavFile::FILTER_MIX | WavFile::FILTER_DEGRADE;
+        $filterOpts = array('filter_degrade' => rand(94, 97) / 100);
+        
+        $noiseFile = $this->getRandomNoiseFile();
+        
+        if ($noiseFile !== false) {
+        	$wavNoise = new WavFile($noiseFile);
+        	$filterOpts['filter_mix'] = $wavNoise;
+        }
 
-        //$wavCaptcha->degrade( rand(89, 96) / 100 );
+        if ($filters > 0) {
+        	$wavCaptcha->filter($filters, $filterOpts);
+        }
         
         return $wavCaptcha->__toString();
+    }
+    
+    public function getRandomNoiseFile()
+    {
+    	$return = false;
+    	
+    	if ( ($dh = opendir($this->audio_path . '/noise')) !== false ) {
+    		$list = array();
+    		
+    		while ( ($file = readdir($dh)) !== false ) {
+    			if ($file == '.' || $file == '..') continue;
+    			if (strtolower(substr($file, -4)) != '.wav') continue;
+    			
+    			$list[] = $file;
+    		}
+    		
+    		closedir($dh);
+    		
+    		if (sizeof($list) > 0) {
+    			$file   = $list[array_rand($list, 1)];
+    			$return = $this->audio_path . 'noise/' . $file;
+    		}
+    		
+    	}
+    	
+    	return $return;
     }
     
     /**
