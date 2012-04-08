@@ -1276,11 +1276,10 @@ class Securimage
         
         if ($noiseFile !== false) {
             $filters += WavFile::FILTER_MIX | WavFile::FILTER_NORMALIZE;
-        	$wavNoise = new WavFile($noiseFile);
-        	$filterOpts['filter_mix'] = $wavNoise;
+            $wavNoise = new WavFile($noiseFile);
+            $filterOpts['filter_mix'] = $wavNoise;
             $filterOpts['filter_normalize'] = 0.7;
         }
-            
 
         if ($filters > 0) {
         	$wavCaptcha->filter($filters, $filterOpts);
