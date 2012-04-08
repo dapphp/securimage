@@ -687,7 +687,7 @@ class WavFile
         }
 
         // convert to binary
-        //$sampleBinary = self::packValue($value, $this->_bitsPerSample);
+        //$sampleBinary = self::packSample($value, $this->_bitsPerSample);
         switch ($this->_bitsPerSample) {
             case 8:
                 // unsigned char
@@ -885,7 +885,7 @@ class WavFile
         $numSamples  = $this->getSampleRate() * $duration;
         $numChannels = $this->getNumChannels();
 
-        $this->_samples .= str_repeat(self::packValue(0, $this->getBitsPerSample()), $numSamples * $numChannels);
+        $this->_samples .= str_repeat(self::packSample(0, $this->getBitsPerSample()), $numSamples * $numChannels);
         $this->setDataSize(strlen($this->_samples));
 
         return $this;
@@ -926,7 +926,7 @@ class WavFile
                 $val = (int)($val * $percent / 100);
             }
 
-            $this->_samples .= str_repeat(self::packValue($val, $bitDepth), $numChannels);
+            $this->_samples .= str_repeat(self::packSample($val, $bitDepth), $numChannels);
         }
     }
 
