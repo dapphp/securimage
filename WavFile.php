@@ -352,7 +352,7 @@ class WavFile
         // fmt subchunk
         $header .= pack('N', 0x666d7420); // "fmt "
         $header .= pack('V', $subchunk1size);
-        $header .= pack('v', 1);
+        $header .= pack('v', $this->getBitsPerSample() == 32 ? 3 : 1); // 1 - integer PCM, 3 - float PCM
         $header .= pack('v', $this->getNumChannels());
         $header .= pack('V', $this->getSampleRate());
         $header .= pack('V', $this->getSampleRate() * $this->getNumChannels() * $this->getBitsPerSample() / 8);
@@ -622,7 +622,8 @@ class WavFile
             case 32:
                 // 32-bit float
                 // TODO: 64-bit PHP?
-                $value = unpack('f', $sampleBinary);
+                $data = unpack('f', $sampleBinary);
+                $value = $data[1];
                 break;
         }
 
@@ -1024,8 +1025,12 @@ class WavFile
 
         $this->setSubChunk1Size($fmt['SubChunk1Size']);
 
-        if ($fmt['AudioFormat'] != 1) {
+        if ($fmt['AudioFormat'] != 1 && $fmt['AudioFormat'] != 3) {
             throw new WavFormatException('Not PCM audio, non PCM is not supported', 7);
+        } elseif ($fmt['AudioFormat'] == 1 && !in_array($fmt['BitsPerSample'], array(8, 16, 24))) {
+            throw new WavFormatException('Only 8, 16 and 24-bit PCM audio is supported', 8);
+        } elseif ($fmt['AudioFormat'] == 3 && $fmt['BitsPerSample'] != 32) {
+        	throw new WavFormatException('Only 32-bit float PCM audio is supported', 9);
         }
 
         $this->setFormat('PCM')
@@ -1034,10 +1039,10 @@ class WavFile
              ->setBitsPerSample($fmt['BitsPerSample']);
 
         if ($this->getByteRate() != $fmt['ByteRate']) {
-            throw new WavFormatException('Invalid ByteRate value in wav header, expected ' . $this->getByteRate() . ', found ' . $fmt['ByteRate'], 8);
+            throw new WavFormatException('Invalid ByteRate value in wav header, expected ' . $this->getByteRate() . ', found ' . $fmt['ByteRate'], 10);
         }
         if ($this->getBlockAlign() != $fmt['BlockAlign']) {
-            throw new WavFormatException('Invalid BlockAlign value in wav header, expected ' . $this->getBlockAlign() . ', found ' . $fmt['BlockAlign'], 8);
+            throw new WavFormatException('Invalid BlockAlign value in wav header, expected ' . $this->getBlockAlign() . ', found ' . $fmt['BlockAlign'], 11);
         }
 
         if ($this->getSubChunk1Size() > 16) {
@@ -1054,7 +1059,7 @@ class WavFile
         $data       = unpack('NSubchunk2ID/VSubchunk2Size', $dataHeader);
 
         if ($data['Subchunk2ID'] != 0x64617461) {
-            throw new WavFormatException('Data chunk expected, found ' . $data['Subchunk2ID'], 10);
+            throw new WavFormatException('Data chunk expected, found ' . $data['Subchunk2ID'], 12);
         }
 
         $this->setDataSize($data['Subchunk2Size'])
