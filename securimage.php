@@ -1269,15 +1269,18 @@ class Securimage
             }
         }
         
-        $filters    = WavFile::FILTER_MIX | WavFile::FILTER_DEGRADE;
+        $filters    = WavFile::FILTER_DEGRADE;
         $filterOpts = array('filter_degrade' => rand(94, 97) / 100);
         
         $noiseFile = $this->getRandomNoiseFile();
         
         if ($noiseFile !== false) {
+            $filters += WavFile::FILTER_MIX | WavFile::FILTER_NORMALIZE;
         	$wavNoise = new WavFile($noiseFile);
         	$filterOpts['filter_mix'] = $wavNoise;
+            $filterOpts['filter_normalize'] = 0.7;
         }
+            
 
         if ($filters > 0) {
         	$wavCaptcha->filter($filters, $filterOpts);
@@ -1310,41 +1313,6 @@ class Securimage
     	}
     	
     	return $return;
-    }
-    
-    /**
-     * Randomizes the audio data to add noise and prevent binary recognition
-     * @param string $data  The binary audio file data
-     * @param string $format The format of the sound file (wav only)
-     * @deprecated 3.0.1
-     */
-    protected function scrambleAudioData(&$data, $format)
-    {
-        $start = strpos($data, 'data') + 4; // look for "data" indicator
-        if ($start === false) $start = 44;  // if not found assume 44 byte header
-         
-        $start  += rand(1, 4); // randomize starting offset
-        $datalen = strlen($data) - $start;
-        $step    = 1;
-        
-        for ($i = $start; $i < $datalen; $i += $step) {
-            $ch = ord($data{$i});
-            if ($ch == 0 || $ch == 255) continue;
-            
-            if ($ch < 16 || $ch > 239) {
-                $ch += rand(-6, 6);
-            } else {
-                $ch += rand(-12, 12);
-            }
-            
-            if ($ch < 0) $ch = 0; else if ($ch > 255) $ch = 255;
-
-            $data{$i} = chr($ch);
-            
-            $step = rand(1,4);
-        }
-
-        return $data;
     }
     
     /**
