@@ -456,7 +456,7 @@ class WavFile
     }
 
     /**
-     * 
+     *
      * @param int $sampleNum
      * @param string $sample
      * @throws Exception
@@ -480,7 +480,7 @@ class WavFile
                 $this->_samples{$offset + $i} = $sample{$i};
             }
         }
-        
+
         return $this;
     }
 
@@ -491,7 +491,7 @@ class WavFile
      * @param int $bitDepth  The bits per sample to decode
      * @return int|float  The numeric sample value
      */
-    public static function unpackChannel($sampleBinary, $bitDepth = null)
+    public static function unpackSampleChannel($sampleBinary, $bitDepth = null)
     {
         if (is_null($bitDepth)) {
             $bitDepth = strlen($sampleBinary) * 8;
@@ -537,7 +537,7 @@ class WavFile
      * @param int bitDepth  The bits per sample to encode with
      * @return string  The encoded binary sample
      */
-    public static function packSample($value, $bitDepth)
+    public static function packSampleChannel($value, $bitDepth)
     {
         switch ($bitDepth) {
             case 8:
@@ -577,7 +577,7 @@ class WavFile
      * @return int|float  The channel sample as a value
      * @throws Exception
      */
-    public function getChannelSample($sampleNum, $channelNum, $asFloat = false)
+    public function getSampleChannel($sampleNum, $channelNum, $asFloat = false)
     {
         // check preconditions
         if ($channelNum < 1 || $channelNum > $this->_numChannels) {
@@ -594,7 +594,7 @@ class WavFile
         $sampleBinary = substr($this->_samples, $offset, $sampleBytes);
 
         // convert binary to value
-        //$value = self::unpackSample($sampleBinary, $this->_bitsPerSample);
+        //$value = self::unpackSampleChannel($sampleBinary, $this->_bitsPerSample);
         switch ($this->_bitsPerSample) {
             case 8:
                 // unsigned char
@@ -645,7 +645,7 @@ class WavFile
      * @param int $channelNum  The channel number within the sample to set or append
      * @throws Exception
      */
-    public function setChannelSample($value, $sampleNum, $channelNum)
+    public function setSampleChannel($value, $sampleNum, $channelNum)
     {
         // check preconditions
         if ($channelNum < 1 || $channelNum > $this->_numChannels) {
@@ -685,7 +685,7 @@ class WavFile
         }
 
         // convert to binary
-        //$sampleBinary = self::packSample($value, $this->_bitsPerSample);
+        //$sampleBinary = self::packSampleChannel($value, $this->_bitsPerSample);
         switch ($this->_bitsPerSample) {
             case 8:
                 // unsigned char
@@ -740,7 +740,7 @@ class WavFile
     *     >= 1 - Normalize by dividing by $threshold.
     * @return float  The normalized sample
     **/
-    function normalizeSample($sampleFloat, $threshold = null) {
+    protected function normalizeSample($sampleFloat, $threshold = null) {
         // normalitze by dividing by 2 - results in a loss of about 6dB in volume
         if (is_null($threshold)) {
             return $sampleFloat / 2;
@@ -831,7 +831,7 @@ class WavFile
             // loop through all channels
             for ($c = 1; $c <= $numChannels; ++$c) {
                 // read current channel value
-                $sampleFloat = $this->getChannelSample($s, $c, true);
+                $sampleFloat = $this->getSampleChannel($s, $c, true);
 
 
                 /************* MIX FILTER ***********************/
@@ -851,7 +851,7 @@ class WavFile
 
 
                 // write current channel value
-                $this->setChannelSample($sampleFloat, $s, $c);
+                $this->setSampleChannel($sampleFloat, $s, $c);
             }
         }
 
@@ -863,7 +863,7 @@ class WavFile
      * Both wavs must have the same sample rate and same number of channels
      *
      * @param WavFile $wav  The WavFile to mix
-     * @param float $normalizeThreshold  See normalizeFloatSample for explanation
+     * @param float $normalizeThreshold  See normalizeSample for explanation
      * @throws Exception
      */
     public function mergeWav(WavFile $wav, $normalizeThreshold = null) {
@@ -883,7 +883,7 @@ class WavFile
         $numSamples  = $this->getSampleRate() * $duration;
         $numChannels = $this->getNumChannels();
 
-        $this->_samples .= str_repeat(self::packSample(0, $this->getBitsPerSample()), $numSamples * $numChannels);
+        $this->_samples .= str_repeat(self::packSampleChannel(0, $this->getBitsPerSample()), $numSamples * $numChannels);
         $this->setDataSize(strlen($this->_samples));
 
         return $this;
@@ -924,7 +924,7 @@ class WavFile
                 $val = (int)($val * $percent / 100);
             }
 
-            $this->_samples .= str_repeat(self::packSample($val, $bitDepth), $numChannels);
+            $this->_samples .= str_repeat(self::packSampleChannel($val, $bitDepth), $numChannels);
         }
     }
 
