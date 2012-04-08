@@ -302,16 +302,16 @@ class WavFile
         return $this;
     }
 
-    public function getNumSamples()
+    public function getNumBlocks()
     {
         if ($this->_blockAlign == 0) {
             return 0;
         } else {
-            return $this->_dataSize / $this->_blockAlign;
+            return (int)($this->_dataSize / $this->_blockAlign);
         }
     }
 
-    public function getAmplitude()
+    public function getMaxAmplitude()
     {
         if($this->_bitsPerSample == 8) {
             return 255;
@@ -440,14 +440,14 @@ class WavFile
     }
 
     /**
-     * Return a single sample from the file
+     * Return a single sample block from the file
      *
-     * @param int $sampleNum  The sample #
-     * @return string  The binary sample
+     * @param int $blockNum  The sample block #
+     * @return string  The binary sample block (all channels)
      */
-    public function getSample($sampleNum)
+    public function getSampleBlock($blockNum)
     {
-        $offset = $sampleNum * $this->_blockAlign;
+        $offset = $blockNum * $this->_blockAlign;
         if ($offset + $this->_blockAlign > $this->_dataSize) {
             return null;
         } else {
@@ -456,28 +456,29 @@ class WavFile
     }
 
     /**
+     * Set a single sample block
      *
-     * @param int $sampleNum
-     * @param string $sample
+     * @param int $blockNum  The sample block #
+     * @param string $sampleBlock  The binary sample block (all channels)
      * @throws Exception
      */
-    public function setSample($sampleNum, $sample)
+    public function setSampleBlock($blockNum, $sampleBlock)
     {
-        if (strlen($sample) != $this->_blockAlign) {
-            throw new Exception('Incorrect sample size.  Was ' . strlen($sample) . ' expected ' . $this->_blockAlign);
+        if (strlen($sampleBlock) != $this->_blockAlign) {
+            throw new Exception('Incorrect sample size.  Was ' . strlen($sampleBlock) . ' expected ' . $this->_blockAlign);
         }
 
-        $numSamples = $this->_dataSize / $this->_blockAlign;
-        $offset     = $sampleNum * $this->_blockAlign;
+        $numBlocks = (int)($this->_dataSize / $this->_blockAlign);
+        $offset     = $blockNum * $this->_blockAlign;
 
-        if ($sampleNum > $numSamples) {
+        if ($blockNum > $numBlocks) {
                throw new Exception('Sample was outside the range of the wav file, use append.');
-        } elseif ($sampleNum == $numSamples) {
-            $this->_samples .= $sample;
+        } elseif ($blockNum == $numBlocks) {
+            $this->_samples .= $sampleBlock;
             $this->_dataSize += $this->_blockAlign;
         } else {
             for ($i = 0; $i < $this->_blockAlign; ++$i) {
-                $this->_samples{$offset + $i} = $sample{$i};
+                $this->_samples{$offset + $i} = $sampleBlock{$i};
             }
         }
 
@@ -491,7 +492,7 @@ class WavFile
      * @param int $bitDepth  The bits per sample to decode
      * @return int|float  The numeric sample value
      */
-    public static function unpackSampleChannel($sampleBinary, $bitDepth = null)
+    public static function unpackSample($sampleBinary, $bitDepth = null)
     {
         if (is_null($bitDepth)) {
             $bitDepth = strlen($sampleBinary) * 8;
@@ -505,25 +506,26 @@ class WavFile
             case 16:
                 // signed short, little endian
                 $data = unpack('v', $sampleBinary);
-                $value = $data[1];
-                if ($value >= 0x8000) {
-                    $value -= 0x10000;
+                $sample = $data[1];
+                if ($sample >= 0x8000) {
+                    $sample -= 0x10000;
                 }
-                return $value;
+                return $sample;
 
             case 24:
                 // 3 byte packed signed integer, little endian
                 $data = unpack('C3', $sampleBinary);
-                $value = $data[1] | ($data[2] << 8) | ($data[3] << 16);
-                if ($value >= 0x800000) {
-                    $value -= 0x1000000;
+                $sample = $data[1] | ($data[2] << 8) | ($data[3] << 16);
+                if ($sample >= 0x800000) {
+                    $sample -= 0x1000000;
                 }
-                return $value;
+                return $sample;
 
             case 32:
                 // 32-bit float
                 // TODO: 64-bit PHP?
-                return unpack('f', $sampleBinary);
+                $data = unpack('f', $sampleBinary);
+                return $data[1];
 
             default:
                 return null;
@@ -533,35 +535,35 @@ class WavFile
     /**
      * Pack a numeric sample to binary using the correct bits per sample
      *
-     * @param int|float $value  The sample to encode
+     * @param int|float $sample  The sample to encode
      * @param int bitDepth  The bits per sample to encode with
      * @return string  The encoded binary sample
      */
-    public static function packSampleChannel($value, $bitDepth)
+    public static function packSample($sample, $bitDepth)
     {
         switch ($bitDepth) {
             case 8:
                 // unsigned char
-                return chr($value);
+                return chr($sample);
 
             case 16:
                 // signed short, little endian
-                if ($value < 0) {
-                    $value += 0x10000;
+                if ($sample < 0) {
+                    $sample += 0x10000;
                 }
-                return pack('v', $value);
+                return pack('v', $sample);
 
             case 24:
                 // 3 byte packed signed integer, little endian
-                if ($value < 0) {
-                    $value += 0x1000000;
+                if ($sample < 0) {
+                    $sample += 0x1000000;
                 }
-                return pack('C3', $value & 0xff, ($value >>  8) & 0xff, ($value >> 16) & 0xff);
+                return pack('C3', $sample & 0xff, ($sample >>  8) & 0xff, ($sample >> 16) & 0xff);
 
             case 32:
                 // 32-bit float
                 // TODO: 64-bit PHP?
-                return pack('f', $value);
+                return pack('f', $sample);
 
             default:
                 return null;
@@ -569,15 +571,15 @@ class WavFile
     }
 
     /**
-     * Get a sample value for a specific sample number and channel.
+     * Get a sample value for a specific sample block number and channel
      *
-     * @param int $sampleNum  The sample number to fetch
-     * @param int $channelNum  The channel number within the sample to fetch
+     * @param int $blockNum  The sample block number to fetch
+     * @param int $channelNum  The channel number within the sample block to fetch
      * @param bool $asFloat  Returns the sample value as a normalized float value
-     * @return int|float  The channel sample as a value
+     * @return int|float  The sample value
      * @throws Exception
      */
-    public function getSampleChannel($sampleNum, $channelNum, $asFloat = false)
+    public function getSampleValue($blockNum, $channelNum, $asFloat = false)
     {
         // check preconditions
         if ($channelNum < 1 || $channelNum > $this->_numChannels) {
@@ -585,37 +587,37 @@ class WavFile
         }
 
         $sampleBytes = $this->_bitsPerSample / 8;
-        $offset = $sampleNum * $this->_blockAlign + ($channelNum - 1) * $sampleBytes;
-        if ($offset + $sampleBytes > $this->_dataSize) {
+        $offset = $blockNum * $this->_blockAlign + ($channelNum - 1) * $sampleBytes;
+        if ($offset + $sampleBytes > $this->_dataSize || $offset < 0) {
             return null;
         }
 
-        // read binary sample
+        // read binary value
         $sampleBinary = substr($this->_samples, $offset, $sampleBytes);
 
         // convert binary to value
-        //$value = self::unpackSampleChannel($sampleBinary, $this->_bitsPerSample);
+        //$sample = self::unpackSample($sampleBinary, $this->_bitsPerSample);
         switch ($this->_bitsPerSample) {
             case 8:
                 // unsigned char
-                $value = ord($sampleBinary);
+                $sample = ord($sampleBinary);
                 break;
 
             case 16:
                 // signed short, little endian
                 $data = unpack('v', $sampleBinary);
-                $value = $data[1];
-                if ($value >= 0x8000) {
-                    $value -= 0x10000;
+                $sample = $data[1];
+                if ($sample >= 0x8000) {
+                    $sample -= 0x10000;
                 }
                 break;
 
             case 24:
                 // 3 byte packed signed integer, little endian
                 $data = unpack('C3', $sampleBinary);
-                $value = $data[1] | ($data[2] << 8) | ($data[3] << 16);
-                if ($value >= 0x800000) {
-                    $value -= 0x1000000;
+                $sample = $data[1] | ($data[2] << 8) | ($data[3] << 16);
+                if ($sample >= 0x800000) {
+                    $sample -= 0x1000000;
                 }
                 break;
 
@@ -623,29 +625,29 @@ class WavFile
                 // 32-bit float
                 // TODO: 64-bit PHP?
                 $data = unpack('f', $sampleBinary);
-                $value = $data[1];
+                $sample = $data[1];
                 break;
         }
 
         // convert to float
         if ($asFloat && $this->_bitsPerSample != 32) {
-            return $value / (1 << ($this->_bitsPerSample - 1));
+            return $sample / (1 << ($this->_bitsPerSample - 1));
         }
 
-        return $value;
+        return $sample;
     }
 
     /**
-     * Sets a sample value for a specific sample number and channel. <br />
+     * Sets a sample value for a specific sample block number and channel. <br />
      * Converts float values to appropriate integer values and clips properly. <br />
-     * Allows to append channel samples in order.
+     * Allows to append samples (in order).
      *
-     * @param int|float $value  The integer of float sample value to set
-     * @param int $sampleNum  The sample number to set or append
-     * @param int $channelNum  The channel number within the sample to set or append
+     * @param int|float $sample  The integer of float sample value to set
+     * @param int $blockNum  The sample block number to set or append
+     * @param int $channelNum  The channel number within the sample block to set or append
      * @throws Exception
      */
-    public function setSampleChannel($value, $sampleNum, $channelNum)
+    public function setSampleValue($sample, $blockNum, $channelNum)
     {
         // check preconditions
         if ($channelNum < 1 || $channelNum > $this->_numChannels) {
@@ -653,70 +655,70 @@ class WavFile
         }
 
         $sampleBytes = $this->_bitsPerSample / 8;
-        $offset = $sampleNum * $this->_blockAlign + ($channelNum - 1) * $sampleBytes;
-        if ($offset < 0 || ($offset + $sampleBytes > $this->_dataSize && $offset != $this->_dataSize)) { // allow appending
+        $offset = $blockNum * $this->_blockAlign + ($channelNum - 1) * $sampleBytes;
+        if (($offset + $sampleBytes > $this->_dataSize && $offset != $this->_dataSize) || $offset < 0) { // allow appending
             throw new Exception('Sample or channel number was outside the range.');
         }
 
         //convert to value, quantize and clip
-        if (is_float($value)) {
+        if (is_float($sample)) {
             if ($this->_bitsPerSample == 32) {
-                // clip float values if necessary to [-1, 1]
-                if ($value > 1) {
-                    $value = 1;
-                } elseif ($value < -1) {
-                    $value = -1;
+                // clip float values to [-1, 1]
+                if ($sample > 1) {
+                    $sample = 1;
+                } elseif ($sample < -1) {
+                    $sample = -1;
                 }
             } else {
                 $p = 1 << ($this->_bitsPerSample - 1); // 2 to the power of _bitsPerSample divided by 2
 
                 // project values to [-$p, $p]
-                $value = $value * $p;
+                $sample = $sample * $p;
 
                 // quantize (round) float back to integer values
-                $value = $value < 0 ? (int)($value - 0.5) : (int)($value + 0.5);
-                // and clip if necessary to [-$p, $p - 1]
-                if ($value < -$p) {
-                    $value = -$p;
-                } elseif ($value > $p - 1) {
-                    $value = $p - 1;
+                $sample = $sample < 0 ? (int)($sample - 0.5) : (int)($sample + 0.5);
+                // clip if necessary to [-$p, $p - 1]
+                if ($sample < -$p) {
+                    $sample = -$p;
+                } elseif ($sample > $p - 1) {
+                    $sample = $p - 1;
                 }
             }
         }
 
         // convert to binary
-        //$sampleBinary = self::packSampleChannel($value, $this->_bitsPerSample);
+        //$sampleBinary = self::packValue($value, $this->_bitsPerSample);
         switch ($this->_bitsPerSample) {
             case 8:
                 // unsigned char
-                $sampleBinary = chr($value);
+                $sampleBinary = chr($sample);
 
             case 16:
                 // signed short, little endian
-                if ($value < 0) {
-                    $value += 0x10000;
+                if ($sample < 0) {
+                    $sample += 0x10000;
                 }
-                $sampleBinary = pack('v', $value);
+                $sampleBinary = pack('v', $sample);
 
             case 24:
                 // 3 byte packed signed integer, little endian
-                if ($value < 0) {
-                    $value += 0x1000000;
+                if ($sample < 0) {
+                    $sample += 0x1000000;
                 }
-                $sampleBinary = pack('C3', $value & 0xff, ($value >>  8) & 0xff, ($value >> 16) & 0xff);
+                $sampleBinary = pack('C3', $sample & 0xff, ($sample >>  8) & 0xff, ($sample >> 16) & 0xff);
                 break;
 
             case 32:
                 // 32-bit float
                 // TODO: 64-bit PHP?
-                $sampleBinary = pack('f', $value);
+                $sampleBinary = pack('f', $sample);
                 break;
         }
 
         if ($offset == $this->_dataSize) {
             // append
             $this->_samples .= $sampleBinary;
-            $this->_dataSize += $this->_bitsPerSample / 8;
+            $this->_dataSize += $sampleBytes;
         } else {
             // replace
             for ($i = 0; $i < $sampleBytes; ++$i) {
@@ -726,7 +728,7 @@ class WavFile
     }
 
     /**
-    * Normalizes a float audio sample.
+    * Normalizes a float audio sample
     *
     * @param float $sampleFloat  The sample to normalize
     * @param float $threshold  The threshold for normalizing the amplitude <br />
@@ -800,7 +802,7 @@ class WavFile
         if ($filters <= 0) {
             throw new Exception('No filters provided');
         }
-        $numSamples  = $this->getNumSamples();
+        $numBlocks  = $this->getNumBlocks();
         $numChannels = $this->getNumChannels();
 
         // initialize options
@@ -826,17 +828,17 @@ class WavFile
         }
 
 
-        // loop through all samples
-        for ($s = 0; $s < $numSamples; ++$s) {
+        // loop through all sample blocks
+        for ($block = 0; $block < $numBlocks; ++$block) {
             // loop through all channels
-            for ($c = 1; $c <= $numChannels; ++$c) {
-                // read current channel value
-                $sampleFloat = $this->getSampleChannel($s, $c, true);
+            for ($channel = 1; $channel <= $numChannels; ++$channel) {
+                // read current sample
+                $sampleFloat = $this->getSampleValue($block, $channel, true);
 
 
                 /************* MIX FILTER ***********************/
                 if ($filters & self::FILTER_MIX) {
-                    $sampleFloat += $wavMix->getChannelSample($s, $c, true);
+                    $sampleFloat += $wavMix->getSampleValue($block, $channel, true);
                 }
 
                 /************* DEGRADE FILTER *******************/
@@ -850,8 +852,8 @@ class WavFile
                 }
 
 
-                // write current channel value
-                $this->setSampleChannel($sampleFloat, $s, $c);
+                // write current sample
+                $this->setSampleValue($sampleFloat, $block, $channel);
             }
         }
 
@@ -883,7 +885,7 @@ class WavFile
         $numSamples  = $this->getSampleRate() * $duration;
         $numChannels = $this->getNumChannels();
 
-        $this->_samples .= str_repeat(self::packSampleChannel(0, $this->getBitsPerSample()), $numSamples * $numChannels);
+        $this->_samples .= str_repeat(self::packValue(0, $this->getBitsPerSample()), $numSamples * $numChannels);
         $this->setDataSize(strlen($this->_samples));
 
         return $this;
@@ -913,7 +915,7 @@ class WavFile
         $numChannels = $this->getNumChannels();
         $numSamples  = $this->getSampleRate() * $duration;
         $minAmp      = $this->getMinAmplitude();
-        $maxAmp      = $this->getAmplitude();
+        $maxAmp      = $this->getMaxAmplitude();
         $bitDepth    = $this->getBitsPerSample();
 
         for ($s = 0; $s < $numSamples; ++$s) {
@@ -924,7 +926,7 @@ class WavFile
                 $val = (int)($val * $percent / 100);
             }
 
-            $this->_samples .= str_repeat(self::packSampleChannel($val, $bitDepth), $numChannels);
+            $this->_samples .= str_repeat(self::packValue($val, $bitDepth), $numChannels);
         }
     }
 
