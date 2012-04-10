@@ -540,7 +540,7 @@ class WavFile
                 // 32-bit float
                 // TODO: 64-bit PHP?
                 $data = unpack('f', $sampleBinary);
-                return $data[1];
+                return (float)$data[1];
 
             default:
                 return null;
@@ -676,7 +676,7 @@ class WavFile
                 // 32-bit float
                 // TODO: 64-bit PHP?
                 $data = unpack('f', $sampleBinary);
-                $sample = $data[1];
+                $sample = (float)$data[1];
                 break;
         }
 
@@ -684,9 +684,9 @@ class WavFile
         if ($asFloat && $this->_bitsPerSample != 32) {
             if ($this->_bitsPerSample <= 8) {
                 $p = 1 << ($this->_bitsPerSample - 1);
-                return ($sample - $p) / $p;
+                return (float)(($sample - $p) / $p);
             } else {
-                return $sample / (1 << ($this->_bitsPerSample - 1));
+                return (float)($sample / (1 << ($this->_bitsPerSample - 1)));
             }
         }
 
