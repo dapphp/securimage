@@ -622,15 +622,14 @@ class WavFile
     }
 
     /**
-     * Get a numeric sample value for a specific sample block and channel number.
+     * Get a float sample value for a specific sample block and channel number.
      *
      * @param int $blockNum  The sample block number to fetch. Zero based.
      * @param int $channelNum  The channel number within the sample block to fetch. First channel is 1.
-     * @param bool $asFloat  Returns the sample value as a normalized (-1 to 1) float value.
-     * @return int|float  The sample value. Returns null if the sample block number was out of range.
+     * @return float  The float sample value. Returns null if the sample block number was out of range.
      * @throws Exception
      */
-    public function getSampleValue($blockNum, $channelNum, $asFloat = false)
+    public function getSampleValue($blockNum, $channelNum)
     {
         // check preconditions
         if ($channelNum < 1 || $channelNum > $this->_numChannels) {
@@ -647,12 +646,10 @@ class WavFile
         $sampleBinary = substr($this->_samples, $offset, $sampleBytes);
 
         // convert binary to value
-        //$sample = self::unpackSample($sampleBinary, $this->_bitsPerSample); // Redundant for performance reasons.
         switch ($this->_bitsPerSample) {
             case 8:
                 // unsigned char
-                $sample = ord($sampleBinary);
-                break;
+                return (float)((ord($sampleBinary) - 0x80) / 0x80);
 
             case 16:
                 // signed short, little endian
@@ -661,7 +658,7 @@ class WavFile
                 if ($sample >= 0x8000) {
                     $sample -= 0x10000;
                 }
-                break;
+                return (float)($sample / 0x8000);
 
             case 24:
                 // 3 byte packed signed integer, little endian
@@ -670,40 +667,27 @@ class WavFile
                 if ($sample >= 0x800000) {
                     $sample -= 0x1000000;
                 }
-                break;
+                return (float)($sample / 0x800000);
 
             case 32:
                 // 32-bit float
                 // TODO: 64-bit PHP?
                 $data = unpack('f', $sampleBinary);
-                $sample = (float)$data[1];
-                break;
+                return (float)$data[1];
         }
-
-        // convert to float
-        if ($asFloat && $this->_bitsPerSample != 32) {
-            if ($this->_bitsPerSample <= 8) {
-                $p = 1 << ($this->_bitsPerSample - 1);
-                return (float)(($sample - $p) / $p);
-            } else {
-                return (float)($sample / (1 << ($this->_bitsPerSample - 1)));
-            }
-        }
-
-        return $sample;
     }
 
     /**
-     * Sets a sample value for a specific sample block number and channel. <br />
+     * Sets a float sample value for a specific sample block number and channel. <br />
      * Converts float values to appropriate integer values and clips properly. <br />
      * Allows to append samples (in order).
      *
-     * @param int|float $sample  The integer or float sample value to set. Converts float values and clips if necessary.
+     * @param float $sampleFloat  The float sample value to set. Converts float values and clips if necessary.
      * @param int $blockNum  The sample block number to set or append. Zero based.
      * @param int $channelNum  The channel number within the sample block to set or append. First channel is 1.
      * @throws Exception
      */
-    public function setSampleValue($sample, $blockNum, $channelNum)
+    public function setSampleValue($sampleFloat, $blockNum, $channelNum)
     {
         // check preconditions
         if ($channelNum < 1 || $channelNum > $this->_numChannels) {
@@ -717,45 +701,28 @@ class WavFile
         }
 
         // convert to value, quantize and clip
-        $minAmp = -1;
-        $maxAmp = 1;
-        if ($this->_bitsPerSample != 32) {
+        if ($this->_bitsPerSample == 32) {
+            $sample = $sampleFloat < -1.0 ? -1.0 : ($sampleFloat > 1.0 ? 1.0 : $sampleFloat);
+        } else {
             $p = 1 << ($this->_bitsPerSample - 1); // 2 to the power of _bitsPerSample divided by 2
-            if ($this->_bitsPerSample <= 8) {
-                // unsigend integers
-                $minAmp = 0;
-                $maxAmp = 2 * $p - 1;
-            } else {
-                // signed integers
-                $minAmp = -$p;
-                $maxAmp = $p - 1;
-            }
 
-            if (is_float($sample)) {
-                // project values to [-$p, $p]
-                $sample = $sample * $p;
-                // quantize (round) float to integer values
-                $sample = $sample < 0 ? (int)($sample - 0.5) : (int)($sample + 0.5);
-                // adjust for unsigned values
-                if ($this->_bitsPerSample <= 8) {
-                	$sample += $p;
-                }
-            }
-        }
+            // project and quantize (round) float to integer values
+            $sample = $sampleFloat < 0 ? (int)($sampleFloat * $p - 0.5) : (int)($sampleFloat * $p + 0.5);
 
-        // clip if necessary to [$minAmp, $maxAmp]
-        if ($sample < $minAmp) {
-            $sample = $minAmp;
-        } elseif ($sample > $maxAmp) {
-            $sample = $maxAmp;
+            // clip if necessary to [-$p, $p - 1]
+            if ($sample < -$p) {
+                $sample = -$p;
+            } elseif ($sample > $p - 1) {
+                $sample = $p - 1;
+            }
         }
 
         // convert to binary
-        //$sampleBinary = self::packSample($value, $this->_bitsPerSample); // Redundant for performance reasons.
         switch ($this->_bitsPerSample) {
             case 8:
                 // unsigned char
-                $sampleBinary = chr($sample);
+                $sampleBinary = chr($sample + 0x80);
+                break;
 
             case 16:
                 // signed short, little endian
@@ -763,6 +730,7 @@ class WavFile
                     $sample += 0x10000;
                 }
                 $sampleBinary = pack('v', $sample);
+                break;
 
             case 24:
                 // 3 byte packed signed integer, little endian
@@ -899,12 +867,12 @@ class WavFile
             // loop through all channels
             for ($channel = 1; $channel <= $numChannels; ++$channel) {
                 // read current sample
-                $sampleFloat = $this->getSampleValue($block, $channel, true);
+                $sampleFloat = $this->getSampleValue($block, $channel);
 
 
                 /************* MIX FILTER ***********************/
                 if ($filters & self::FILTER_MIX) {
-                    $sampleFloat += $wavMix->getSampleValue($block, $channel, true);
+                    $sampleFloat += $wavMix->getSampleValue($block, $channel);
                 }
 
                 /************* DEGRADE FILTER *******************/
