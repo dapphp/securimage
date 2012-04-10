@@ -121,7 +121,7 @@ class WavFile
     protected $_fp;
 
     /**
-     * WavFile Constructor<br />
+     * WavFile Constructor.<br />
      *
      * <code>
      * $wav1 = new WavFile(2, 44100, 16); // new wav 2 channels, 44100 samples/sec, 16 bits per sample
@@ -130,9 +130,9 @@ class WavFile
      * $wav4 = new WavFile('./audio/sound.wav'); // create from file
      * </code>
      *
-     * @param array|WavFile|int $param  A WavFile, array of property values, or the number of channels to set
-     * @param int $sampleRate           The samples per second (i.e. 44100, 22050)
-     * @param int $bitsPerSample        Bits per sample - 8, 16 or 32
+     * @param array|WavFile|int $param  A WavFile, array of property values, or the number of channels to set.
+     * @param int $sampleRate           The sample rate per second (e.g. 44100, 22050, etc.)
+     * @param int $bitsPerSample        Bits per sample - 8, 16, 24 or 32.
      * @throws InvalidArgumentException
      */
     public function __construct($params = null)
@@ -336,9 +336,9 @@ class WavFile
     }
 
     /**
-     * Construct a wav header from object
+     * Construct a wav header from this object.
      *
-     * @return string The RIFF header data
+     * @return string  The RIFF header data.
      */
     public function makeHeader()
     {
@@ -365,9 +365,9 @@ class WavFile
     }
 
     /**
-     * Construct wav DATA chunk
+     * Construct wav DATA chunk.
      *
-     * @return string The DATA header and chunk
+     * @return string  The DATA header and chunk.
      */
     public function getDataSubchunk()
     {
@@ -377,9 +377,9 @@ class WavFile
     }
 
     /**
-     * Reads a wav header and data from a file
+     * Reads a wav header and data from a file.
      *
-     * @param string $filename  The path to the wav file to read
+     * @param string $filename  The path to the wav file to read.
      * @throws InvalidArgumentException
      * @throws WavFormatException
      * @throws Exception
@@ -387,9 +387,9 @@ class WavFile
     public function openWav($filename)
     {
         if (!file_exists($filename)) {
-            throw new InvalidArgumentException("Failed to open $filename - no such file or directory");
+            throw new InvalidArgumentException("Failed to open $filename - no such file or directory.");
         } else if (!is_readable($filename)) {
-            throw new InvalidArgumentException("Failed to open $filename, access denied");
+            throw new InvalidArgumentException("Failed to open $filename, access denied.");
         }
 
         $this->_fp = @fopen($filename, 'rb');
@@ -406,13 +406,15 @@ class WavFile
         } catch (Exception $ex) {
             throw $ex;
         }
+
+        return $this;
     }
 
     /**
-     * Set the wav file data and properties from a wav file in a string
+     * Set the wav file data and properties from a wav file in a string.
      *
-     * @param string $data  The wav file data
-     * @param bool $free True to free the passed $data object after copying
+     * @param string $data  The wav file data.
+     * @param bool $free  True to free the passed $data object after copying.
      * @throws Exception
      * @throws WavFormatException
      */
@@ -421,7 +423,7 @@ class WavFile
         $this->_fp = @fopen('php://memory', 'w+b');
 
         if (!$this->_fp) {
-            throw new Exception('Failed to open memory stream to write wav data.  Use openWav() instead');
+            throw new Exception('Failed to open memory stream to write wav data. Use openWav() instead.');
         }
 
         fputs($this->_fp, $data);
@@ -439,13 +441,15 @@ class WavFile
         } catch (Exception $ex) {
             throw $ex;
         }
+
+        return $this;
     }
 
     /**
      * Return a single sample block from the file.
      *
      * @param int $blockNum  The sample block number. Zero based.
-     * @return string  The binary sample block (all channels).
+     * @return string  The binary sample block (all channels). Returns null if the sample block number was out of range.
      */
     public function getSampleBlock($blockNum)
     {
@@ -492,7 +496,7 @@ class WavFile
      *
      * @param string $sampleBinary  The sample to decode.
      * @param int $bitDepth  The bits per sample to decode. If omitted, derives it from the length of $sampleBinary.
-     * @return int|float  The numeric sample value. Float for 32-bit samples.
+     * @return int|float  The numeric sample value. Float for 32-bit samples. Returns null for unsupported bit depths.
      */
     public static function unpackSample($sampleBinary, $bitDepth = null)
     {
@@ -539,7 +543,7 @@ class WavFile
      *
      * @param int|float $sample  The sample to encode. Has to be within valid range for $bitDepth. Float values only for 32 bits.
      * @param int $bitDepth  The bits per sample to encode with.
-     * @return string  The encoded binary sample.
+     * @return string  The encoded binary sample. Returns null for unsupported bit depths.
      */
     public static function packSample($sample, $bitDepth)
     {
@@ -578,7 +582,7 @@ class WavFile
      * @param int $blockNum  The sample block number to fetch. Zero based.
      * @param int $channelNum  The channel number within the sample block to fetch. First channel is 1.
      * @param bool $asFloat  Returns the sample value as a normalized (-1 to 1) float value.
-     * @return int|float  The sample value. Returns null if the sample block was out of range.
+     * @return int|float  The sample value. Returns null if the sample block number was out of range.
      * @throws Exception
      */
     public function getSampleValue($blockNum, $channelNum, $asFloat = false)
@@ -727,6 +731,8 @@ class WavFile
                 $this->_samples{$offset + $i} = $sampleBinary{$i};
             }
         }
+
+        return $this;
     }
 
     /**
@@ -930,6 +936,8 @@ class WavFile
 
             $this->_samples .= str_repeat(self::packSample($val, $bitDepth), $numChannels);
         }
+
+        return $this;
     }
 
     /**
@@ -975,6 +983,8 @@ class WavFile
         // TODO: read any extra data chunks
 
         fclose($this->_fp);
+
+        return $this;
     }
 
     /**
@@ -1078,19 +1088,9 @@ class WavFile
     protected function readWavData()
     {
         $this->_samples = fread($this->_fp, $this->getDataSize());
-        //$this->_samples = str_split($samples, $this->getBlockAlign());
-    }
+        $this->setDataSize(strlen($this->_samples));
 
-    /**
-     * Read a sample from stream and append to buffer.
-     */
-    protected function readSample()
-    {
-        $sample = fread($this->_fp, $this->getBlockAlign());
-
-        $this->_samples .= $sample;
-
-        return $sample;
+        return $this;
     }
 
     public function __set($name, $value)
