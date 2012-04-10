@@ -326,12 +326,21 @@ class WavFile
 
     public function getMinAmplitude()
     {
-        if ($this->getBitsPerSample() == 8) {
+        if ($this->_bitsPerSample == 8) {
             return 0;
-        } elseif ($this->getBitsPerSample() == 32) {
+        } elseif ($this->_bitsPerSample == 32) {
             return -1;
         } else {
             return -(1 << ($this->_bitsPerSample - 1));
+        }
+    }
+
+    public function getZeroAmplitude()
+    {
+        if ($this->_bitsPerSample == 8) {
+            return 128;
+        } else {
+            return 0;
         }
     }
 
@@ -464,11 +473,11 @@ class WavFile
     /**
      * Set a single sample block.
      *
-     * @param int $blockNum  The sample block number. Zero based.
      * @param string $sampleBlock  The binary sample block (all channels).
+     * @param int $blockNum  The sample block number. Zero based.
      * @throws Exception
      */
-    public function setSampleBlock($blockNum, $sampleBlock)
+    public function setSampleBlock($sampleBlock, $blockNum)
     {
         if (strlen($sampleBlock) != $this->_blockAlign) {
             throw new Exception('Incorrect sample block size. Was ' . strlen($sampleBlock) . ' expected ' . $this->_blockAlign . '.');
@@ -492,7 +501,7 @@ class WavFile
     }
 
     /**
-     * Unpack a single binary sample to numeric value.
+     * Unpacks a single binary sample to numeric value.
      *
      * @param string $sampleBinary  The sample to decode.
      * @param int $bitDepth  The bits per sample to decode. If omitted, derives it from the length of $sampleBinary.
@@ -539,7 +548,7 @@ class WavFile
     }
 
     /**
-     * Pack a single numeric sample to binary.
+     * Packs a single numeric sample to binary.
      *
      * @param int|float $sample  The sample to encode. Has to be within valid range for $bitDepth. Float values only for 32 bits.
      * @param int $bitDepth  The bits per sample to encode with.
@@ -574,6 +583,42 @@ class WavFile
             default:
                 return null;
         }
+    }
+
+    /**
+     * Unpacks a binary sample block to numeric values.
+     *
+     * @param string $sampleBlock  The binary sample block (all channels).
+     * @param int $bitDepth  The bits per sample to decode.
+     * @return array  The sample values as an array of integers of floats for 32 bits. First channel is array index 1.
+     */
+    public static function unpackSampleBlock($sampleBlock, $bitDepth) {
+        $sampleBytes = $bitDepth / 8;
+        $channels = strlen($sampleBlock) / $sampleBytes;
+        
+        $samples = array();
+        for ($i = 0; $i < $channels; $i++) {
+            $sampleBinary = substr($sampleBlock, $i * $sampleBytes, $sampleBytes);
+            $samples[$i + 1] = self::unpackSample($sampleBinary, $bitDepth);
+        }
+
+        return $samples;
+    }
+
+    /**
+     * Packs an array of numeric channel samples to a binary sample block.
+     *
+     * @param array $samples  The array of channel sample values. Expects float values for 32 bits and integer otherwise.
+     * @param int $bitDepth  The bits per sample to encode with.
+     * @return string  The encoded binary sample block.
+     */
+    public static function packSampleBlock($samples, $bitDepth) {
+        $sampleBlock = '';
+        foreach($samples as $sample) {
+            $sampleBlock .= self::packSample($sample, $bitDepth);
+        }
+
+        return $sampleBlock;
     }
 
     /**
@@ -637,7 +682,12 @@ class WavFile
 
         // convert to float
         if ($asFloat && $this->_bitsPerSample != 32) {
-            return $sample / (1 << ($this->_bitsPerSample - 1));
+            if ($this->_bitsPerSample <= 8) {
+                $p = 1 << ($this->_bitsPerSample - 1);
+                return ($sample - $p) / $p;
+            } else {
+                return $sample / (1 << ($this->_bitsPerSample - 1));
+            }
         }
 
         return $sample;
@@ -666,30 +716,38 @@ class WavFile
             throw new Exception('Sample block or channel number was out of range.');
         }
 
-        //convert to value, quantize and clip
-        if (is_float($sample)) {
-            if ($this->_bitsPerSample == 32) {
-                // clip float values to [-1, 1]
-                if ($sample > 1) {
-                    $sample = 1;
-                } elseif ($sample < -1) {
-                    $sample = -1;
-                }
+        // convert to value, quantize and clip
+        $minAmp = -1;
+        $maxAmp = 1;
+        if ($this->_bitsPerSample != 32) {
+            $p = 1 << ($this->_bitsPerSample - 1); // 2 to the power of _bitsPerSample divided by 2
+            if ($this->_bitsPerSample <= 8) {
+                // unsigend integers
+                $minAmp = 0;
+                $maxAmp = 2 * $p - 1;
             } else {
-                $p = 1 << ($this->_bitsPerSample - 1); // 2 to the power of _bitsPerSample divided by 2
+                // signed integers
+                $minAmp = -$p;
+                $maxAmp = $p - 1;
+            }
 
+            if (is_float($sample)) {
                 // project values to [-$p, $p]
                 $sample = $sample * $p;
-
-                // quantize (round) float back to integer values
+                // quantize (round) float to integer values
                 $sample = $sample < 0 ? (int)($sample - 0.5) : (int)($sample + 0.5);
-                // clip if necessary to [-$p, $p - 1]
-                if ($sample < -$p) {
-                    $sample = -$p;
-                } elseif ($sample > $p - 1) {
-                    $sample = $p - 1;
+                // adjust for unsigned values
+                if ($this->_bitsPerSample <= 8) {
+                	$sample += $p;
                 }
             }
+        }
+
+        // clip if necessary to [$minAmp, $maxAmp]
+        if ($sample < $minAmp) {
+            $sample = $minAmp;
+        } elseif ($sample > $maxAmp) {
+            $sample = $maxAmp;
         }
 
         // convert to binary
