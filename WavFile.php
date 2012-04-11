@@ -463,7 +463,7 @@ class WavFile
     public function getSampleBlock($blockNum)
     {
         $offset = $blockNum * $this->_blockAlign;
-        if ($offset + $this->_blockAlign > $this->_dataSize) {
+        if ($offset + $this->_blockAlign > $this->_dataSize || $offset < 0) {
             return null;
         } else {
             return substr($this->_samples, $offset, $this->_blockAlign);
@@ -471,7 +471,8 @@ class WavFile
     }
 
     /**
-     * Set a single sample block.
+     * Set a single sample block. <br />
+     * Allows to append a sample block.
      *
      * @param string $sampleBlock  The binary sample block (all channels).
      * @param int $blockNum  The sample block number. Zero based.
@@ -762,7 +763,8 @@ class WavFile
     }
 
     /**
-    * Normalizes a float audio sample.
+    * Normalizes a float audio sample. <br />
+    * See http://www.voegler.eu/pub/audio/ for more information.
     *
     * @param float $sampleFloat  The sample to normalize.
     * @param float $threshold  The threshold for normalizing the amplitude <br />
@@ -1068,7 +1070,7 @@ class WavFile
         if ($fmt['AudioFormat'] != 1 && $fmt['AudioFormat'] != 3) {
             throw new WavFormatException('Not PCM audio, non PCM is not supported.', 7);
         } elseif ($fmt['AudioFormat'] == 1 && !in_array($fmt['BitsPerSample'], array(8, 16, 24))) {
-            throw new WavFormatException('Only 8, 16 and 24-bit PCM audio is supported.', 8);
+            throw new WavFormatException('Only 8, 16 and 24-bit integer PCM audio is supported.', 8);
         } elseif ($fmt['AudioFormat'] == 3 && $fmt['BitsPerSample'] != 32) {
         	throw new WavFormatException('Only 32-bit float PCM audio is supported.', 9);
         }
