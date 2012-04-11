@@ -920,7 +920,7 @@ class WavFile
         $numSamples  = $this->getSampleRate() * $duration;
         $numChannels = $this->getNumChannels();
 
-        $this->_samples .= str_repeat(self::packSample(0, $this->getBitsPerSample()), $numSamples * $numChannels);
+        $this->_samples .= str_repeat(self::packSample($this->getZeroAmplitude(), $this->getBitsPerSample()), $numSamples * $numChannels);
         $this->setDataSize(strlen($this->_samples));
 
         return $this;
