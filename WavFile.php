@@ -355,7 +355,7 @@ class WavFile
         $header = pack('N', 0x52494646);
 
         $subchunk1size = 16;  // 16 byte subchunk1, PCM format
-        $subchunk2size = sizeof($this->_samples) * $this->getNumChannels() * $this->getBitsPerSample() / 8;
+        $subchunk2size = $this->getDataSize();
 
         $header .= pack('V', 4 + (8 + $subchunk1size) + (8 +  $subchunk2size));
         $header .= pack('N', 0x57415645); // WAVE marker
