@@ -49,13 +49,13 @@
 class WavFile
 {
     /** @var int Filter flag for mixing two files */
-    const FILTER_MIX     = 0x01;
-
-    /** @var int Filter flag for degrading audio data */
-    const FILTER_DEGRADE = 0x02;
+    const FILTER_MIX       = 0x01;
 
     /** @var int Filter flag for normalizing audio data */
-    const FILTER_NORMALIZE = 0x04;
+    const FILTER_NORMALIZE = 0x02;
+
+    /** @var int Filter flag for degrading audio data */
+    const FILTER_DEGRADE   = 0x04;
 
     /** @var int The front left channel number */
     const CHANNEL_FL = 1;
@@ -877,16 +877,15 @@ class WavFile
                     $sampleFloat += $wavMix->getSampleValue($block, $channel);
                 }
 
-                /************* DEGRADE FILTER *******************/
-                if ($filters & self::FILTER_DEGRADE) {
-                    $sampleFloat += rand(0, 1000000 * (1 - $degradeQuality)) / 1000000;
-                }
-
                 /************* NORMALIZE FILTER *******************/
                 if ($filters & self::FILTER_NORMALIZE) {
                     $sampleFloat = $this->normalizeSample($sampleFloat, $threshold);
                 }
 
+                /************* DEGRADE FILTER *******************/
+                if ($filters & self::FILTER_DEGRADE) {
+                	$sampleFloat += rand(1000000 * ($degradeQuality - 1), 1000000 * (1 - $degradeQuality)) / 1000000;
+                }
 
                 // write current sample
                 $this->setSampleValue($sampleFloat, $block, $channel);
