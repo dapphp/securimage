@@ -596,7 +596,7 @@ class WavFile
     public static function unpackSampleBlock($sampleBlock, $bitDepth) {
         $sampleBytes = $bitDepth / 8;
         $channels = strlen($sampleBlock) / $sampleBytes;
-        
+
         $samples = array();
         for ($i = 0; $i < $channels; $i++) {
             $sampleBinary = substr($sampleBlock, $i * $sampleBytes, $sampleBytes);
@@ -769,11 +769,11 @@ class WavFile
     * @param float $sampleFloat  The sample to normalize.
     * @param float $threshold  The threshold for normalizing the amplitude <br />
     *     null - Amplitudes are normalized by dividing by 2, i.e. loss of loudness by about 6dB. <br />
-    *     [0, 1) - (open inverval - not including 1) - The threshold 
+    *     [0, 1) - (open inverval - not including 1) - The threshold
     *         above which amplitudes are comressed logarithmically (from $threshold to 2).
     *         e.g. 0.6 to leave amplitudes up to 60% "as is" and compress above. <br />
-    *     (-1, 0) - (open inverval - not including 0 and -1) - The negative of the threshold 
-    *         above which amplitudes are comressed linearly (from $threshold to 2). 
+    *     (-1, 0) - (open inverval - not including 0 and -1) - The negative of the threshold
+    *         above which amplitudes are comressed linearly (from $threshold to 2).
     *         e.g. -0.6 to leave amplitudes up to 60% "as is" and compress above. <br />
     *     >= 1 - Normalize by dividing by $threshold.
     * @return float  The normalized sample.
@@ -857,10 +857,10 @@ class WavFile
             }
         }
         if ($filters & self::FILTER_NORMALIZE) {
-        	if ($threshold == 1 || $threshold <= -1) {
+            if ($threshold == 1 || $threshold <= -1) {
                 // nothing to do
-        		$filters -= self::FILTER_NORMALIZE;
-	        }
+                $filters -= self::FILTER_NORMALIZE;
+            }
         }
         if ($filters & self::FILTER_DEGRADE) {
             if ($degradeQuality < 0 || $degradeQuality >= 1) {
@@ -890,8 +890,9 @@ class WavFile
 
                 /************* DEGRADE FILTER *******************/
                 if ($filters & self::FILTER_DEGRADE) {
-                	$sampleFloat += rand(1000000 * ($degradeQuality - 1), 1000000 * (1 - $degradeQuality)) / 1000000;
+                    $sampleFloat += rand(1000000 * ($degradeQuality - 1), 1000000 * (1 - $degradeQuality)) / 1000000;
                 }
+
 
                 // write current sample
                 $this->setSampleValue($sampleFloat, $block, $channel);
@@ -1077,7 +1078,7 @@ class WavFile
         } elseif ($fmt['AudioFormat'] == 1 && !in_array($fmt['BitsPerSample'], array(8, 16, 24))) {
             throw new WavFormatException('Only 8, 16 and 24-bit integer PCM audio is supported.', 8);
         } elseif ($fmt['AudioFormat'] == 3 && $fmt['BitsPerSample'] != 32) {
-        	throw new WavFormatException('Only 32-bit float PCM audio is supported.', 9);
+            throw new WavFormatException('Only 32-bit float PCM audio is supported.', 9);
         }
 
         $this->setFormat('PCM')
