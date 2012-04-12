@@ -856,6 +856,12 @@ class WavFile
                 throw new Exception("Number of channels for wav files does not match.");
             }
         }
+        if ($filters & self::FILTER_NORMALIZE) {
+        	if ($threshold == 1 || $threshold <= -1) {
+                // nothing to do
+        		$filters -= self::FILTER_NORMALIZE;
+	        }
+        }
         if ($filters & self::FILTER_DEGRADE) {
             if ($degradeQuality < 0 || $degradeQuality >= 1) {
                 // nothing to do
