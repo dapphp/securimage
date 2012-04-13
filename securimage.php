@@ -352,6 +352,24 @@ class Securimage
      */
     public $audio_use_noise;
     /**
+     * The method and threshold used to normalize the mixing with background noise.
+     * See http://www.voegler.eu/pub/audio/ for more information.
+     * Valid:
+     *     null - Amplitudes are normalized by dividing by 2, i.e. loss of loudness by about 6dB.
+     *     [0, 1) - (open inverval - not including 1) - The threshold
+     *         above which amplitudes are comressed logarithmically.
+     *         e.g. 0.6 to leave amplitudes up to 60% "as is" and compress above.
+     *     (-1, 0) - (open inverval - not including 0 and -1) - The negative of the threshold
+     *         above which amplitudes are comressed linearly.
+     *         e.g. -0.6 to leave amplitudes up to 60% "as is" and compress above.
+     *     >= 1 - Normalize by dividing by $audio_mix_normalization.
+     * Default: 0.6
+     *
+     * @since 3.0.4
+     * @var float
+     */
+    public $audio_mix_normalization = 0.6;
+    /**
      * Whether or not to degrade audio by introducing random noise (improves security of audio captcha)
      * Default: true
      *
@@ -1350,7 +1368,7 @@ class Securimage
 
                 $filters += WavFile::FILTER_MIX | WavFile::FILTER_NORMALIZE;
                 $filterOpts[WavFile::FILTER_MIX]       = $mixOpts;
-                $filterOpts[WavFile::FILTER_NORMALIZE] = 0.7;
+                $filterOpts[WavFile::FILTER_NORMALIZE] = $this->audio_mix_normalization;
             }
         }
 
