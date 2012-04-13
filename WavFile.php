@@ -474,6 +474,7 @@ class WavFile
         if ($subchunk1size > 16) {
             $header .= pack('v', 0); // extension size = 0
         }
+        // TODO: set extension fields and "fact" chunk for 24 and 32-bit - http://www-mmsp.ece.mcgill.ca/documents/audioformats/wave/wave.html
 
         return $header;
     }
@@ -1240,11 +1241,14 @@ class WavFile
             $epSize          = fread($this->_fp, 2);
             $extraParamsSize = unpack('vSize', $epSize);
             if ($extraParamsSize['Size'] > 0) {
+                // TODO: error message for invalid extension size - maybe check extension fields if present but can be ignored
                 $extraParams = fread($this->_fp, $extraParamsSize['Size']);
             }
 
             $wavHeaderSize += $extraParamsSize['Size'] + 2;
         }
+
+        // TODO: read "fact" chunk - maybe check sample length field, but can be ignored - http://www-mmsp.ece.mcgill.ca/documents/audioformats/wave/wave.html
 
         $dataHeader = fread($this->_fp, 8);
         $data       = unpack('NSubchunk2ID/VSubchunk2Size', $dataHeader);
