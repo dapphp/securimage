@@ -78,6 +78,11 @@ class WavFile
     const CHANNEL_BR = 6;
     const MAX_CHANNEL = 6;
 
+    /** @var int Integer PCM Audio Format */
+    const WAVE_FORMAT_PCM = 1;
+    /** @var int Float PCM Audio Format */
+    const WAVE_FORMAT_IEEE_FLOAT = 3;
+
     /** @var array Log base modifier lookup table for a given threshold (in 0.05 steps) used by normalizeSample.
      * Adjusts the slope (1st derivative) of the log function at the threshold to 1 for a smooth transition
      * from linear to logarithmic amplitude output. */
@@ -94,8 +99,8 @@ class WavFile
     /** @var int The actual physical file size */
     protected $_actualSize;
 
-    /** @var int The file format, supports PCM = 1 only */
-    protected $_format;
+    /** @var int The audio format, supports PCM = 1 and IEEE float = 3 only */
+    protected $_audioFormat;
 
     /** @var int The size of the fmt chunk  - 8 */
     protected $_subChunk1Size;
@@ -146,6 +151,7 @@ class WavFile
     {
         $this->_samples       = '';
         $this->_blockAlign    = 1;
+        $this->_audioFormat   = self::WAVE_FORMAT_PCM;
         $this->_sampleRate    = 11025;
         $this->_bitsPerSample = 8;
         $this->_numChannels   = 1;
@@ -204,12 +210,21 @@ class WavFile
         return $this;
     }
 
-    public function getFormat() {
-        return $this->_format;
+    public function getAudioFormat() {
+        return $this->_audioFormat;
     }
 
-    public function setFormat($format) {
-        $this->_format = $format;
+    protected function setAudioFormat($audioFormat = null, $update = true) {
+        if (is_null($audioFormat)) {
+            $this->_audioFormat = $this->_bitsPerSample == 32 ? self::WAVE_FORMAT_IEEE_FLOAT : self::WAVE_FORMAT_PCM;
+        } else {
+            $this->_audioFormat = $audioFormat;
+        }
+
+        if ($update) {
+            $this->setSubChunk1Size();
+        }
+
         return $this;
     }
 
@@ -359,23 +374,26 @@ class WavFile
     public function makeHeader()
     {
         // RIFF header
-        $header = pack('N', 0x52494646);
+        $header = pack('N', 0x52494646); // ChunkID - "RIFF"
 
-        $subchunk1size = 16;  // 16 byte subchunk1, PCM format
+        $subchunk1size = $this->getAudioFormat() == self::WAVE_FORMAT_PCM ? 16 : 18; // 16 bytes for PCM, else +2 bytes for extension length
         $subchunk2size = $this->getDataSize();
 
-        $header .= pack('V', 4 + (8 + $subchunk1size) + (8 +  $subchunk2size));
-        $header .= pack('N', 0x57415645); // WAVE marker
+        $header .= pack('V', 4 + (8 + $subchunk1size) + (8 +  $subchunk2size)); // ChunkSize
+        $header .= pack('N', 0x57415645); // Format - "WAVE"
 
-        // fmt subchunk
-        $header .= pack('N', 0x666d7420); // "fmt "
-        $header .= pack('V', $subchunk1size);
-        $header .= pack('v', $this->getBitsPerSample() == 32 ? 3 : 1); // 1 - integer PCM, 3 - float PCM
-        $header .= pack('v', $this->getNumChannels());
-        $header .= pack('V', $this->getSampleRate());
-        $header .= pack('V', $this->getSampleRate() * $this->getNumChannels() * $this->getBitsPerSample() / 8);
-        $header .= pack('v', $this->getNumChannels() * $this->getBitsPerSample() / 8);
-        $header .= pack('v', $this->getBitsPerSample());
+        // Subchunk1 - "fmt " subchunk
+        $header .= pack('N', 0x666d7420); // Subchunk1ID - "fmt "
+        $header .= pack('V', $subchunk1size); // Subchunk1Size
+        $header .= pack('v', $this->getAudioFormat()); // AudioFormat
+        $header .= pack('v', $this->getNumChannels()); // NumChannels
+        $header .= pack('V', $this->getSampleRate()); // SampleRate
+        $header .= pack('V', $this->getByteRate()); // ByteRate
+        $header .= pack('v', $this->getBlockAlign()); // BlockAlign
+        $header .= pack('v', $this->getBitsPerSample()); // BitsPerSample
+        if ($subchunk1size > 16) {
+            $header .= pack('v', 0); // extension size = 0
+        }
 
         return $header;
     }
@@ -387,9 +405,9 @@ class WavFile
      */
     public function getDataSubchunk()
     {
-        return pack('N', 0x64617461) . // "data" chunk
-               pack('V', $this->_dataSize) .
-               $this->_samples;
+        return pack('N', 0x64617461) . // Subchunk2ID - "data"
+               pack('V', $this->getDataSize()) . // Subchunk2Size
+               $this->_samples; // Subchunk2
     }
 
     /**
@@ -1096,15 +1114,15 @@ class WavFile
 
         $this->setSubChunk1Size($fmt['SubChunk1Size']);
 
-        if ($fmt['AudioFormat'] != 1 && $fmt['AudioFormat'] != 3) {
-            throw new WavFormatException('Not PCM audio, non PCM is not supported.', 7);
+        if ($fmt['AudioFormat'] != self::WAVE_FORMAT_PCM && $fmt['AudioFormat'] != self::WAVE_FORMAT_IEEE_FLOAT) {
+            throw new WavFormatException('Unsupported audio format. Only PCM or IEEE float audio is supported.', 7);
         } elseif ($fmt['AudioFormat'] == 1 && !in_array($fmt['BitsPerSample'], array(8, 16, 24))) {
-            throw new WavFormatException('Only 8, 16 and 24-bit integer PCM audio is supported.', 8);
+            throw new WavFormatException('Only 8, 16 and 24-bit PCM audio is supported.', 8);
         } elseif ($fmt['AudioFormat'] == 3 && $fmt['BitsPerSample'] != 32) {
-            throw new WavFormatException('Only 32-bit float PCM audio is supported.', 9);
+            throw new WavFormatException('Only 32-bit IEEE float audio is supported.', 9);
         }
 
-        $this->setFormat('PCM')
+        $this->setAudioFormat($fmt['AudioFormat'], false)
              ->setNumChannels($fmt['NumChannels'])
              ->setSampleRate($fmt['SampleRate'])
              ->setBitsPerSample($fmt['BitsPerSample']);
@@ -1197,7 +1215,7 @@ class WavFile
             ."Bits Per Sample: %u\n";
 
         $s = sprintf($s, $this->getActualSize(),
-                         $this->getFormat(),
+                         $this->getAudioFormat() == self::WAVE_FORMAT_IEEE_FLOAT ? 'IEEE float' : 'PCM',
                          $this->getSubChunk1Size(),
                          $this->getNumChannels(),
                          $this->getByteRate(),
