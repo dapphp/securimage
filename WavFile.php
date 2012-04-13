@@ -35,11 +35,18 @@
 *
 * @copyright 2012 Drew Phillips
 * @author Drew Phillips <drew@drew-phillips.com>
-* @version 0.5-alpha (April 2012)
+* @version 0.6-alpha (April 2012)
 * @package PHPWavUtils
 * @license BSD License
 *
 * Changelog:
+*
+*   0.6 (4/12/2012)
+*     - Support 8, 16, 24, 32 bit and PCM float (Paul Voegler)
+*     - Add normalize filter, misc improvements and fixes (Paul Voegler)
+*     - Normalize parameters to filter() to use filter constants as array indices
+*     - Add option to mix filter to loop the target file if the source is longer
+*
 *   0.5 (4/3/2012)
 *     - Fix binary pack routine (Paul Voegler)
 *     - Add improved mixing function (Paul Voegler)
@@ -842,12 +849,23 @@ class WavFile
         $numChannels = $this->getNumChannels();
 
         // initialize options
-        $wavMix = isset($options['filter_mix']) ? $options['filter_mix'] : null;
-        $degradeQuality = isset($options['filter_degrade']) ? (float)$options['filter_degrade'] : 1;
-        $threshold = isset($options['filter_normalize']) ? $options['filter_normalize'] : null;
+        $wavMix         = isset($options[WavFile::FILTER_MIX]) ? $options[WavFile::FILTER_MIX] : null;
+        $mixOpts        = array();
+        $degradeQuality = isset($options[WavFile::FILTER_DEGRADE]) ? (float)$options[WavFile::FILTER_DEGRADE] : 1;
+        $threshold      = isset($options[WavFile::FILTER_NORMALIZE]) ? $options[WavFile::FILTER_NORMALIZE] : null;
 
         // check options
         if ($filters & self::FILTER_MIX) {
+            if (is_array($wavMix)) {
+                if (!isset($wavMix['wav'])) {
+                    throw new Exception("'wav' parameter to FILTER_MIX options missing.");
+                }
+                $mixOpts = $wavMix;
+                $wavMix  = $mixOpts['wav'];
+
+                if (!isset($mixOpts['loop'])) $mixOpts['loop'] = false;
+            }
+
             if (!($wavMix instanceof WavFile)) {
                 throw new Exception("WavFile to mix is missing or invalid.");
             } elseif ($wavMix->getSampleRate() != $this->getSampleRate()) {
@@ -855,6 +873,8 @@ class WavFile
             } else if ($wavMix->getNumChannels() != $this->getNumChannels()) {
                 throw new Exception("Number of channels for wav files does not match.");
             }
+
+            $mixOpts['wavNumBlocks'] = $wavMix->getNumBlocks();
         }
         if ($filters & self::FILTER_NORMALIZE) {
             if ($threshold == 1 || $threshold <= -1) {
@@ -880,7 +900,11 @@ class WavFile
 
                 /************* MIX FILTER ***********************/
                 if ($filters & self::FILTER_MIX) {
-                    $sampleFloat += $wavMix->getSampleValue($block, $channel);
+                    $mixBlock     = ($mixOpts['loop'] == true)      ?
+                                    $block % $mixOpts['wavNumBlocks'] :
+                                    $block;
+
+                    $sampleFloat += $wavMix->getSampleValue($mixBlock, $channel);
                 }
 
                 /************* NORMALIZE FILTER *******************/
@@ -912,8 +936,8 @@ class WavFile
      */
     public function mergeWav(WavFile $wav, $normalizeThreshold = null) {
         return $this->filter(self::FILTER_MIX | self::FILTER_NORMALIZE, array(
-            'filter_mix' => $wav,
-            'filter_normalize' => $normalizeThreshold
+            WavFile::FILTER_MIX       => $wav,
+            WavFile::FILTER_NORMALIZE => $normalizeThreshold
         ));
     }
 
@@ -942,7 +966,7 @@ class WavFile
     public function degrade($quality = 1.0)
     {
         return $this->filter(self::FILTER_DEGRADE, array(
-            'filter_degrade' => $quality
+            WavFile::FILTER_DEGRADE => $quality
         ));
     }
 
@@ -1097,10 +1121,10 @@ class WavFile
             $epSize          = fread($this->_fp, 2);
             $extraParamsSize = unpack('vSize', $epSize);
             if ($extraParamsSize['Size'] > 0) {
-                $extraParams     = fread($this->_fp, $extraParamsSize['Size']);
+                $extraParams = fread($this->_fp, $extraParamsSize['Size']);
             }
 
-            $wavHeaderSize  += ($extraParamsSize['Size'] - 16);
+            $wavHeaderSize += ($extraParamsSize['Size'] - 16);
         }
 
         $dataHeader = fread($this->_fp, 8);
