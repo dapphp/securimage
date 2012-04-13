@@ -862,9 +862,8 @@ class WavFile
                 }
                 $mixOpts = $wavMix;
                 $wavMix  = $mixOpts['wav'];
-
-                if (!isset($mixOpts['loop'])) $mixOpts['loop'] = false;
             }
+            if (!isset($mixOpts['loop'])) $mixOpts['loop'] = false;
 
             if (!($wavMix instanceof WavFile)) {
                 throw new Exception("WavFile to mix is missing or invalid.");
