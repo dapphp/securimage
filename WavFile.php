@@ -505,20 +505,23 @@ class WavFile
      */
     public function setSampleBlock($sampleBlock, $blockNum)
     {
-        if (strlen($sampleBlock) != $this->_blockAlign) {
-            throw new Exception('Incorrect sample block size. Was ' . strlen($sampleBlock) . ' expected ' . $this->_blockAlign . '.');
+        $blockAlign = $this->_blockAlign;
+        if (strlen($sampleBlock) != $blockAlign) {
+            throw new Exception('Incorrect sample block size. Was ' . strlen($sampleBlock) . ' expected ' . $blockAlign . '.');
         }
 
-        $numBlocks = (int)($this->_dataSize / $this->_blockAlign);
-        $offset     = $blockNum * $this->_blockAlign;
+        $numBlocks = (int)($this->_dataSize / $blockAlign);
+        $offset     = $blockNum * $blockAlign;
 
         if ($blockNum > $numBlocks || $blockNum < 0) {
                throw new Exception('Sample block number was out of range.');
         } elseif ($blockNum == $numBlocks) {
+            // append
             $this->_samples .= $sampleBlock;
-            $this->_dataSize += $this->_blockAlign;
+            $this->_dataSize += $blockAlign;
         } else {
-            for ($i = 0; $i < $this->_blockAlign; ++$i) {
+            // replace
+            for ($i = 0; $i < $blockAlign; ++$i) {
                 $this->_samples{$offset + $i} = $sampleBlock{$i};
             }
         }
@@ -720,17 +723,19 @@ class WavFile
             throw new Exception('Channel number was out of range.');
         }
 
-        $sampleBytes = $this->_bitsPerSample / 8;
+        $dataSize = $this->_dataSize;
+        $bitsPerSample = $this->_bitsPerSample;
+        $sampleBytes = $bitsPerSample / 8;
         $offset = $blockNum * $this->_blockAlign + ($channelNum - 1) * $sampleBytes;
-        if (($offset + $sampleBytes > $this->_dataSize && $offset != $this->_dataSize) || $offset < 0) { // allow appending
+        if (($offset + $sampleBytes > $dataSize && $offset != $dataSize) || $offset < 0) { // allow appending
             throw new Exception('Sample block or channel number was out of range.');
         }
 
         // convert to value, quantize and clip
-        if ($this->_bitsPerSample == 32) {
+        if ($bitsPerSample == 32) {
             $sample = $sampleFloat < -1.0 ? -1.0 : ($sampleFloat > 1.0 ? 1.0 : $sampleFloat);
         } else {
-            $p = 1 << ($this->_bitsPerSample - 1); // 2 to the power of _bitsPerSample divided by 2
+            $p = 1 << ($bitsPerSample - 1); // 2 to the power of _bitsPerSample divided by 2
 
             // project and quantize (round) float to integer values
             $sample = $sampleFloat < 0 ? (int)($sampleFloat * $p - 0.5) : (int)($sampleFloat * $p + 0.5);
@@ -744,7 +749,7 @@ class WavFile
         }
 
         // convert to binary
-        switch ($this->_bitsPerSample) {
+        switch ($bitsPerSample) {
             case 8:
                 // unsigned char
                 $sampleBinary = chr($sample + 0x80);
@@ -773,7 +778,7 @@ class WavFile
                 break;
         }
 
-        if ($offset == $this->_dataSize) {
+        if ($offset == $dataSize) {
             // append
             $this->_samples .= $sampleBinary;
             $this->_dataSize += $sampleBytes;
