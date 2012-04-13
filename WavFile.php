@@ -129,6 +129,9 @@ class WavFile
     /** @var array Array of samples */
     protected $_samples;
 
+    /** @var int Number of sample blocks */
+    protected $_numBlocks;
+
     /** @var resource The file pointer used for reading wavs from file or memory */
     protected $_fp;
 
@@ -149,13 +152,19 @@ class WavFile
      */
     public function __construct($params = null)
     {
-        $this->_samples       = '';
-        $this->_blockAlign    = 1;
+        $this->_actualSize    = 44;
+        $this->_size          = 36;
+        $this->_subChunk1Size = 16;
+        $this->_dataOffset    = 44;
         $this->_audioFormat   = self::WAVE_FORMAT_PCM;
-        $this->_sampleRate    = 11025;
-        $this->_bitsPerSample = 8;
         $this->_numChannels   = 1;
+        $this->_sampleRate    = 11025;
+        $this->_byteRate      = 11025;
+        $this->_blockAlign    = 1;
+        $this->_bitsPerSample = 8;
         $this->_dataSize      = 0;
+        $this->_numBlocks     = 0;
+        $this->_samples       = '';
 
         if ($params instanceof WavFile) {
             foreach ($params as $prop => &$val) {
@@ -196,8 +205,13 @@ class WavFile
         return $this->_size;
     }
 
-    protected function setSize($size) {
-        $this->_size = $size;
+    protected function setSize($size = null) {
+        if (is_null($size)) {
+            $this->_size = 4 + 8 + $this->_subChunk1Size + 8 + $this->_dataSize;
+        } else {
+            $this->_size = $size;
+        }
+
         return $this;
     }
 
@@ -205,8 +219,13 @@ class WavFile
         return $this->_actualSize;
     }
 
-    public function setActualSize($actualSize) {
-        $this->_actualSize = $actualSize;
+    protected function setActualSize($actualSize = null) {
+        if (is_null($actualSize)) {
+            $this->_actualSize = 8 + $this->_size;
+        } else {
+            $this->_actualSize = $actualSize;
+        }
+
         return $this;
     }
 
@@ -232,8 +251,17 @@ class WavFile
         return $this->_subChunk1Size;
     }
 
-    public function setSubChunk1Size($subChunk1Size) {
-        $this->_subChunk1Size = $subChunk1Size;
+    protected function setSubChunk1Size($subChunk1Size = null, $update = true) {
+        if (is_null($subChunk1Size)) {
+            $this->_subChunk1Size = $this->_audioFormat == self::WAVE_FORMAT_PCM ? 16 : 18;
+        } else {
+            $this->_subChunk1Size = $subChunk1Size;
+        }
+
+        if ($update) {
+            $this->setDataOffset();
+        }
+
         return $this;
     }
 
@@ -241,10 +269,17 @@ class WavFile
         return $this->_numChannels;
     }
 
-    public function setNumChannels($numChannels) {
-        $this->_numChannels = $numChannels;
-        $this->setByteRate();
-        $this->setBlockAlign();
+    public function setNumChannels($numChannels, $update = true) {
+        if ($numChannels < 1 || $numChannels > self::MAX_CHANNEL) {
+            throw new Exception('Unsupported number of channels. Only up to ' . self::MAX_CHANNEL . ' channels are supported.');
+        }
+
+        $this->_numChannels = (int)$numChannels;
+        if ($update) {
+            $this->setByteRate()
+                 ->setBlockAlign();
+        }
+
         return $this;
     }
 
@@ -252,16 +287,30 @@ class WavFile
         return $this->_sampleRate;
     }
 
+    public function setSampleRate($sampleRate, $update = true) {
+        if ($sampleRate < 1 || $sampleRate > 192000) {
+            throw new Exception('Invalid sample rate.');
+        }
+
+        $this->_sampleRate = (int)$sampleRate;
+        if ($update) {
+            $this->setByteRate();
+        }
+
+        return $this;
+    }
+
     public function getByteRate() {
         return $this->_byteRate;
     }
 
-    public function setByteRate($byteRate = null) {
+    protected function setByteRate($byteRate = null) {
         if (is_null($byteRate)) {
             $this->_byteRate = $this->_sampleRate * $this->_numChannels * $this->_bitsPerSample / 8;
         } else {
             $this->_byteRate = $byteRate;
         }
+
         return $this;
     }
 
@@ -269,18 +318,17 @@ class WavFile
         return $this->_blockAlign;
     }
 
-    protected function setBlockAlign($blockAlign = null) {
+    protected function setBlockAlign($blockAlign = null, $update = true) {
         if (is_null($blockAlign)) {
-            $this->_blockAlign = $this->_numChannels * ($this->_bitsPerSample / 8);
+            $this->_blockAlign = $this->_numChannels * $this->_bitsPerSample / 8;
         } else {
             $this->_blockAlign = $blockAlign;
         }
-        return $this;
-    }
 
-    public function setSampleRate($sampleRate) {
-        $this->_sampleRate = $sampleRate;
-        $this->setByteRate();
+        if ($update) {
+            $this->setNumBlocks();
+        }
+
         return $this;
     }
 
@@ -288,13 +336,18 @@ class WavFile
         return $this->_bitsPerSample;
     }
 
-    public function setBitsPerSample($bitsPerSample) {
+    public function setBitsPerSample($bitsPerSample, $update = true) {
         if (!in_array($bitsPerSample, array(8, 16, 24, 32))) {
             throw new Exception('Unsupported bits per sample. Only 8, 16, 24 and 32 bits are supported.');
         }
-        $this->_bitsPerSample = $bitsPerSample;
-        $this->setByteRate();
-        $this->setBlockAlign();
+
+        $this->_bitsPerSample = (int)$bitsPerSample;
+        if ($update) {
+            $this->setAudioFormat()
+                 ->setByteRate()
+                 ->setBlockAlign();
+        }
+
         return $this;
     }
 
@@ -302,8 +355,19 @@ class WavFile
         return $this->_dataSize;
     }
 
-    public function setDataSize($dataSize) {
-        $this->_dataSize = $dataSize;
+    protected function setDataSize($dataSize = null, $update = true) {
+        if (is_null($dataSize)) {
+            $this->_dataSize = strlen($this->_samples);
+        } else {
+            $this->_dataSize = $dataSize;
+        }
+
+        if ($update) {
+            $this->setSize()
+                 ->setActualSize()
+                 ->setNumBlocks();
+        }
+
         return $this;
     }
 
@@ -311,8 +375,13 @@ class WavFile
         return $this->_dataOffset;
     }
 
-    public function setDataOffset($dataOffset) {
-        $this->_dataOffset = $dataOffset;
+    protected function setDataOffset($dataOffset = null) {
+        if (is_null($dataOffset)) {
+            $this->_dataOffset = 8 + 4 + 8 + $this->_subChunk1Size + 8;
+        } else {
+            $this->_dataOffset = $dataOffset;
+        }
+
         return $this;
     }
 
@@ -320,27 +389,36 @@ class WavFile
         return $this->_samples;
     }
 
-    public function setSamples($samples) {
+    public function setSamples($samples, $update = true) {
         $this->_samples = $samples;
-        $this->setDataSize(strlen($samples));
+        if ($update) {
+            $this->setDataSize();
+        }
+
         return $this;
     }
 
     public function getNumBlocks()
     {
-        if ($this->_blockAlign == 0) {
-            return 0;
+        return $this->_numBlocks;
+    }
+
+    protected function setNumBlocks($numBlocks = null) {
+        if (is_null($numBlocks)) {
+            $this->_numBlocks = (int)($this->_dataSize / $this->_blockAlign); // do not count incomplete sample blocks
         } else {
-            return (int)($this->_dataSize / $this->_blockAlign);
+            $this->_numBlocks = $numBlocks;
         }
+
+        return $this;
     }
 
     public function getMaxAmplitude()
     {
         if($this->_bitsPerSample == 8) {
-            return 255;
+            return 0xFF;
         } elseif($this->_bitsPerSample == 32) {
-            return 1;
+            return 1.0;
         } else {
             return (1 << ($this->_bitsPerSample - 1)) - 1;
         }
@@ -351,7 +429,7 @@ class WavFile
         if ($this->_bitsPerSample == 8) {
             return 0;
         } elseif ($this->_bitsPerSample == 32) {
-            return -1;
+            return -1.0;
         } else {
             return -(1 << ($this->_bitsPerSample - 1));
         }
@@ -360,7 +438,9 @@ class WavFile
     public function getZeroAmplitude()
     {
         if ($this->_bitsPerSample == 8) {
-            return 128;
+            return 0x80;
+        } elseif ($this->_bitsPerSample == 32) {
+            return 0.0;
         } else {
             return 0;
         }
@@ -519,6 +599,9 @@ class WavFile
             // append
             $this->_samples .= $sampleBlock;
             $this->_dataSize += $blockAlign;
+            $this->_size += $blockAlign;
+            $this->_actualSize += $blockAlign;
+            $this->_numBlocks++;
         } else {
             // replace
             for ($i = 0; $i < $blockAlign; ++$i) {
@@ -703,6 +786,9 @@ class WavFile
                 // TODO: 64-bit PHP?
                 $data = unpack('f', $sampleBinary);
                 return (float)$data[1];
+
+            default:
+                return null;
         }
     }
 
@@ -776,12 +862,19 @@ class WavFile
                 // TODO: 64-bit PHP?
                 $sampleBinary = pack('f', $sample);
                 break;
+
+            default:
+                $sampleBinary = null;
+                break;
         }
 
         if ($offset == $dataSize) {
             // append
             $this->_samples .= $sampleBinary;
             $this->_dataSize += $sampleBytes;
+            $this->_size += $sampleBytes;
+            $this->_actualSize += $sampleBytes;
+            $this->_numBlocks = (int)($this->_dataSize / $this->_blockAlign);
         } else {
             // replace
             for ($i = 0; $i < $sampleBytes; ++$i) {
@@ -856,7 +949,7 @@ class WavFile
         }
 
         $this->_samples .= $wav->_samples;
-        $this->setDataSize(strlen($this->_samples));
+        $this->setDataSize();
 
         return $this;
     }
@@ -974,7 +1067,7 @@ class WavFile
         $numChannels = $this->getNumChannels();
 
         $this->_samples .= str_repeat(self::packSample($this->getZeroAmplitude(), $this->getBitsPerSample()), $numSamples * $numChannels);
-        $this->setDataSize(strlen($this->_samples));
+        $this->setDataSize();
 
         return $this;
     }
@@ -1016,6 +1109,8 @@ class WavFile
 
             $this->_samples .= str_repeat(self::packSample($val, $bitDepth), $numChannels);
         }
+
+        $this->setDataSize();
 
         return $this;
     }
@@ -1117,7 +1212,7 @@ class WavFile
             throw new WavFormatException('Bad wav header, expected "fmt", found "' . $fmt['SubChunk1ID'] . '".', 6);
         }
 
-        $this->setSubChunk1Size($fmt['SubChunk1Size']);
+        $this->setSubChunk1Size($fmt['SubChunk1Size'], false);
 
         if ($fmt['AudioFormat'] != self::WAVE_FORMAT_PCM && $fmt['AudioFormat'] != self::WAVE_FORMAT_IEEE_FLOAT) {
             throw new WavFormatException('Unsupported audio format. Only PCM or IEEE float audio is supported.', 7);
@@ -1128,9 +1223,11 @@ class WavFile
         }
 
         $this->setAudioFormat($fmt['AudioFormat'], false)
-             ->setNumChannels($fmt['NumChannels'])
-             ->setSampleRate($fmt['SampleRate'])
-             ->setBitsPerSample($fmt['BitsPerSample']);
+             ->setNumChannels($fmt['NumChannels'], false)
+             ->setSampleRate($fmt['SampleRate'], false)
+             ->setBitsPerSample($fmt['BitsPerSample'], false)
+             ->setByteRate()
+             ->setBlockAlign();
 
         if ($this->getByteRate() != $fmt['ByteRate']) {
             throw new WavFormatException('Invalid ByteRate value in wav header, expected ' . $this->getByteRate() . ', found ' . $fmt['ByteRate'] . '.', 10);
@@ -1156,7 +1253,7 @@ class WavFile
             throw new WavFormatException('Data chunk expected, found "' . $data['Subchunk2ID'] . '".', 12);
         }
 
-        $this->setDataSize($data['Subchunk2Size'])
+        $this->setDataSize($data['Subchunk2Size'], false)
              ->setDataOffset($wavHeaderSize + 8);
 
         return $this;
@@ -1168,7 +1265,7 @@ class WavFile
     protected function readWavData()
     {
         $this->_samples = fread($this->_fp, $this->getDataSize());
-        $this->setDataSize(strlen($this->_samples));
+        $this->setDataSize();
 
         return $this;
     }
