@@ -126,7 +126,7 @@ class WavFile
     /** @var int Starting offset of data chunk */
     protected $_dataOffset;
 
-    /** @var array Array of samples */
+    /** @var string Binary string of samples */
     protected $_samples;
 
     /** @var int Number of sample blocks */
@@ -456,7 +456,7 @@ class WavFile
         // RIFF header
         $header = pack('N', 0x52494646); // ChunkID - "RIFF"
 
-        $subchunk1size = $this->getAudioFormat() == self::WAVE_FORMAT_PCM ? 16 : 18; // 16 bytes for PCM, else +2 bytes for extension length
+        $subchunk1size = $this->getAudioFormat() == self::WAVE_FORMAT_PCM ? 16 : 18; // 16 bytes for PCM, else +2 bytes for extension size
         $subchunk2size = $this->getDataSize();
 
         $header .= pack('V', 4 + (8 + $subchunk1size) + (8 +  $subchunk2size)); // ChunkSize
@@ -1209,7 +1209,7 @@ class WavFile
                      substr($header, 12, 26));
 
         if ($fmt['SubChunk1ID'] != 0x666d7420) {
-            throw new WavFormatException('Bad wav header, expected "fmt", found "' . $fmt['SubChunk1ID'] . '".', 6);
+            throw new WavFormatException('Bad wav header, expected "fmt ", found "' . $fmt['SubChunk1ID'] . '".', 6);
         }
 
         $this->setSubChunk1Size($fmt['SubChunk1Size'], false);
