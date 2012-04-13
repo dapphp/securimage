@@ -1123,7 +1123,7 @@ class WavFile
                 $extraParams = fread($this->_fp, $extraParamsSize['Size']);
             }
 
-            $wavHeaderSize += ($extraParamsSize['Size'] - 16);
+            $wavHeaderSize += $extraParamsSize['Size'] + 2;
         }
 
         $dataHeader = fread($this->_fp, 8);
