@@ -443,51 +443,51 @@ class Securimage
         $this->noise_color     = $this->initColor($this->noise_color,     '#616161');
         $this->signature_color = $this->initColor($this->signature_color, '#616161');
 
-        if ($this->ttf_file == null) {
+        if (is_null($this->ttf_file)) {
             $this->ttf_file = $this->securimage_path . '/AHGBold.ttf';
         }
 
         $this->signature_font = $this->ttf_file;
 
-        if ($this->wordlist_file == null) {
+        if (is_null($this->wordlist_file)) {
             $this->wordlist_file = $this->securimage_path . '/words/words.txt';
         }
 
-        if ($this->sqlite_database == null) {
+        if (is_null($this->sqlite_database)) {
             $this->sqlite_database = $this->securimage_path . '/database/securimage.sqlite';
         }
 
-        if ($this->audio_path == null) {
+        if (is_null($this->audio_path)) {
             $this->audio_path = $this->securimage_path . '/audio/';
         }
 
-        if ($this->audio_noise_path == null) {
+        if (is_null($this->audio_noise_path)) {
             $this->audio_noise_path = $this->audio_path . '/noise/';
         }
 
-        if ($this->audio_use_noise == null) {
+        if (is_null($this->audio_use_noise)) {
             $this->audio_use_noise = true;
         }
 
-        if ($this->degrade_audio == null) {
+        if (is_null($this->degrade_audio)) {
             $this->degrade_audio = true;
         }
 
-        if ($this->code_length == null || $this->code_length < 1) {
+        if (is_null($this->code_length) || (int)$this->code_length < 1) {
             $this->code_length = 6;
         }
 
-        if ($this->perturbation == null || !is_numeric($this->perturbation)) {
+        if (is_null($this->perturbation) || !is_numeric($this->perturbation)) {
             $this->perturbation = 0.75;
         }
 
-        if ($this->namespace == null || !is_string($this->namespace)) {
+        if (is_null($this->namespace) || !is_string($this->namespace)) {
             $this->namespace = 'default';
         }
 
         // Initialize session or attach to existing
         if ( session_id() == '' ) { // no session has been started yet, which is needed for validation
-            if ($this->session_name != null && trim($this->session_name) != '') {
+            if (!is_null($this->session_name) && trim($this->session_name) != '') {
                 session_name(trim($this->session_name)); // set session name if provided
             }
             session_start();
