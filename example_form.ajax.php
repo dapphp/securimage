@@ -13,9 +13,10 @@ $GLOBALS['DEBUG_MODE'] = 1;
 process_si_contact_form();
 
 ?>
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
+    <meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
     <title>Securimage Example Form</title>
     <style type="text/css">
     <!--
@@ -25,15 +26,15 @@ process_si_contact_form();
         .note { font-size: 18px; }
     -->
     </style>
-  
-    <script src="https://ajax.googleapis.com/ajax/libs/prototype/1.7.0.0/prototype.js"></script>
-  
+
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/prototype/1.7.0.0/prototype.js"></script>
+
     <script type="text/javascript">
         function reloadCaptcha()
         {
             document.getElementById('siimage').src = './securimage_show.php?sid=' + Math.random();
         }
-        
+
         function processForm()
         {
             new Ajax.Request('<?php echo $_SERVER['PHP_SELF'] ?>', {
@@ -96,23 +97,23 @@ process_si_contact_form();
 
   <p>
     <strong>Message*:</strong><br />
-    <textarea name="ct_message" style="width: 450px; height: 200px"></textarea>
+    <textarea name="ct_message" rows="12" cols="60"></textarea>
   </p>
 
   <p>
-    <img id="siimage" style="border: 1px solid #000; margin-right: 15px" src="./securimage_show.php?sid=<?php echo md5(uniqid()) ?>" alt="CAPTCHA Image" align="left">
-    <object type="application/x-shockwave-flash" data="./securimage_play.swf?audio_file=./securimage_play.php&amp;bgColor1=#fff&amp;bgColor2=#fff&amp;iconColor=#777&amp;borderWidth=1&amp;borderColor=#000" height="32" width="32">
-    <param name="movie" value="./securimage_play.swf?audio_file=./securimage_play.php&amp;bgColor1=#fff&amp;bgColor2=#fff&amp;iconColor=#777&amp;borderWidth=1&amp;borderColor=#000">
+    <img id="siimage" style="border: 1px solid #000; margin-right: 15px" src="./securimage_show.php?sid=<?php echo md5(uniqid()) ?>" alt="CAPTCHA Image" align="left" />
+    <object type="application/x-shockwave-flash" data="./securimage_play.swf?icon_file=./images/audio_icon.png&amp;audio_path=./securimage_play.php" height="32" width="32">
+    <param name="movie" value="./securimage_play.swf?icon_file=./images/audio_icon.png&amp;audio_path=./securimage_play.php" />
     </object>
     &nbsp;
-    <a tabindex="-1" style="border-style: none;" href="#" title="Refresh Image" onclick="reloadCaptcha(); this.blur(); return false"><img src="./images/refresh.png" alt="Reload Image" onclick="this.blur()" align="bottom" border="0"></a><br />
+    <a tabindex="-1" style="border-style: none;" href="#" title="Refresh Image" onclick="document.getElementById('siimage').src = './securimage_show.php?sid=' + Math.random(); this.blur(); return false"><img src="./images/refresh.png" alt="Reload Image" height="32" width="32" onclick="this.blur()" align="bottom" border="0" /></a><br />
     <strong>Enter Code*:</strong><br />
     <input type="text" name="ct_captcha" size="12" maxlength="8" />
   </p>
 
   <p>
     <br />
-    <input type="submit" value="Submit Message">
+    <input type="submit" value="Submit Message" />
   </p>
 
 </form>
@@ -128,7 +129,7 @@ function process_si_contact_form()
 {
     if ($_SERVER['REQUEST_METHOD'] == 'POST' && @$_POST['do'] == 'contact') {
         // if the form has been submitted
-      
+
         foreach($_POST as $key => $value) {
             if (!is_array($key)) {
                 // sanitize the input data
@@ -148,7 +149,7 @@ function process_si_contact_form()
 
         if (isset($GLOBALS['DEBUG_MODE']) && $GLOBALS['DEBUG_MODE'] == false) {
             // only check for errors if the form is not in debug mode
-      
+
             if (strlen($name) < 3) {
                 // name too short, add error
                 $errors['name_error'] = 'Your name is required';
@@ -173,7 +174,7 @@ function process_si_contact_form()
         if (sizeof($errors) == 0) {
             require_once dirname(__FILE__) . '/securimage.php';
             $securimage = new Securimage();
-      
+
             if ($securimage->check($captcha) == false) {
                 $errors['captcha_error'] = 'Incorrect security code entered';
             }
@@ -196,7 +197,7 @@ function process_si_contact_form()
                 // send the message with mail()
                 mail($GLOBALS['ct_recipient'], $GLOBALS['ct_msg_subject'], $message, "From: {$GLOBALS['ct_recipient']}\r\nReply-To: {$email}\r\nContent-type: text/html; charset=ISO-8859-1\r\nMIME-Version: 1.0");
             }
-            
+
             $return = array('error' => 0, 'message' => 'OK');
             die(json_encode($return));
         } else {
