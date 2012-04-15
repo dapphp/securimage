@@ -576,7 +576,7 @@ class WavFile
 
     protected function setNumBlocks($numBlocks = null, $update = true) {
         if (is_null($numBlocks)) {
-            $this->_numBlocks = (int)($this->_dataSize / $this->_blockAlign); // do not count incomplete sample blocks
+            $this->_numBlocks = (int)($this->_dataSize / $this->_blockAlign);  // do not count incomplete sample blocks
         } else {
             $this->_numBlocks = $numBlocks;
         }
@@ -637,7 +637,7 @@ class WavFile
         // "fmt " subchunk
         $header .= pack('N', 0x666d7420);                           // SubchunkID - "fmt "
         $header .= pack('V', $this->getFmtChunkSize());             // SubchunkSize
-        $header .= pack('v', $this->getAudioFormat());                         // AudioFormat
+        $header .= pack('v', $this->getAudioFormat());              // AudioFormat
         $header .= pack('v', $this->getNumChannels());              // NumChannels
         $header .= pack('V', $this->getSampleRate());               // SampleRate
         $header .= pack('V', $this->getByteRate());                 // ByteRate
@@ -654,9 +654,9 @@ class WavFile
 
         // "fact" subchunk
         if ($this->getFactChunkSize() == 4) {
-            $header .= pack('N', 0x66616374);                      // SubchunkID - "fact"
-            $header .= pack('V', 4);                               // SubchunkSize
-            $header .= pack('V', $this->getNumBlocks());           // SampleLength (per channel)
+            $header .= pack('N', 0x66616374);                       // SubchunkID - "fact"
+            $header .= pack('V', 4);                                // SubchunkSize
+            $header .= pack('V', $this->getNumBlocks());            // SampleLength (per channel)
         }
 
         return $header;
@@ -1135,54 +1135,62 @@ class WavFile
         return $this;
     }
 
-    public function filter($filters, $options = array())
+    public function filter($filters = array(), $blockOffset = 0, $numBlocks = null)
     {
         // check preconditions
-        $filters = (int)$filters;
-        if ($filters <= 0) {
-            throw new Exception('No filters provided.');
-        }
-        $numBlocks  = $this->getNumBlocks();
+        $totalBlocks = $this->getNumBlocks();
         $numChannels = $this->getNumChannels();
+        if (is_null($numBlocks)) $numBlocks = $totalBlocks - $blockOffset;
 
-        // initialize options
-        $wavMix         = isset($options[WavFile::FILTER_MIX]) ? $options[WavFile::FILTER_MIX] : null;
-        $mixOpts        = array();
-        $degradeQuality = isset($options[WavFile::FILTER_DEGRADE]) ? (float)$options[WavFile::FILTER_DEGRADE] : 1;
-        $threshold      = isset($options[WavFile::FILTER_NORMALIZE]) ? $options[WavFile::FILTER_NORMALIZE] : null;
+        if (!is_array($filters) || empty($filters) || $blockOffset < 0 || $blockOffset > $totalBlocks || $numBlocks <= 0) {
+            // nothing to do
+            return $this;
+        }
 
-        // check options
-        if ($filters & self::FILTER_MIX) {
-            if (is_array($wavMix)) {
-                if (!isset($wavMix['wav'])) {
-                    throw new Exception("'wav' parameter to FILTER_MIX options missing.");
-                }
-                $mixOpts = $wavMix;
-                $wavMix  = $mixOpts['wav'];
+        // check filtes
+        $filter_mix = false;
+        if (array_key_exists(self::FILTER_MIX, $filters)) {
+            if (!is_array($filters[self::FILTER_MIX])) {
+                // assume the 'wav' parameter
+                $filters[self::FILTER_MIX] = array('wav' => $filters[self::FILTER_MIX]);
             }
-            if (!isset($mixOpts['loop'])) $mixOpts['loop'] = false;
 
-            if (!($wavMix instanceof WavFile)) {
+            $mix_wav = @$filters[self::FILTER_MIX]['wav'];
+            if (!($mix_wav instanceof WavFile)) {
                 throw new Exception("WavFile to mix is missing or invalid.");
-            } elseif ($wavMix->getSampleRate() != $this->getSampleRate()) {
-                throw new Exception("Sample rate for wav files do not match.");
-            } else if ($wavMix->getNumChannels() != $this->getNumChannels()) {
-                throw new Exception("Number of channels for wav files does not match.");
+            } elseif ($mix_wav->getSampleRate() != $this->getSampleRate()) {
+                throw new Exception("Sample rate of WavFile to mix does not match.");
+            } else if ($mix_wav->getNumChannels() != $this->getNumChannels()) {
+                throw new Exception("Number of channels of WavFile to mix does not match.");
             }
 
-            $mixOpts['wavNumBlocks'] = $wavMix->getNumBlocks();
+            $mix_loop = @$filters[self::FILTER_MIX]['loop'];
+            if (is_null($mix_loop)) $mix_loop = false;
+
+            $mix_blockOffset = @$filters[self::FILTER_MIX]['blockOffset'];
+            if (is_null($mix_blockOffset)) $mix_blockOffset = 0;
+
+            $mix_totalBlocks = $mix_wav->getNumBlocks();
+            $mix_numBlocks = @$filters[self::FILTER_MIX]['numBlocks'];
+            if (is_null($mix_numBlocks)) $mix_numBlocks = $mix_loop ? $mix_totalBlocks : $mix_totalBlocks - $mix_blockOffset;
+            $mix_maxBlock = min($mix_blockOffset + $mix_numBlocks, $mix_totalBlocks);
+
+            $filter_mix = true;
         }
-        if ($filters & self::FILTER_NORMALIZE) {
-            if ($threshold == 1 || $threshold <= -1) {
-                // nothing to do
-                $filters -= self::FILTER_NORMALIZE;
-            }
+
+        $filter_normalize = false;
+        if (array_key_exists(self::FILTER_NORMALIZE, $filters)) {
+            $normalize_threshold = @$filters[self::FILTER_NORMALIZE];
+
+            if (is_null($normalize_threshold) || ($normalize_threshold > -1 && $normalize_threshold != 1)) $filter_normalize = true;
         }
-        if ($filters & self::FILTER_DEGRADE) {
-            if ($degradeQuality < 0 || $degradeQuality >= 1) {
-                // nothing to do
-                $filters -= self::FILTER_DEGRADE;
-            }
+
+        $filter_degrade = false;
+        if (array_key_exists(self::FILTER_DEGRADE, $filters)) {
+            $degrade_quality = @$filters[self::FILTER_DEGRADE];
+            if (is_null($degrade_quality)) $degrade_quality = 1;
+
+            if ($degrade_quality >= 0 && $degrade_quality < 1) $filter_degrade = true;
         }
 
 
@@ -1191,31 +1199,36 @@ class WavFile
             // loop through all channels
             for ($channel = 1; $channel <= $numChannels; ++$channel) {
                 // read current sample
-                $sampleFloat = $this->getSampleValue($block, $channel);
+                $currentBlock = $blockOffset + $block;
+                $sampleFloat = $this->getSampleValue($currentBlock, $channel);
 
 
                 /************* MIX FILTER ***********************/
-                if ($filters & self::FILTER_MIX) {
-                    $mixBlock     = ($mixOpts['loop'] == true)      ?
-                                    $block % $mixOpts['wavNumBlocks'] :
-                                    $block;
+                if ($filter_mix) {
+                    if ($mix_loop) {
+                        $mixBlock = ($mix_blockOffset + ($block % $mix_numBlocks)) % $mix_totalBlocks;
+                    } else {
+                        $mixBlock = $mix_blockOffset + $block;
+                    }
 
-                    $sampleFloat += $wavMix->getSampleValue($mixBlock, $channel);
+                    if ($mixBlock < $mix_maxBlock) {
+                        $sampleFloat += $mix_wav->getSampleValue($mixBlock, $channel);
+                    }
                 }
 
                 /************* NORMALIZE FILTER *******************/
-                if ($filters & self::FILTER_NORMALIZE) {
-                    $sampleFloat = $this->normalizeSample($sampleFloat, $threshold);
+                if ($filter_normalize) {
+                    $sampleFloat = $this->normalizeSample($sampleFloat, $normalize_threshold);
                 }
 
                 /************* DEGRADE FILTER *******************/
-                if ($filters & self::FILTER_DEGRADE) {
-                    $sampleFloat += rand(1000000 * ($degradeQuality - 1), 1000000 * (1 - $degradeQuality)) / 1000000;
+                if ($filter_degrade) {
+                    $sampleFloat += rand(1000000 * ($degrade_quality - 1), 1000000 * (1 - $degrade_quality)) / 1000000;
                 }
 
 
                 // write current sample
-                $this->setSampleValue($sampleFloat, $block, $channel);
+                $this->setSampleValue($sampleFloat, $currentBlock, $channel);
             }
         }
 
@@ -1227,11 +1240,11 @@ class WavFile
      * Both wavs must have the same sample rate and same number of channels.
      *
      * @param WavFile $wav  The WavFile to mix.
-     * @param float $normalizeThreshold  See normalizeSample for explanation.
+     * @param float $normalizeThreshold  See normalizeSample for an explanation.
      * @throws Exception
      */
     public function mergeWav(WavFile $wav, $normalizeThreshold = null) {
-        return $this->filter(self::FILTER_MIX | self::FILTER_NORMALIZE, array(
+        return $this->filter(array(
             WavFile::FILTER_MIX       => $wav,
             WavFile::FILTER_NORMALIZE => $normalizeThreshold
         ));
@@ -1257,7 +1270,6 @@ class WavFile
      * Degrade the quality of the wav file by a random intensity.
      *
      * @param float quality  Decrease the quality from 1.0 to 0 where 1 = no distortion, 0 = max distortion range.
-     * @todo degrade only a portion of the audio
      */
     public function degrade($quality = 1.0)
     {

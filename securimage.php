@@ -1339,8 +1339,7 @@ class Securimage
         }
 
         /********* Set up audio filters *****************************/
-        $filters    = 0;
-        $filterOpts = array();
+        $filters = array();
 
         if ($this->audio_use_noise == true) {
             // use background audio - find random file
@@ -1353,34 +1352,27 @@ class Securimage
                     throw $ex;
                 }
 
-                if ($wavNoise->getNumBlocks() > 22050) {
-                    // remove a random segment from the beginning of the wavfile
-                    // in order to add more randomness
-                    $randOffset = rand($wavNoise->getBlockAlign(), 22050);
-                    $randOffset += $randOffset % $wavNoise->getBlockAlign();
-                    $wavNoise->setSamples(
-                            substr($wavNoise->getSamples(), $randOffset)
-                    );
-                }
+                // start at a random offset from the beginning of the wavfile
+                // in order to add more randomness
+                $randOffset = rand(0, $wavNoise->getNumBlocks() - 1);
 
                 $mixOpts = array('wav'  => $wavNoise,
-                                 'loop' => true);
+                                 'loop' => true,
+                                 'blockOffset' => $randOffset);
 
-                $filters += WavFile::FILTER_MIX | WavFile::FILTER_NORMALIZE;
-                $filterOpts[WavFile::FILTER_MIX]       = $mixOpts;
-                $filterOpts[WavFile::FILTER_NORMALIZE] = $this->audio_mix_normalization;
+                $filters[WavFile::FILTER_MIX]       = $mixOpts;
+                $filters[WavFile::FILTER_NORMALIZE] = $this->audio_mix_normalization;
             }
         }
 
         if ($this->degrade_audio == true) {
             // add random noise.
             // any noise level below 95% is intensely distorted and not pleasant to the ear
-            $filters += WavFile::FILTER_DEGRADE;
-            $filterOpts[WavFile::FILTER_DEGRADE] = rand(95, 98) / 100.0;
+            $filters[WavFile::FILTER_DEGRADE] = rand(95, 98) / 100.0;
         }
 
-        if ($filters > 0) {
-            $wavCaptcha->filter($filters, $filterOpts);  // apply filters to captcha audio
+        if (!empty($filters)) {
+            $wavCaptcha->filter($filters);  // apply filters to captcha audio
         }
 
         return $wavCaptcha->__toString();
