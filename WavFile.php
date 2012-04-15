@@ -505,7 +505,7 @@ class WavFile
                 $c >>= 1;
             }
             if ($c < 0 || $n != $this->_numChannels) {
-            	throw new Exception('Invalid channel mask. The number of channels does not match the number of locations in the mask.');
+                throw new Exception('Invalid channel mask. The number of channels does not match the number of locations in the mask.');
             }
         }
 
@@ -649,7 +649,7 @@ class WavFile
             $header .= pack('V', $this->getChannelMask());          // ChannelMask
             $header .= pack('H32', $this->getAudioSubFormat());     // SubFormat
         } elseif ($this->getFmtExtendedSize() == 2) {
-        	$header .= pack('v', 0);                                // extension size = 2 bytes, cbSize: 2 - 2 = 0 bytes
+            $header .= pack('v', 0);                                // extension size = 2 bytes, cbSize: 2 - 2 = 0 bytes
         }
 
         // "fact" subchunk
@@ -1405,36 +1405,36 @@ class WavFile
             && $fmt['AudioFormat'] != self::WAVE_FORMAT_IEEE_FLOAT
             && $fmt['AudioFormat'] != self::WAVE_FORMAT_EXTENSIBLE)
         {
-        	throw new WavFormatException('Unsupported audio format. Only PCM or IEEE FLOAT (EXTENSIBLE) audio is supported.', 13);
+            throw new WavFormatException('Unsupported audio format. Only PCM or IEEE FLOAT (EXTENSIBLE) audio is supported.', 13);
         }
 
         if ($fmt['NumChannels'] < 1 || $fmt['NumChannels'] > self::MAX_CHANNEL) {
-        	throw new WavFormatException('Invalid number of channels in "fmt " subchunk.', 14);
+            throw new WavFormatException('Invalid number of channels in "fmt " subchunk.', 14);
         }
 
         if ($fmt['SampleRate'] < 1 || $fmt['SampleRate'] > self::MAX_SAMPLERATE) {
-        	throw new WavFormatException('Invalid sample rate in "fmt " subchunk.', 15);
+            throw new WavFormatException('Invalid sample rate in "fmt " subchunk.', 15);
         }
 
         if (   ($fmt['AudioFormat'] == self::WAVE_FORMAT_PCM && !in_array($fmt['BitsPerSample'], array(8, 16, 24)))
             || ($fmt['AudioFormat'] == self::WAVE_FORMAT_IEEE_FLOAT && $fmt['BitsPerSample'] != 32)
             || ($fmt['AudioFormat'] == self::WAVE_FORMAT_EXTENSIBLE && !in_array($fmt['BitsPerSample'], array(8, 16, 24, 32))))
         {
-        	throw new WavFormatException('Only 8, 16 and 24-bit PCM and 32-bit IEEE FLOAT (EXTENSIBLE) audio is supported.', 16);
+            throw new WavFormatException('Only 8, 16 and 24-bit PCM and 32-bit IEEE FLOAT (EXTENSIBLE) audio is supported.', 16);
         }
 
         $blockAlign = $fmt['NumChannels'] * $fmt['BitsPerSample'] / 8;
         if ($blockAlign != $fmt['BlockAlign']) {
-        	trigger_error('Invalid block align in "fmt " subchunk. Found ' . $fmt['BlockAlign'] . ', expected ' . $blockAlign . '.', E_USER_NOTICE);
-        	$fmt['BlockAlign'] = $blockAlign;
+            trigger_error('Invalid block align in "fmt " subchunk. Found ' . $fmt['BlockAlign'] . ', expected ' . $blockAlign . '.', E_USER_NOTICE);
+            $fmt['BlockAlign'] = $blockAlign;
             //throw new WavFormatException('Invalid block align in "fmt " subchunk. Found ' . $fmt['BlockAlign'] . ', expected ' . $blockAlign . '.', 17);
         }
 
         $byteRate = $fmt['SampleRate'] * $blockAlign;
         if ($byteRate != $fmt['ByteRate']) {
-        	trigger_error('Invalid average byte rate in "fmt " subchunk. Found ' . $fmt['ByteRate'] . ', expected ' . $byteRate . '.', E_USER_NOTICE);
+            trigger_error('Invalid average byte rate in "fmt " subchunk. Found ' . $fmt['ByteRate'] . ', expected ' . $byteRate . '.', E_USER_NOTICE);
             $fmt['ByteRate'] = $byteRate;
-        	//throw new WavFormatException('Invalid average byte rate in "fmt " subchunk. Found ' . $fmt['ByteRate'] . ', expected ' . $byteRate . '.', 18);
+            //throw new WavFormatException('Invalid average byte rate in "fmt " subchunk. Found ' . $fmt['ByteRate'] . ', expected ' . $byteRate . '.', 18);
         }
 
         $this->setFmtChunkSize($fmt['SubchunkSize'], false)
@@ -1467,24 +1467,24 @@ class WavFile
             if (   $extensibleFmt['SubFormat'] != self::WAVE_SUBFORMAT_PCM
                 && $extensibleFmt['SubFormat'] != self::WAVE_SUBFORMAT_IEEE_FLOAT)
             {
-            	throw new WavFormatException('Unsupported audio format. Only PCM or IEEE FLOAT (EXTENSIBLE) audio is supported.', 13);
+                throw new WavFormatException('Unsupported audio format. Only PCM or IEEE FLOAT (EXTENSIBLE) audio is supported.', 13);
             }
 
             if (   ($extensibleFmt['SubFormat'] == self::WAVE_SUBFORMAT_PCM && !in_array($fmt['BitsPerSample'], array(8, 16, 24)))
                 || ($extensibleFmt['SubFormat'] == self::WAVE_SUBFORMAT_IEEE_FLOAT && $fmt['BitsPerSample'] != 32))
             {
-            	throw new WavFormatException('Only 8, 16 and 24-bit PCM and 32-bit IEEE FLOAT (EXTENSIBLE) audio is supported.', 16);
+                throw new WavFormatException('Only 8, 16 and 24-bit PCM and 32-bit IEEE FLOAT (EXTENSIBLE) audio is supported.', 16);
             }
 
             if ($extensibleFmt['Size'] != 22) {
-        	    trigger_error('Invaid extension size in EXTENSIBLE "fmt " subchunk.', E_USER_NOTICE);
-        	    $extensibleFmt['Size'] = 22;
+                trigger_error('Invaid extension size in EXTENSIBLE "fmt " subchunk.', E_USER_NOTICE);
+                $extensibleFmt['Size'] = 22;
                 //throw new WavFormatException('Invaid extension size in EXTENSIBLE "fmt " subchunk.', 20);
             }
 
             if ($extensibleFmt['ValidBitsPerSample'] != $fmt['BitsPerSample']) {
-        	    trigger_error('Invaid or unsupported valid bits per sample in EXTENSIBLE "fmt " subchunk.', E_USER_NOTICE);
-        	    $extensibleFmt['ValidBitsPerSample'] = $fmt['BitsPerSample'];
+                trigger_error('Invaid or unsupported valid bits per sample in EXTENSIBLE "fmt " subchunk.', E_USER_NOTICE);
+                $extensibleFmt['ValidBitsPerSample'] = $fmt['BitsPerSample'];
                 //throw new WavFormatException('Invaid or unsupported valid bits per sample in EXTENSIBLE "fmt " subchunk.', 21);
             }
 
@@ -1577,9 +1577,9 @@ class WavFile
         }
 
         if ($factSubchunk['SampleLength'] != $numBlocks) {
-        	trigger_error('Invalid sample length in "fact" subchunk.', E_USER_NOTICE);
-        	$factSubchunk['SampleLength'] = $numBlocks;
-        	//throw new WavFormatException('Invalid sample length in "fact" subchunk.', 105);
+            trigger_error('Invalid sample length in "fact" subchunk.', E_USER_NOTICE);
+            $factSubchunk['SampleLength'] = $numBlocks;
+            //throw new WavFormatException('Invalid sample length in "fact" subchunk.', 105);
         }
 
         $this->setFactChunkSize($factSubchunk['SubchunkSize'], false)
