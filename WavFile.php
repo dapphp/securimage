@@ -307,7 +307,7 @@ class WavFile
     protected function setAudioSubFormat($audioSubFormat = null, $update = true) {
         if (is_null($audioSubFormat)) {
             if ($this->_bitsPerSample == 32) {
-                $this->_audioSubFormat = self::WAVE_SUBFORMAT_IEEE_FLOAT;  // 32 bits are floats in this class per convention
+                $this->_audioSubFormat = self::WAVE_SUBFORMAT_IEEE_FLOAT;  // 32 bits are IEEE FLOAT in this class
             } else {
                 $this->_audioSubFormat = self::WAVE_SUBFORMAT_PCM;         // 8, 16 and 24 bits are PCM in this class
             }
@@ -626,8 +626,8 @@ class WavFile
     public function makeHeader()
     {
         // reset and recalculate
-        $audioFormat = $this->setAudioFormat()->getAudioFormat();   // implicit setAudioSubFormat(), setFactChunkSize(), setFmtExtendedSize(), setFmtChunkSize(), setSize(), setActualSize(), setDataOffset()
-        $dataSize = $this->setDataSize()->getDataSize();            // implicit setSize(), setActualSize(), setNumBlocks()
+        $this->setAudioFormat();                                    // implicit setAudioSubFormat(), setFactChunkSize(), setFmtExtendedSize(), setFmtChunkSize(), setSize(), setActualSize(), setDataOffset()
+        $this->setNumBlocks();
 
         // RIFF header
         $header = pack('N', 0x52494646);                            // ChunkID - "RIFF"
@@ -637,25 +637,25 @@ class WavFile
         // "fmt " subchunk
         $header .= pack('N', 0x666d7420);                           // SubchunkID - "fmt "
         $header .= pack('V', $this->getFmtChunkSize());             // SubchunkSize
-        $header .= pack('v', $this->getAudioFormat());              // AudioFormat
+        $header .= pack('v', $this->getAudioFormat());                         // AudioFormat
         $header .= pack('v', $this->getNumChannels());              // NumChannels
         $header .= pack('V', $this->getSampleRate());               // SampleRate
         $header .= pack('V', $this->getByteRate());                 // ByteRate
         $header .= pack('v', $this->getBlockAlign());               // BlockAlign
         $header .= pack('v', $this->getBitsPerSample());            // BitsPerSample
-        if($audioFormat == self::WAVE_FORMAT_EXTENSIBLE) {
-            $header .= pack('v', $this->getFmtExtendedSize() - 2);  // extension size = 24 bytes, cbSize: 24 - 2 = 22 bytes
+        if($this->getFmtExtendedSize() == 24) {
+            $header .= pack('v', 22);                               // extension size = 24 bytes, cbSize: 24 - 2 = 22 bytes
             $header .= pack('v', $this->getValidBitsPerSample());   // ValidBitsPerSample
             $header .= pack('V', $this->getChannelMask());          // ChannelMask
             $header .= pack('H32', $this->getAudioSubFormat());     // SubFormat
-        } elseif ($audioFormat != self::WAVE_FORMAT_PCM) {
-        	$header .= pack('v', $this->getFmtExtendedSize() - 2);  // extension size = 2 bytes, cbSize: 2 - 2 = 0 bytes
+        } elseif ($this->getFmtExtendedSize() == 2) {
+        	$header .= pack('v', 0);                                // extension size = 2 bytes, cbSize: 2 - 2 = 0 bytes
         }
 
         // "fact" subchunk
-        if ($audioFormat != self::WAVE_FORMAT_PCM) {
+        if ($this->getFactChunkSize() == 4) {
             $header .= pack('N', 0x66616374);                      // SubchunkID - "fact"
-            $header .= pack('V', $this->getFactChunkSize());       // SubchunkSize
+            $header .= pack('V', 4);                               // SubchunkSize
             $header .= pack('V', $this->getNumBlocks());           // SampleLength (per channel)
         }
 
@@ -669,9 +669,9 @@ class WavFile
      */
     public function getDataSubchunk()
     {
-        return pack('N', 0x64617461) . // Subchunk2ID - "data"
-               pack('V', $this->getDataSize()) . // Subchunk2Size
-               $this->_samples; // Subchunk2
+        return pack('N', 0x64617461) .            // SubchunkID - "data"
+               pack('V', $this->getDataSize()) .  // SubchunkSize
+               $this->_samples;                   // Subchunk data
     }
 
     /**
@@ -1049,6 +1049,7 @@ class WavFile
 
             default:
                 $sampleBinary = null;
+                $sampleBytes = 0;
                 break;
         }
 
@@ -1367,7 +1368,7 @@ class WavFile
 
 
         // read the common header
-        $header = fread($this->_fp, 36); // minimum size of the wav header
+        $header = fread($this->_fp, 36);  // minimum size of the wav header
         if (strlen($header) < 36) {
             throw new WavFormatException('Not wav format. Header too short.', 1);
         }
@@ -1464,7 +1465,7 @@ class WavFile
         // check extended "fmt " for EXTENSIBLE Audio Format
         if ($fmt['AudioFormat'] == self::WAVE_FORMAT_EXTENSIBLE) {
             if (strlen($extendedFmt) < 24) {
-                throw new WavFormatException('Invalid EXTENSIBLE "fmt " subchunk size. Found ' . $fmt['SubChunk1Size'] . ', expected 40.', 19);
+                throw new WavFormatException('Invalid EXTENSIBLE "fmt " subchunk size. Found ' . $fmt['SubchunkSize'] . ', expected 40.', 19);
             }
 
             $extensibleFmt = unpack('vSize/vValidBitsPerSample/VChannelMask/H32SubFormat', substr($extendedFmt, 0, 24));
@@ -1522,7 +1523,7 @@ class WavFile
 
 
         // read additional subchunks until "data" subchunk is found
-        $factSubChunk = array();
+        $factSubchunk = array();
         $dataSubchunk = array();
 
         while (!feof($this->_fp)) {
@@ -1540,7 +1541,7 @@ class WavFile
                 }
 
                 $factParams = unpack('VSampleLength', substr($subchunkData, 0, 4));
-                $factSubChunk = array_merge($subchunk, $factParams);
+                $factSubchunk = array_merge($subchunk, $factParams);
 
             } elseif ($subchunk['SubchunkID'] == 0x64617461) {  // "data"
                 // TODO: support extra data chuncks
@@ -1576,18 +1577,18 @@ class WavFile
         // check "fact" subchunk
         $numBlocks = (int)($dataSubchunk['SubchunkSize'] / $fmt['BlockAlign']);
 
-        if (empty($factSubChunk)) {  // fake fact subchunk
-            $factSubChunk = array('SubchunkSize' => 0, 'SampleLength' => $numBlocks);
+        if (empty($factSubchunk)) {  // construct fake "fact" subchunk
+            $factSubchunk = array('SubchunkSize' => 0, 'SampleLength' => $numBlocks);
         }
 
-        if ($factSubChunk['SampleLength'] != $numBlocks) {
+        if ($factSubchunk['SampleLength'] != $numBlocks) {
         	trigger_error('Invalid sample length in "fact" subchunk.', E_USER_NOTICE);
-        	$factSubChunk['SampleLength'] = $numBlocks;
+        	$factSubchunk['SampleLength'] = $numBlocks;
         	//throw new WavFormatException('Invalid sample length in "fact" subchunk.', 105);
         }
 
-        $this->setFactChunkSize($factSubChunk['SubchunkSize'], false)
-             ->setNumBlocks($factSubChunk['SampleLength'], false);
+        $this->setFactChunkSize($factSubchunk['SubchunkSize'], false)
+             ->setNumBlocks($factSubchunk['SampleLength'], false);
 
 
         return $this;
@@ -1643,23 +1644,28 @@ class WavFile
     public function displayInfo()
     {
         $s = "File Size: %u\n"
+            ."fmt Subchunk Size: %u\n"
+            ."fact Subchunk Size: %u\n"
+            ."Data Offset: %u\n"
             ."Audio Format: %s\n"
-            ."Sub Chunk 1 Size: %u\n"
-            ."Channels: %u\n"
-            ."Byte Rate: %u\n"
-            ."Sample Size: %u\n"
+            ."Audio SubFormat: %s\n"
             ."Sample Rate: %u\n"
-            ."Bits Per Sample: %u\n";
+            ."Bits Per Sample: %u\n"
+            ."Channels: %u\n"
+            ."Sample Block Size: %u\n"
+            ."Byte Rate: %u\n";
 
         $s = sprintf($s, $this->getActualSize(),
+                         $this->getFmtChunkSize(),
+                         $this->getFactChunkSize(),
+                         $this->getDataOffset(),
                          $this->getAudioFormat() == self::WAVE_FORMAT_PCM ? 'PCM' : ($this->getAudioFormat() == self::WAVE_FORMAT_IEEE_FLOAT ? 'IEEE FLOAT' : 'EXTENSIBLE'),
                          $this->getAudioSubFormat() == self::WAVE_SUBFORMAT_PCM ? 'PCM' : 'IEEE FLOAT',
-                         $this->getFmtChunkSize(),
-                         $this->getNumChannels(),
-                         $this->getByteRate(),
-                         $this->getBlockAlign(),
                          $this->getSampleRate(),
-                         $this->getBitsPerSample());
+                         $this->getBitsPerSample(),
+                         $this->getNumChannels(),
+                         $this->getBlockAlign(),
+                         $this->getByteRate());
 
         if (php_sapi_name() == 'cli') {
             return $s;
