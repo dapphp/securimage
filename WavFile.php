@@ -834,7 +834,6 @@ class WavFile
 
             case 32:
                 // 32-bit float
-                // TODO: 64-bit PHP?
                 $data = unpack('f', $sampleBinary);
                 return (float)$data[1];
 
@@ -873,7 +872,6 @@ class WavFile
 
             case 32:
                 // 32-bit float
-                // TODO: 64-bit PHP?
                 return pack('f', $sample);
 
             default:
@@ -967,7 +965,6 @@ class WavFile
 
             case 32:
                 // 32-bit float
-                // TODO: 64-bit PHP?
                 $data = unpack('f', $sampleBinary);
                 return (float)$data[1];
 
@@ -1043,7 +1040,6 @@ class WavFile
 
             case 32:
                 // 32-bit float
-                // TODO: 64-bit PHP?
                 $sampleBinary = pack('f', $sample);
                 break;
 
