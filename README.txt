@@ -129,3 +129,11 @@ COPYRIGHT:
      * along with this program. If not, see <http://www.gnu.org/licenses/>
      */
      
+     -------------------------------------------------------------------------------
+     Some graphics used are from the Humility Icon Pack by WorLord
+
+     License: GNU/GPL (http://findicons.com/pack/1723/humility)
+     http://findicons.com/icon/192558/gnome_volume_control
+     http://findicons.com/icon/192562/gtk_refresh
+
+     
