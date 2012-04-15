@@ -1336,8 +1336,6 @@ class WavFile
 
         $this->readWavData();
 
-        // TODO: read any extra data chunks
-
         fclose($this->_fp);
 
         return $this;
@@ -1540,11 +1538,12 @@ class WavFile
                 $factSubchunk = array_merge($subchunk, $factParams);
 
             } elseif ($subchunk['SubchunkID'] == 0x64617461) {  // "data"
-                // TODO: support extra data chuncks
                 $dataSubchunk = $subchunk;
 
                 break;
 
+            } elseif ($subchunk['SubchunkID'] == 0x7761766C) {  // "wavl"
+                throw new WavFormatException('Wave List Chunks ("wavl") are not supported.', 106);
             } else {
                 // skip all other (unknown) subchunks
                 if ($subchunk['SubchunkSize'] < 0 || fseek($this->_fp, $subchunk['SubchunkSize'], SEEK_CUR) !== 0) {
