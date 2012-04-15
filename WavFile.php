@@ -64,24 +64,42 @@ class WavFile
     /** @var int Filter flag for degrading audio data */
     const FILTER_DEGRADE   = 0x04;
 
-    /** @var int The front left channel number */
-    const CHANNEL_FL = 1;
-    /** @var int The front right channel number */
-    const CHANNEL_FR = 2;
-    /** @var int The front center channel number */
-    const CHANNEL_FC = 3;
-    /** @var int The low frequency channel number */
-    const CHANNEL_LF = 4;
-    /** @var int The rear left channel number */
-    const CHANNEL_BL = 5;
-    /** @var int The rear right channel number */
-    const CHANNEL_BR = 6;
-    const MAX_CHANNEL = 6;
+    /** @var int Maximum number of channels */
+    const MAX_CHANNEL = 18;
 
-    /** @var int Integer PCM Audio Format */
-    const WAVE_FORMAT_PCM = 1;
-    /** @var int Float PCM Audio Format */
-    const WAVE_FORMAT_IEEE_FLOAT = 3;
+    /** @var int Maximum sample rate */
+    const MAX_SAMPLERATE = 192000;
+
+    /** Channel Locations for ChannelMask */
+    const SPEAKER_FRONT_LEFT            = 0x000001;
+    const SPEAKER_FRONT_RIGHT           = 0x000002;
+    const SPEAKER_FRONT_CENTER          = 0x000004;
+    const SPEAKER_LOW_FREQUENCY         = 0x000008;
+    const SPEAKER_BACK_LEFT             = 0x000010;
+    const SPEAKER_BACK_RIGHT            = 0x000020;
+    const SPEAKER_FRONT_LEFT_OF_CENTER  = 0x000040;
+    const SPEAKER_FRONT_RIGHT_OF_CENTER = 0x000080;
+    const SPEAKER_BACK_CENTER           = 0x000100;
+    const SPEAKER_SIDE_LEFT             = 0x000200;
+    const SPEAKER_SIDE_RIGHT            = 0x000400;
+    const SPEAKER_TOP_CENTER            = 0x000800;
+    const SPEAKER_TOP_FRONT_LEFT        = 0x001000;
+    const SPEAKER_TOP_FRONT_CENTER      = 0x002000;
+    const SPEAKER_TOP_FRONT_RIGHT       = 0x004000;
+    const SPEAKER_TOP_BACK_LEFT         = 0x008000;
+    const SPEAKER_TOP_BACK_CENTER       = 0x010000;
+    const SPEAKER_TOP_BACK_RIGHT        = 0x020000;
+
+    /** @var int PCM Audio Format */
+    const WAVE_FORMAT_PCM           = 0x0001;
+    /** @var int IEEE FLOAT Audio Format */
+    const WAVE_FORMAT_IEEE_FLOAT    = 0x0003;
+    /** @var int EXTENSIBLE Audio Format - actual audio format defined by SubFormat */
+    const WAVE_FORMAT_EXTENSIBLE    = 0xFFFE;
+    /** @var string PCM Audio Format SubType - LE hex representation of GUID {00000001-0000-0010-8000-00AA00389B71} */
+    const WAVE_SUBFORMAT_PCM        = "0100000000001000800000aa00389b71";
+    /** @var string IEEE FLOAT Audio Format SubType - LE hex representation of GUID {00000003-0000-0010-8000-00AA00389B71} */
+    const WAVE_SUBFORMAT_IEEE_FLOAT = "0300000000001000800000aa00389b71";
 
     /** @var array Log base modifier lookup table for a given threshold (in 0.05 steps) used by normalizeSample.
      * Adjusts the slope (1st derivative) of the log function at the threshold to 1 for a smooth transition
@@ -99,11 +117,20 @@ class WavFile
     /** @var int The actual physical file size */
     protected $_actualSize;
 
-    /** @var int The audio format, supports PCM = 1 and IEEE float = 3 only */
+    /** @var int The audio format - WavFile::WAVE_FORMAT_* */
     protected $_audioFormat;
 
-    /** @var int The size of the fmt chunk  - 8 */
-    protected $_subChunk1Size;
+    /** @var int The audio subformat - WavFile::WAVE_SUBFORMAT_* */
+    protected $_audioSubFormat;
+
+    /** @var int The size of the "fmt " chunk */
+    protected $_fmtChunkSize;
+
+    /** @var int The size of the extended "fmt " data */
+    protected $_fmtExtendedSize;
+
+    /** @var int The size of the "fact" chunk */
+    protected $_factChunkSize;
 
     /** @var int Number of channels in the audio file */
     protected $_numChannels;
@@ -119,6 +146,12 @@ class WavFile
 
     /** @var int Number of bits per sample */
     protected $_bitsPerSample;
+
+    /** @var int Number of valid bits per sample */
+    protected $_validBitsPerSample;
+
+    /** @var int The channel mask */
+    protected $_channelMask;
 
     /** @var int Size of the data chunk */
     protected $_dataSize;
@@ -152,19 +185,24 @@ class WavFile
      */
     public function __construct($params = null)
     {
-        $this->_actualSize    = 44;
-        $this->_size          = 36;
-        $this->_subChunk1Size = 16;
-        $this->_dataOffset    = 44;
-        $this->_audioFormat   = self::WAVE_FORMAT_PCM;
-        $this->_numChannels   = 1;
-        $this->_sampleRate    = 11025;
-        $this->_byteRate      = 11025;
-        $this->_blockAlign    = 1;
-        $this->_bitsPerSample = 8;
-        $this->_dataSize      = 0;
-        $this->_numBlocks     = 0;
-        $this->_samples       = '';
+        $this->_actualSize         = 44;
+        $this->_size               = 36;
+        $this->_fmtChunkSize       = 16;
+        $this->_fmtExtendedSize    = 0;
+        $this->_factChunkSize      = 0;
+        $this->_dataOffset         = 44;
+        $this->_audioFormat        = self::WAVE_FORMAT_PCM;
+        $this->_audioSubFormat     = self::WAVE_SUBFORMAT_PCM;
+        $this->_numChannels        = 1;
+        $this->_sampleRate         = 11025;
+        $this->_byteRate           = 11025;
+        $this->_blockAlign         = 1;
+        $this->_bitsPerSample      = 8;
+        $this->_validBitsPerSample = 8;
+        $this->_channelMask        = 0;
+        $this->_dataSize           = 0;
+        $this->_numBlocks          = 0;
+        $this->_samples            = '';
 
         if ($params instanceof WavFile) {
             foreach ($params as $prop => &$val) {
@@ -205,11 +243,18 @@ class WavFile
         return $this->_size;
     }
 
-    protected function setSize($size = null) {
+    protected function setSize($size = null, $update = true) {
         if (is_null($size)) {
-            $this->_size = 4 + 8 + $this->_subChunk1Size + 8 + $this->_dataSize;
+            $this->_size = 4 +                                                            // "WAVE" chunk
+                           8 + $this->_fmtChunkSize +                                     // "fmt " subchunk
+                           ($this->_factChunkSize > 0 ? 8 + $this->_factChunkSize : 0) +  // "fact" subchunk
+                           8 + $this->_dataSize;                                          // "data" subchunk
         } else {
             $this->_size = $size;
+        }
+
+        if ($update) {
+            $this->setActualSize();
         }
 
         return $this;
@@ -219,9 +264,9 @@ class WavFile
         return $this->_actualSize;
     }
 
-    protected function setActualSize($actualSize = null) {
+    protected function setActualSize($actualSize = null, $update = true) {
         if (is_null($actualSize)) {
-            $this->_actualSize = 8 + $this->_size;
+            $this->_actualSize = 8 + $this->_size;  // + "RIFF" header (ID + size)
         } else {
             $this->_actualSize = $actualSize;
         }
@@ -235,31 +280,105 @@ class WavFile
 
     protected function setAudioFormat($audioFormat = null, $update = true) {
         if (is_null($audioFormat)) {
-            $this->_audioFormat = $this->_bitsPerSample == 32 ? self::WAVE_FORMAT_IEEE_FLOAT : self::WAVE_FORMAT_PCM;
+            if ($this->_bitsPerSample <= 16 && $this->_channelMask == 0 && $this->_validBitsPerSample == $this->_bitsPerSample) {
+                $this->_audioFormat = self::WAVE_FORMAT_PCM;
+            } elseif ($this->_bitsPerSample == 32 && $this->_channelMask == 0 && $this->_validBitsPerSample == $this->_bitsPerSample) {
+                $this->_audioFormat = self::WAVE_FORMAT_IEEE_FLOAT;
+            } else {
+                $this->_audioFormat = self::WAVE_FORMAT_EXTENSIBLE;
+            }
         } else {
             $this->_audioFormat = $audioFormat;
         }
 
         if ($update) {
-            $this->setSubChunk1Size();
+            $this->setAudioSubFormat()
+                 ->setFactChunkSize(null, false)  // false to not update implicit setSize(), setActualSize(), setDataOffset() again
+                 ->setFmtExtendedSize();          // implicit setFmtChunkSize(), setSize(), setActualSize(), setDataOffset()
         }
 
         return $this;
     }
 
-    public function getSubChunk1Size() {
-        return $this->_subChunk1Size;
+    public function getAudioSubFormat() {
+        return $this->_audioSubFormat;
     }
 
-    protected function setSubChunk1Size($subChunk1Size = null, $update = true) {
-        if (is_null($subChunk1Size)) {
-            $this->_subChunk1Size = $this->_audioFormat == self::WAVE_FORMAT_PCM ? 16 : 18;
+    protected function setAudioSubFormat($audioSubFormat = null, $update = true) {
+        if (is_null($audioSubFormat)) {
+            if ($this->_bitsPerSample == 32) {
+                $this->_audioSubFormat = self::WAVE_SUBFORMAT_IEEE_FLOAT;  // 32 bits are floats in this class per convention
+            } else {
+                $this->_audioSubFormat = self::WAVE_SUBFORMAT_PCM;         // 8, 16 and 24 bits are PCM in this class
+            }
         } else {
-            $this->_subChunk1Size = $subChunk1Size;
+            $this->_audioSubFormat = $audioSubFormat;
+        }
+
+        return $this;
+    }
+
+    public function getFmtChunkSize() {
+        return $this->_fmtChunkSize;
+    }
+
+    protected function setFmtChunkSize($fmtChunkSize = null, $update = true) {
+        if (is_null($fmtChunkSize)) {
+            $this->_fmtChunkSize = 16 + $this->_fmtExtendedSize;
+        } else {
+            $this->_fmtChunkSize = $fmtChunkSize;
         }
 
         if ($update) {
-            $this->setDataOffset();
+            $this->setSize()         // implicit setActualSize()
+                 ->setDataOffset();
+        }
+
+        return $this;
+    }
+
+    public function getFmtExtendedSize() {
+        return $this->_fmtExtendedSize;
+    }
+
+    protected function setFmtExtendedSize($fmtExtendedSize = null, $update = true) {
+        if (is_null($fmtExtendedSize)) {
+            if ($this->_audioFormat == self::WAVE_FORMAT_EXTENSIBLE) {
+                $this->_fmtExtendedSize = 2 + 22;                          // extension size for WAVE_FORMAT_EXTENSIBLE
+            } elseif ($this->_audioFormat != self::WAVE_FORMAT_PCM) {
+                $this->_fmtExtendedSize = 2 + 0;                           // empty extension
+            } else {
+                $this->_fmtExtendedSize = 0;                               // no extension, only for WAVE_FORMAT_PCM
+            }
+        } else {
+            $this->_fmtExtendedSize = $fmtExtendedSize;
+        }
+
+        if ($update) {
+            $this->setFmtChunkSize();  // implicit setSize(), setActualSize(), setDataOffset()
+        }
+
+        return $this;
+    }
+
+    public function getFactChunkSize() {
+        return $this->_factChunkSize;
+    }
+
+    protected function setFactChunkSize($factChunkSize = null, $update = true) {
+        if (is_null($factChunkSize)) {
+            if ($this->_audioFormat != self::WAVE_FORMAT_PCM) {
+                $this->_factChunkSize = 4;
+            } else {
+                $this->_factChunkSize = 0;
+            }
+        } else {
+            $this->_factChunkSize = $factChunkSize;
+        }
+
+        if ($update) {
+            $this->setSize()         // implicit setActualSize()
+                 ->setDataOffset();
         }
 
         return $this;
@@ -277,7 +396,7 @@ class WavFile
         $this->_numChannels = (int)$numChannels;
         if ($update) {
             $this->setByteRate()
-                 ->setBlockAlign();
+                 ->setBlockAlign();  // implicit setNumBlocks()
         }
 
         return $this;
@@ -288,7 +407,7 @@ class WavFile
     }
 
     public function setSampleRate($sampleRate, $update = true) {
-        if ($sampleRate < 1 || $sampleRate > 192000) {
+        if ($sampleRate < 1 || $sampleRate > self::MAX_SAMPLERATE) {
             throw new Exception('Invalid sample rate.');
         }
 
@@ -304,7 +423,7 @@ class WavFile
         return $this->_byteRate;
     }
 
-    protected function setByteRate($byteRate = null) {
+    protected function setByteRate($byteRate = null, $update = true) {
         if (is_null($byteRate)) {
             $this->_byteRate = $this->_sampleRate * $this->_numChannels * $this->_bitsPerSample / 8;
         } else {
@@ -343,9 +462,57 @@ class WavFile
 
         $this->_bitsPerSample = (int)$bitsPerSample;
         if ($update) {
-            $this->setAudioFormat()
+            $this->setValidBitsPerSample()  // implicit setAudioFormat(), setAudioSubFormat(), setFmtChunkSize(), setFactChunkSize(), setSize(), setActualSize(), setDataOffset()
                  ->setByteRate()
-                 ->setBlockAlign();
+                 ->setBlockAlign();         // implicit setNumBlocks()
+        }
+
+        return $this;
+    }
+
+    public function getValidBitsPerSample() {
+        return $this->_validBitsPerSample;
+    }
+
+    public function setValidBitsPerSample($validBitsPerSample = null, $update = true) {
+        if (is_null($validBitsPerSample)) {
+            $this->_validBitsPerSample = $this->_bitsPerSample;
+        } else {
+            if ($validBitsPerSample < 1 || $validBitsPerSample > $this->_bitsPerSample) {
+                throw new Exception('ValidBitsPerSample cannot be greater than BitsPerSample.');
+            }
+            $this->_validBitsPerSample = (int)$validBitsPerSample;
+        }
+
+        if ($update) {
+            $this->setAudioFormat();  // implicit setAudioSubFormat(), setFactChunkSize(), setFmtExtendedSize(), setFmtChunkSize(), setSize(), setActualSize(), setDataOffset()
+        }
+
+        return $this;
+    }
+
+    public function getChannelMask() {
+        return $this->_channelMask;
+    }
+
+    public function setChannelMask($channelMask = 0, $update = true) {
+        if ($channelMask != 0) {
+            // count number of set bits - Hamming weight
+            $c = (int)$channelMask;
+            $n = 0;
+            while ($c > 0) {
+                $n += $c & 1;
+                $c >>= 1;
+            }
+            if ($c < 0 || $n != $this->_numChannels) {
+            	throw new Exception('Invalid channel mask. The number of channels does not match the number of locations in the mask.');
+            }
+        }
+
+        $this->_channelMask = (int)$channelMask;
+
+        if ($update) {
+            $this->setAudioFormat();  // implicit setAudioSubFormat(), setFactChunkSize(), setFmtExtendedSize(), setFmtChunkSize(), setSize(), setActualSize(), setDataOffset()
         }
 
         return $this;
@@ -363,8 +530,7 @@ class WavFile
         }
 
         if ($update) {
-            $this->setSize()
-                 ->setActualSize()
+            $this->setSize()        // implicit setActualSize()
                  ->setNumBlocks();
         }
 
@@ -375,9 +541,13 @@ class WavFile
         return $this->_dataOffset;
     }
 
-    protected function setDataOffset($dataOffset = null) {
+    protected function setDataOffset($dataOffset = null, $update = true) {
         if (is_null($dataOffset)) {
-            $this->_dataOffset = 8 + 4 + 8 + $this->_subChunk1Size + 8;
+            $this->_dataOffset = 8 +                                                            // "RIFF" header (ID + size)
+                                 4 +                                                            // "WAVE" chunk
+                                 8 + $this->_fmtChunkSize +                                     // "fmt " subchunk
+                                 ($this->_factChunkSize > 0 ? 8 + $this->_factChunkSize : 0) +  // "fact" subchunk
+                                 8;                                                             // "data" subchunk
         } else {
             $this->_dataOffset = $dataOffset;
         }
@@ -391,8 +561,9 @@ class WavFile
 
     public function setSamples($samples, $update = true) {
         $this->_samples = $samples;
+
         if ($update) {
-            $this->setDataSize();
+            $this->setDataSize();  // implicit setSize(), setActualSize(), setNumBlocks()
         }
 
         return $this;
@@ -403,7 +574,7 @@ class WavFile
         return $this->_numBlocks;
     }
 
-    protected function setNumBlocks($numBlocks = null) {
+    protected function setNumBlocks($numBlocks = null, $update = true) {
         if (is_null($numBlocks)) {
             $this->_numBlocks = (int)($this->_dataSize / $this->_blockAlign); // do not count incomplete sample blocks
         } else {
@@ -448,33 +619,45 @@ class WavFile
 
     /**
      * Construct a wav header from this object.
+     * http://www-mmsp.ece.mcgill.ca/documents/audioformats/wave/wave.html
      *
      * @return string  The RIFF header data.
      */
     public function makeHeader()
     {
+        // reset and recalculate
+        $audioFormat = $this->setAudioFormat()->getAudioFormat();   // implicit setAudioSubFormat(), setFactChunkSize(), setFmtExtendedSize(), setFmtChunkSize(), setSize(), setActualSize(), setDataOffset()
+        $dataSize = $this->setDataSize()->getDataSize();            // implicit setSize(), setActualSize(), setNumBlocks()
+
         // RIFF header
-        $header = pack('N', 0x52494646); // ChunkID - "RIFF"
+        $header = pack('N', 0x52494646);                            // ChunkID - "RIFF"
+        $header .= pack('V', $this->getSize());                     // ChunkSize
+        $header .= pack('N', 0x57415645);                           // Format - "WAVE"
 
-        $subchunk1size = $this->getAudioFormat() == self::WAVE_FORMAT_PCM ? 16 : 18; // 16 bytes for PCM, else +2 bytes for extension size
-        $subchunk2size = $this->getDataSize();
-
-        $header .= pack('V', 4 + (8 + $subchunk1size) + (8 +  $subchunk2size)); // ChunkSize
-        $header .= pack('N', 0x57415645); // Format - "WAVE"
-
-        // Subchunk1 - "fmt " subchunk
-        $header .= pack('N', 0x666d7420); // Subchunk1ID - "fmt "
-        $header .= pack('V', $subchunk1size); // Subchunk1Size
-        $header .= pack('v', $this->getAudioFormat()); // AudioFormat
-        $header .= pack('v', $this->getNumChannels()); // NumChannels
-        $header .= pack('V', $this->getSampleRate()); // SampleRate
-        $header .= pack('V', $this->getByteRate()); // ByteRate
-        $header .= pack('v', $this->getBlockAlign()); // BlockAlign
-        $header .= pack('v', $this->getBitsPerSample()); // BitsPerSample
-        if ($subchunk1size > 16) {
-            $header .= pack('v', 0); // extension size = 0
+        // "fmt " subchunk
+        $header .= pack('N', 0x666d7420);                           // SubchunkID - "fmt "
+        $header .= pack('V', $this->getFmtChunkSize());             // SubchunkSize
+        $header .= pack('v', $this->getAudioFormat());              // AudioFormat
+        $header .= pack('v', $this->getNumChannels());              // NumChannels
+        $header .= pack('V', $this->getSampleRate());               // SampleRate
+        $header .= pack('V', $this->getByteRate());                 // ByteRate
+        $header .= pack('v', $this->getBlockAlign());               // BlockAlign
+        $header .= pack('v', $this->getBitsPerSample());            // BitsPerSample
+        if($audioFormat == self::WAVE_FORMAT_EXTENSIBLE) {
+            $header .= pack('v', $this->getFmtExtendedSize() - 2);  // extension size = 24 bytes, cbSize: 24 - 2 = 22 bytes
+            $header .= pack('v', $this->getValidBitsPerSample());   // ValidBitsPerSample
+            $header .= pack('V', $this->getChannelMask());          // ChannelMask
+            $header .= pack('H32', $this->getAudioSubFormat());     // SubFormat
+        } elseif ($audioFormat != self::WAVE_FORMAT_PCM) {
+        	$header .= pack('v', $this->getFmtExtendedSize() - 2);  // extension size = 2 bytes, cbSize: 2 - 2 = 0 bytes
         }
-        // TODO: set extension fields and "fact" chunk for 24 and 32-bit - http://www-mmsp.ece.mcgill.ca/documents/audioformats/wave/wave.html
+
+        // "fact" subchunk
+        if ($audioFormat != self::WAVE_FORMAT_PCM) {
+            $header .= pack('N', 0x66616374);                      // SubchunkID - "fact"
+            $header .= pack('V', $this->getFactChunkSize());       // SubchunkSize
+            $header .= pack('V', $this->getNumBlocks());           // SampleLength (per channel)
+        }
 
         return $header;
     }
@@ -950,7 +1133,7 @@ class WavFile
         }
 
         $this->_samples .= $wav->_samples;
-        $this->setDataSize();
+        $this->setDataSize();  // implicit setSize(), setActualSize(), setNumBlocks()
 
         return $this;
     }
@@ -1068,7 +1251,7 @@ class WavFile
         $numChannels = $this->getNumChannels();
 
         $this->_samples .= str_repeat(self::packSample($this->getZeroAmplitude(), $this->getBitsPerSample()), $numSamples * $numChannels);
-        $this->setDataSize();
+        $this->setDataSize();  // implicit setSize(), setActualSize(), setNumBlocks()
 
         return $this;
     }
@@ -1111,7 +1294,7 @@ class WavFile
             $this->_samples .= str_repeat(self::packSample($val, $bitDepth), $numChannels);
         }
 
-        $this->setDataSize();
+        $this->setDataSize();  // implicit setSize(), setActualSize(), setNumBlocks()
 
         return $this;
     }
@@ -1165,102 +1348,250 @@ class WavFile
 
     /**
      * Parse a wav header.
+     * http://www-mmsp.ece.mcgill.ca/documents/audioformats/wave/wave.html
      *
      * @throws Exception
      * @throws WavFormatException  WavFormatException occurs if the header or data is malformed.
      */
     protected function getWavInfo()
     {
-        if (!$this->_fp) {
+        if (!is_resource($this->_fp)) {
             throw new Exception("No wav file open.");
         }
 
-        $wavHeaderSize = 36; // size of the wav header
-
-        $header = fread($this->_fp, $wavHeaderSize);
-
-        if (strlen($header) < $wavHeaderSize) {
-            throw new WavFormatException('Not wav format, header too short.', 1);
-        }
-
-        $RIFF = unpack('NChunkID/VChunkSize/NFormat', $header);
-
-        if ($RIFF['ChunkID'] != 0x52494646) {
-            throw new WavFormatException('Not wav format, RIFF signature missing.', 2);
-        }
-
+        // get actual file size
         $stat       = fstat($this->_fp);
         $actualSize = $stat['size'];
 
-        if ($actualSize - 8 != $RIFF['ChunkSize']) {
-            //echo "$actualSize {$RIFF['ChunkSize']}\n";
-            //trigger_error("Bad chunk size, does not match actual file size ($actualSize {$RIFF['ChunkSize']}).", E_USER_NOTICE);
-            throw new WavFormatException('Wav header chunk size does not match actual file size. Found ' . $RIFF['ChunkSize'] . ', expected ' . ($actualSize - 8) . '.', 4);
+        $this->setActualSize($actualSize, false);
+
+
+        // read the common header
+        $header = fread($this->_fp, 36); // minimum size of the wav header
+        if (strlen($header) < 36) {
+            throw new WavFormatException('Not wav format. Header too short.', 1);
         }
 
-        if ($RIFF['Format'] != 0x57415645) {
-            throw new WavFormatException('Not wav format. RIFF header format is not "WAVE".', 5);
+
+        // check "RIFF" header
+        $RIFF = unpack('NChunkID/VChunkSize/NFormat', $header);
+
+        if ($RIFF['ChunkID'] != 0x52494646) {  // "RIFF"
+            throw new WavFormatException('Not wav format. "RIFF" signature missing.', 2);
         }
 
-        $this->setSize($RIFF['ChunkSize'])
-             ->setActualSize($actualSize);
+        if ($actualSize - 8 < $RIFF['ChunkSize']) {
+            trigger_error('RIFF chunk size does not match actual file size. Found ' . $RIFF['ChunkSize'] . ', expected ' . ($actualSize - 8) . '.', E_USER_NOTICE);
+            $RIFF['ChunkSize'] = $actualSize - 8;
+            //throw new WavFormatException('RIFF chunk size does not match actual file size. Found ' . $RIFF['ChunkSize'] . ', expected ' . ($actualSize - 8) . '.', 3);
+        }
 
-        $fmt = unpack('NSubChunk1ID/VSubChunk1Size/vAudioFormat/vNumChannels/'
+        if ($RIFF['Format'] != 0x57415645) {  // "WAVE"
+            throw new WavFormatException('Not wav format. RIFF chunk format is not "WAVE".', 4);
+        }
+
+        $this->setSize($RIFF['ChunkSize'], false);
+
+
+        // check common "fmt " subchunk
+        $fmt = unpack('NSubchunkID/VSubchunkSize/vAudioFormat/vNumChannels/'
                      .'VSampleRate/VByteRate/vBlockAlign/vBitsPerSample',
-                     substr($header, 12, 26));
+                     substr($header, 12));
 
-        if ($fmt['SubChunk1ID'] != 0x666d7420) {
-            throw new WavFormatException('Bad wav header, expected "fmt ", found "' . $fmt['SubChunk1ID'] . '".', 6);
+        if ($fmt['SubchunkID'] != 0x666d7420) {  // "fmt "
+            throw new WavFormatException('Bad wav header. Expected "fmt " subchunk.', 11);
         }
 
-        $this->setSubChunk1Size($fmt['SubChunk1Size'], false);
-
-        if ($fmt['AudioFormat'] != self::WAVE_FORMAT_PCM && $fmt['AudioFormat'] != self::WAVE_FORMAT_IEEE_FLOAT) {
-            throw new WavFormatException('Unsupported audio format. Only PCM or IEEE float audio is supported.', 7);
-        } elseif ($fmt['AudioFormat'] == 1 && !in_array($fmt['BitsPerSample'], array(8, 16, 24))) {
-            throw new WavFormatException('Only 8, 16 and 24-bit PCM audio is supported.', 8);
-        } elseif ($fmt['AudioFormat'] == 3 && $fmt['BitsPerSample'] != 32) {
-            throw new WavFormatException('Only 32-bit IEEE float audio is supported.', 9);
+        if ($fmt['SubchunkSize'] < 16) {
+            throw new WavFormatException('Bad "fmt " subchunk size.', 12);
         }
 
-        $this->setAudioFormat($fmt['AudioFormat'], false)
+        if (   $fmt['AudioFormat'] != self::WAVE_FORMAT_PCM
+            && $fmt['AudioFormat'] != self::WAVE_FORMAT_IEEE_FLOAT
+            && $fmt['AudioFormat'] != self::WAVE_FORMAT_EXTENSIBLE)
+        {
+        	throw new WavFormatException('Unsupported audio format. Only PCM or IEEE FLOAT (EXTENSIBLE) audio is supported.', 13);
+        }
+
+        if ($fmt['NumChannels'] < 1 || $fmt['NumChannels'] > self::MAX_CHANNEL) {
+        	throw new WavFormatException('Invalid number of channels in "fmt " subchunk.', 14);
+        }
+
+        if ($fmt['SampleRate'] < 1 || $fmt['SampleRate'] > self::MAX_SAMPLERATE) {
+        	throw new WavFormatException('Invalid sample rate in "fmt " subchunk.', 15);
+        }
+
+        if (   ($fmt['AudioFormat'] == self::WAVE_FORMAT_PCM && !in_array($fmt['BitsPerSample'], array(8, 16, 24)))
+            || ($fmt['AudioFormat'] == self::WAVE_FORMAT_IEEE_FLOAT && $fmt['BitsPerSample'] != 32)
+            || ($fmt['AudioFormat'] == self::WAVE_FORMAT_EXTENSIBLE && !in_array($fmt['BitsPerSample'], array(8, 16, 24, 32))))
+        {
+        	throw new WavFormatException('Only 8, 16 and 24-bit PCM and 32-bit IEEE FLOAT (EXTENSIBLE) audio is supported.', 16);
+        }
+
+        $blockAlign = $fmt['NumChannels'] * $fmt['BitsPerSample'] / 8;
+        if ($blockAlign != $fmt['BlockAlign']) {
+        	trigger_error('Invalid block align in "fmt " subchunk. Found ' . $fmt['BlockAlign'] . ', expected ' . $blockAlign . '.', E_USER_NOTICE);
+        	$fmt['BlockAlign'] = $blockAlign;
+            //throw new WavFormatException('Invalid block align in "fmt " subchunk. Found ' . $fmt['BlockAlign'] . ', expected ' . $blockAlign . '.', 17);
+        }
+
+        $byteRate = $fmt['SampleRate'] * $blockAlign;
+        if ($byteRate != $fmt['ByteRate']) {
+        	trigger_error('Invalid average byte rate in "fmt " subchunk. Found ' . $fmt['ByteRate'] . ', expected ' . $byteRate . '.', E_USER_NOTICE);
+            $fmt['ByteRate'] = $byteRate;
+        	//throw new WavFormatException('Invalid average byte rate in "fmt " subchunk. Found ' . $fmt['ByteRate'] . ', expected ' . $byteRate . '.', 18);
+        }
+
+        $this->setFmtChunkSize($fmt['SubchunkSize'], false)
+             ->setAudioFormat($fmt['AudioFormat'], false)
              ->setNumChannels($fmt['NumChannels'], false)
              ->setSampleRate($fmt['SampleRate'], false)
-             ->setBitsPerSample($fmt['BitsPerSample'], false)
-             ->setByteRate()
-             ->setBlockAlign();
+             ->setByteRate($fmt['ByteRate'], false)
+             ->setBlockAlign($fmt['BlockAlign'], false)
+             ->setBitsPerSample($fmt['BitsPerSample'], false);
 
-        if ($this->getByteRate() != $fmt['ByteRate']) {
-            throw new WavFormatException('Invalid ByteRate value in wav header, expected ' . $this->getByteRate() . ', found ' . $fmt['ByteRate'] . '.', 10);
-        }
-        if ($this->getBlockAlign() != $fmt['BlockAlign']) {
-            throw new WavFormatException('Invalid BlockAlign value in wav header, expected ' . $this->getBlockAlign() . ', found ' . $fmt['BlockAlign'] . '.', 11);
+
+        // read extended "fmt " subchunk data
+        $extendedFmt = '';
+        if ($fmt['SubchunkSize'] > 16) {
+            $extendedFmt = fread($this->_fp, $fmt['SubchunkSize'] - 16);
+            if (strlen($extendedFmt) < $fmt['SubchunkSize'] - 16) {
+                throw new WavFormatException('Not wav format. Header too short.', 1);
+            }
         }
 
-        if ($this->getSubChunk1Size() > 16) {
-            $epSize          = fread($this->_fp, 2);
-            $extraParamsSize = unpack('vSize', $epSize);
-            if ($extraParamsSize['Size'] > 0) {
-                // TODO: error message for invalid extension size - maybe check extension fields if present but can be ignored
-                $extraParams = fread($this->_fp, $extraParamsSize['Size']);
+
+        // check extended "fmt " for EXTENSIBLE Audio Format
+        if ($fmt['AudioFormat'] == self::WAVE_FORMAT_EXTENSIBLE) {
+            if (strlen($extendedFmt) < 24) {
+                throw new WavFormatException('Invalid EXTENSIBLE "fmt " subchunk size. Found ' . $fmt['SubChunk1Size'] . ', expected 40.', 19);
             }
 
-            $wavHeaderSize += $extraParamsSize['Size'] + 2;
+            $extensibleFmt = unpack('vSize/vValidBitsPerSample/VChannelMask/H32SubFormat', substr($extendedFmt, 0, 24));
+
+            if (   $extensibleFmt['SubFormat'] != self::WAVE_SUBFORMAT_PCM
+                && $extensibleFmt['SubFormat'] != self::WAVE_SUBFORMAT_IEEE_FLOAT)
+            {
+            	throw new WavFormatException('Unsupported audio format. Only PCM or IEEE FLOAT (EXTENSIBLE) audio is supported.', 13);
+            }
+
+            if (   ($extensibleFmt['SubFormat'] == self::WAVE_SUBFORMAT_PCM && !in_array($fmt['BitsPerSample'], array(8, 16, 24)))
+                || ($extensibleFmt['SubFormat'] == self::WAVE_SUBFORMAT_IEEE_FLOAT && $fmt['BitsPerSample'] != 32))
+            {
+            	throw new WavFormatException('Only 8, 16 and 24-bit PCM and 32-bit IEEE FLOAT (EXTENSIBLE) audio is supported.', 16);
+            }
+
+            if ($extensibleFmt['Size'] != 22) {
+        	    trigger_error('Invaid extension size in EXTENSIBLE "fmt " subchunk.', E_USER_NOTICE);
+        	    $extensibleFmt['Size'] = 22;
+                //throw new WavFormatException('Invaid extension size in EXTENSIBLE "fmt " subchunk.', 20);
+            }
+
+            if ($extensibleFmt['ValidBitsPerSample'] != $fmt['BitsPerSample']) {
+        	    trigger_error('Invaid or unsupported valid bits per sample in EXTENSIBLE "fmt " subchunk.', E_USER_NOTICE);
+        	    $extensibleFmt['ValidBitsPerSample'] = $fmt['BitsPerSample'];
+                //throw new WavFormatException('Invaid or unsupported valid bits per sample in EXTENSIBLE "fmt " subchunk.', 21);
+            }
+
+            if ($extensibleFmt['ChannelMask'] != 0) {
+                // count number of set bits - Hamming weight
+                $c = (int)$extensibleFmt['ChannelMask'];
+                $n = 0;
+                while ($c > 0) {
+                    $n += $c & 1;
+                    $c >>= 1;
+                }
+                if ($c < 0 || $n != $fmt['NumChannels']) {
+                    trigger_error('Invalid channel mask in EXTENSIBLE "fmt " subchunk. The number of channels does not match the number of locations in the mask.', E_USER_NOTICE);
+                    $extensibleFmt['ChannelMask'] = 0;
+                    //throw new WavFormatException('Invalid channel mask in EXTENSIBLE "fmt " subchunk. The number of channels does not match the number of locations in the mask.', 22);
+                }
+            }
+
+            $this->setFmtExtendedSize(strlen($extendedFmt), false)
+                 ->setValidBitsPerSample($extensibleFmt['ValidBitsPerSample'], false)
+                 ->setChannelMask($extensibleFmt['ChannelMask'], false)
+                 ->setAudioSubFormat($extensibleFmt['SubFormat'], false);
+
+        } else {
+            $this->setFmtExtendedSize(strlen($extendedFmt), false)
+                 ->setValidBitsPerSample($fmt['BitsPerSample'], false)
+                 ->setChannelMask(0, false)
+                 ->setAudioSubFormat(null, false);
         }
 
-        // TODO: read "fact" chunk - maybe check sample length field, but can be ignored - http://www-mmsp.ece.mcgill.ca/documents/audioformats/wave/wave.html
 
-        $dataHeader = fread($this->_fp, 8);
-        $data       = unpack('NSubchunk2ID/VSubchunk2Size', $dataHeader);
+        // read additional subchunks until "data" subchunk is found
+        $factSubChunk = array();
+        $dataSubchunk = array();
 
-        if ($data['Subchunk2ID'] != 0x64617461) {
-            throw new WavFormatException('Data chunk expected, found "' . $data['Subchunk2ID'] . '".', 12);
+        while (!feof($this->_fp)) {
+            $subchunkHeader = fread($this->_fp, 8);
+            if (strlen($subchunkHeader) < 8) {
+                throw new WavFormatException('Missing "data" subchunk.', 101);
+            }
+
+            $subchunk = unpack('NSubchunkID/VSubchunkSize', $subchunkHeader);
+
+            if ($subchunk['SubchunkID'] == 0x66616374) {        // "fact"
+                $subchunkData = fread($this->_fp, $subchunk['SubchunkSize']);
+                if (strlen($subchunkData) < 4) {
+                    throw new WavFormatException('Invalid "fact" subchunk.', 102);
+                }
+
+                $factParams = unpack('VSampleLength', substr($subchunkData, 0, 4));
+                $factSubChunk = array_merge($subchunk, $factParams);
+
+            } elseif ($subchunk['SubchunkID'] == 0x64617461) {  // "data"
+                // TODO: support extra data chuncks
+                $dataSubchunk = $subchunk;
+
+                break;
+
+            } else {
+                // skip all other (unknown) subchunks
+                if ($subchunk['SubchunkSize'] < 0 || fseek($this->_fp, $subchunk['SubchunkSize'], SEEK_CUR) !== 0) {
+                    throw new WavFormatException('Invalid UNKNOWN subchunk.', 103);
+                }
+            }
         }
 
-        $this->setDataSize($data['Subchunk2Size'], false)
-             ->setDataOffset($wavHeaderSize + 8);
+        if (empty($dataSubchunk)) {
+            throw new WavFormatException('Missing "data" subchunk.', 101);
+        }
+
+
+        // check "data" subchunk
+        $dataOffset = ftell($this->_fp);
+        if ($dataSubchunk['SubchunkSize'] < 0 || $actualSize - $dataOffset < $dataSubchunk['SubchunkSize']) {
+            trigger_error('Invalid "data" subchunk size.', E_USER_NOTICE);
+            $dataSubchunk['SubchunkSize'] = $actualSize - $dataOffset;
+            //throw new WavFormatException('Invalid "data" subchunk size.', 104);
+        }
+
+        $this->setDataSize($dataSubchunk['SubchunkSize'], false)
+             ->setDataOffset($dataOffset, false);
+
+
+        // check "fact" subchunk
+        $numBlocks = (int)($dataSubchunk['SubchunkSize'] / $fmt['BlockAlign']);
+
+        if (empty($factSubChunk)) {  // fake fact subchunk
+            $factSubChunk = array('SubchunkSize' => 0, 'SampleLength' => $numBlocks);
+        }
+
+        if ($factSubChunk['SampleLength'] != $numBlocks) {
+        	trigger_error('Invalid sample length in "fact" subchunk.', E_USER_NOTICE);
+        	$factSubChunk['SampleLength'] = $numBlocks;
+        	//throw new WavFormatException('Invalid sample length in "fact" subchunk.', 105);
+        }
+
+        $this->setFactChunkSize($factSubChunk['SubchunkSize'], false)
+             ->setNumBlocks($factSubChunk['SampleLength'], false);
+
 
         return $this;
+
     }
 
     /**
@@ -1269,7 +1600,7 @@ class WavFile
     protected function readWavData()
     {
         $this->_samples = fread($this->_fp, $this->getDataSize());
-        $this->setDataSize();
+        $this->setDataSize();  // implicit setSize(), setActualSize(), setNumBlocks()
 
         return $this;
     }
@@ -1321,8 +1652,9 @@ class WavFile
             ."Bits Per Sample: %u\n";
 
         $s = sprintf($s, $this->getActualSize(),
-                         $this->getAudioFormat() == self::WAVE_FORMAT_IEEE_FLOAT ? 'IEEE float' : 'PCM',
-                         $this->getSubChunk1Size(),
+                         $this->getAudioFormat() == self::WAVE_FORMAT_PCM ? 'PCM' : ($this->getAudioFormat() == self::WAVE_FORMAT_IEEE_FLOAT ? 'IEEE FLOAT' : 'EXTENSIBLE'),
+                         $this->getAudioSubFormat() == self::WAVE_SUBFORMAT_PCM ? 'PCM' : 'IEEE FLOAT',
+                         $this->getFmtChunkSize(),
                          $this->getNumChannels(),
                          $this->getByteRate(),
                          $this->getBlockAlign(),
