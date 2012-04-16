@@ -749,7 +749,7 @@ class WavFile
     public function setSampleBlock($sampleBlock, $blockNum)
     {
         $blockAlign = $this->_blockAlign;
-        if (strlen($sampleBlock) != $blockAlign) {
+        if (!isset($sampleBlock[$blockAlign - 1]) || isset($sampleBlock[$blockAlign])) {  // faster than: if (strlen($sampleBlock) != $blockAlign)
             throw new Exception('Incorrect sample block size. Got ' . strlen($sampleBlock) . ', expected ' . $blockAlign . '.');
         }
 
@@ -793,7 +793,7 @@ class WavFile
      */
     public static function unpackSample($sampleBinary, $bitDepth = null)
     {
-        if (is_null($bitDepth)) {
+        if ($bitDepth === null) {
             $bitDepth = strlen($sampleBinary) * 8;
         }
 
@@ -823,7 +823,7 @@ class WavFile
             case 32:
                 // 32-bit float
                 $data = unpack('f', $sampleBinary);
-                return (float)$data[1];
+                return $data[1];
 
             default:
                 return null;
@@ -872,14 +872,17 @@ class WavFile
      *
      * @param string $sampleBlock  The binary sample block (all channels).
      * @param int $bitDepth  The bits per sample to decode.
+     * @param int $numChannels  The number of channels to decode. If omitted, derives it from the length of $sampleBlock and $bitDepth.
      * @return array  The sample values as an array of integers of floats for 32 bits. First channel is array index 1.
      */
-    public static function unpackSampleBlock($sampleBlock, $bitDepth) {
+    public static function unpackSampleBlock($sampleBlock, $bitDepth, $numChannels = null) {
         $sampleBytes = $bitDepth / 8;
-        $channels = strlen($sampleBlock) / $sampleBytes;
+        if ($numChannels === null) {
+            $numChannels = strlen($sampleBlock) / $sampleBytes;
+        }
 
         $samples = array();
-        for ($i = 0; $i < $channels; $i++) {
+        for ($i = 0; $i < $numChannels; $i++) {
             $sampleBinary = substr($sampleBlock, $i * $sampleBytes, $sampleBytes);
             $samples[$i + 1] = self::unpackSample($sampleBinary, $bitDepth);
         }
