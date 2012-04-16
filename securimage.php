@@ -354,15 +354,15 @@ class Securimage
     /**
      * The method and threshold used to normalize the mixing with background noise.
      * See http://www.voegler.eu/pub/audio/ for more information.
-     * Valid:
-     *     null - Amplitudes are normalized by dividing by 2, i.e. loss of loudness by about 6dB.
-     *     [0, 1) - (open inverval - not including 1) - The threshold
-     *         above which amplitudes are comressed logarithmically.
-     *         e.g. 0.6 to leave amplitudes up to 60% "as is" and compress above.
-     *     (-1, 0) - (open inverval - not including 0 and -1) - The negative of the threshold
-     *         above which amplitudes are comressed linearly.
-     *         e.g. -0.6 to leave amplitudes up to 60% "as is" and compress above.
-     *     >= 1 - Normalize by dividing by $audio_mix_normalization.
+     * Valid: <ul>
+     *   <li> null/default - Amplitudes are normalized by dividing by 2, i.e. loss of loudness by about 6dB. </li>
+     *   <li> [0, 1) - (open inverval - not including 1) - The threshold
+     *          above which amplitudes are comressed logarithmically. <br />
+     *          e.g. 0.6 to leave amplitudes up to 60% "as is" and compress above. </li>
+     *   <li> (-1, 0) - (open inverval - not including 0 and -1) - The negative of the threshold
+     *          above which amplitudes are comressed linearly. <br />
+     *          e.g. -0.6 to leave amplitudes up to 60% "as is" and compress above. </li>
+     *   <li> >= 1 - Normalize by dividing by $threshold. </li></ul>
      * Default: 0.6
      *
      * @since 3.0.4
