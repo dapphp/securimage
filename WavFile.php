@@ -115,7 +115,7 @@ class WavFile
     /** @var array Log base modifier lookup table for a given threshold (in 0.05 steps) used by normalizeSample.
      * Adjusts the slope (1st derivative) of the log function at the threshold to 1 for a smooth transition
      * from linear to logarithmic amplitude output. */
-    protected $_logbase_lookup = array(
+    protected static $LOOKUP_LOGBASE = array(
         2.513, 2.667, 2.841, 3.038, 3.262,
         3.520, 3.819, 4.171, 4.589, 5.093,
         5.711, 6.487, 7.483, 8.806, 10.634,
@@ -371,9 +371,55 @@ class WavFile
         return $sampleBlock;
     }
 
+    /**
+     * Normalizes a float audio sample. Maximum range assumed is [-2, 2].
+     * See http://www.voegler.eu/pub/audio/ for more information.
+     *
+     * @param float $sampleFloat  (Required) The float sample to normalize.
+     * @param float $threshold  (Optional) The threshold for normalizing the amplitude. <ul>
+     *     <li> null/default - Amplitudes are normalized by dividing by 2, i.e. loss of loudness by about 6dB. </li>
+     *     <li> [0, 1) - (open inverval - not including 1) - The threshold
+     *            above which amplitudes are comressed logarithmically. <br />
+     *            e.g. 0.6 to leave amplitudes up to 60% "as is" and compress above. </li>
+     *     <li> (-1, 0) - (open inverval - not including 0 and -1) - The negative of the threshold
+     *            above which amplitudes are comressed linearly. <br />
+     *            e.g. -0.6 to leave amplitudes up to 60% "as is" and compress above. </li>
+     *     <li> >= 1 - Normalize by dividing by $threshold. </li></ul>
+     * @return float  The normalized sample.
+     **/
+    public static function normalizeSample($sampleFloat, $threshold = null) {
+    	// normalitze by dividing by 2 - loss of loudness by about 6dB
+    	if ($threshold === null) {
+    		return $sampleFloat / 2;
+    	}
+    
+    	// normalize by the divisor given
+    	if ($threshold > 1) {
+    		return $sampleFloat / $threshold;
+    	}
+    
+    	$sign = $sampleFloat < 0 ? -1 : 1;
+    	$sampleAbs = abs($sampleFloat);
+    
+    	// logarithmic compression
+    	if ($threshold >= 0 && $threshold < 1 && $sampleAbs > $threshold) {
+    		$loga = self::$LOOKUP_LOGBASE[(int)($threshold * 20)]; // log base modifier
+    		return $sign * ($threshold + (1 - $threshold) * log(1 + $loga * ($sampleAbs - $threshold) / (2 - $threshold)) / log(1 + $loga));
+    	}
+    
+    	// linear compression
+    	$thresholdAbs = abs($threshold);
+    	if ($threshold > -1 && $threshold < 0 && $sampleAbs > $thresholdAbs) {
+    		return $sign * ($thresholdAbs + (1 - $thresholdAbs) / (2 - $thresholdAbs) * ($sampleAbs - $thresholdAbs));
+    	}
+    
+    	// else sample is untouched and has to be clipped later ($threshold == 1 || $threshold <= -1)
+    	return $sampleFloat;
+    }
+
 
     /*%******************************************************************************************%*/
-    // Properties Getter and Setter methods
+    // Getter and Setter methods for properties
 
     public function getActualSize() {
         return $this->_actualSize;
@@ -1543,52 +1589,6 @@ class WavFile
         }
 
         return $this;
-    }
-
-    /**
-    * Normalizes a float audio sample. <br />
-    * See http://www.voegler.eu/pub/audio/ for more information.
-    *
-    * @param float $sampleFloat  (Required) The float sample to normalize.
-    * @param float $threshold  (Optional) The threshold for normalizing the amplitude <br />
-    *     null/default - Amplitudes are normalized by dividing by 2, i.e. loss of loudness by about 6dB. <br />
-    *     [0, 1) - (open inverval - not including 1) - The threshold
-    *         above which amplitudes are comressed logarithmically (from $threshold to 2).
-    *         e.g. 0.6 to leave amplitudes up to 60% "as is" and compress above. <br />
-    *     (-1, 0) - (open inverval - not including 0 and -1) - The negative of the threshold
-    *         above which amplitudes are comressed linearly (from $threshold to 2).
-    *         e.g. -0.6 to leave amplitudes up to 60% "as is" and compress above. <br />
-    *     >= 1 - Normalize by dividing by $threshold.
-    * @return float  The normalized sample.
-    **/
-    public function normalizeSample($sampleFloat, $threshold = null) {
-        // normalitze by dividing by 2 - loss of loudness by about 6dB
-        if ($threshold === null) {
-            return $sampleFloat / 2;
-        }
-
-        // normalize by the divisor given
-        if ($threshold > 1) {
-            return $sampleFloat / $threshold;
-        }
-
-        $sign = $sampleFloat < 0 ? -1 : 1;
-        $sampleAbs = abs($sampleFloat);
-
-        // logarithmic compression
-        if ($threshold >= 0 && $threshold < 1 && $sampleAbs > $threshold) {
-            $loga = $this->_logbase_lookup[(int)($threshold * 20)]; // log base modifier
-            return $sign * ($threshold + (1 - $threshold) * log(1 + $loga * ($sampleAbs - $threshold) / (2 - $threshold)) / log(1 + $loga));
-        }
-
-        // linear compression
-        $thresholdAbs = abs($threshold);
-        if ($threshold > -1 && $threshold < 0 && $sampleAbs > $thresholdAbs) {
-            return $sign * ($thresholdAbs + (1 - $thresholdAbs) / (2 - $thresholdAbs) * ($sampleAbs - $thresholdAbs));
-        }
-
-        // else sample is untouched and has to be clipped later ($threshold == 1 || $threshold <= -1)
-        return $sampleFloat;
     }
 
     /**
