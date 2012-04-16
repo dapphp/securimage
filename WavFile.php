@@ -194,8 +194,8 @@ class WavFile
      * @param string|int $numChannelsOrFileName  (Optional) If string, the filename of the wav file to open. The number of channels otherwise - default is 1.
      * @param int $sampleRate  (Optional) The sample rate in samples per second. 8000 = standard telephone, 16000 = wideband telephone, 32000 = FM radio and 44100 = CD quality.
      * @param int $bitsPerSample  (Optional) The number of bits per sample. Has to be 8, 16 or 24 for PCM audio or 32 for IEEE FLOAT audio. 8 = telephone, 16 = CD and 24 or 32 = studio quality.
-     * @throws WavFileException
      * @throws WavFormatException
+     * @throws WavFileException
      */
     public function __construct($numChannelsOrFileName = null, $sampleRate = 8000, $bitsPerSample = 8)
     {
@@ -891,10 +891,7 @@ class WavFile
 
         try {
             $this->readWavHeader();
-        } catch (WavFormatException $wex) {
-            fclose($this->_fp);
-            throw $wex;
-        } catch (Exception $ex) {
+        } catch (WavFileException $ex) {
             fclose($this->_fp);
             throw $ex;
         }
@@ -908,8 +905,8 @@ class WavFile
      * Parse a wav header.
      * http://www-mmsp.ece.mcgill.ca/documents/audioformats/wave/wave.html
      *
+     * @throws WavFormatException
      * @throws WavFileException
-     * @throws WavFormatException  WavFormatException occurs if the header or data is malformed.
      */
     protected function readWavHeader()
     {
@@ -1755,4 +1752,4 @@ class WavFileException extends Exception {}
 /**
  * WavFormatException indicates a malformed or unsupported wav file header.
  */
-class WavFormatException extends Exception {}
+class WavFormatException extends WavFileException {}
