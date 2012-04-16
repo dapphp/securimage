@@ -1347,14 +1347,22 @@ class Securimage
 
             if ($noiseFile !== false && is_readable($noiseFile)) {
                 try {
-                    $wavNoise = new WavFile($noiseFile);
+                    $wavNoise = new WavFile($noiseFile, false);
                 } catch(Exception $ex) {
                     throw $ex;
                 }
 
                 // start at a random offset from the beginning of the wavfile
                 // in order to add more randomness
-                $randOffset = rand(0, $wavNoise->getNumBlocks() - 1);
+                $randOffset = 0;
+                if ($wavNoise->getNumBlocks() > 2 * $wavCaptcha->getNumBlocks()) {
+                    $randBlock = rand(0, $wavNoise->getNumBlocks() - $wavCaptcha->getNumBlocks());
+                    $wavNoise->readWavData($randBlock * $wavNoise->getBlockAlign(), $wavCaptcha->getNumBlocks() * $wavNoise->getBlockAlign());
+                } else {
+                    $wavNoise->readWavData();
+                    $randOffset = rand(0, $wavNoise->getNumBlocks() - 1);
+                }
+
 
                 $mixOpts = array('wav'  => $wavNoise,
                                  'loop' => true,
