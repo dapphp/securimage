@@ -726,6 +726,7 @@ class WavFile
             throw new WavFileException('Sample block number is out of range.');
         } elseif ($numBlocks !== 0 && $this->_samples === '') {
             if ($offset == 0) {
+                trigger_error('Sample data not yet read. Use readWavData() or setSamples() first. Appending to empty data chunk.', E_USER_NOTICE);
                 $this->setSamples('');  // implicit setDataSize(), setSize(), setActualSize(), setNumBlocks()
                 $numBlocks = 0;
             } else {
@@ -957,6 +958,7 @@ class WavFile
             throw new WavFileException('Sample block or channel number is out of range.');
         } elseif ($dataSize !== 0 && $this->_samples === '') {
             if ($offset == 0) {
+                trigger_error('Sample data not yet read. Use readWavData() or setSamples() first. Appending to empty data chunk.', E_USER_NOTICE);
                 $this->setSamples('');  // implicit setDataSize(), setSize(), setActualSize(), setNumBlocks()
                 $dataSize = 0;
             } else {
