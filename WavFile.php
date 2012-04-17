@@ -1540,7 +1540,7 @@ class WavFile
         if (array_key_exists(self::FILTER_NORMALIZE, $filters)) {
             $normalize_threshold = @$filters[self::FILTER_NORMALIZE];
 
-            if (is_null($normalize_threshold) || ($normalize_threshold > -1 && $normalize_threshold != 1)) $filter_normalize = true;
+            if (!is_null($normalize_threshold) && abs($normalize_threshold) != 1) $filter_normalize = true;
         }
 
         $filter_degrade = false;
