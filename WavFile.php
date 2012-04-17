@@ -74,6 +74,7 @@ class WavFile
     const MAX_SAMPLERATE = 192000;
 
     /** Channel Locations for ChannelMask */
+    const SPEAKER_DEFAULT               = 0x000000;
     const SPEAKER_FRONT_LEFT            = 0x000001;
     const SPEAKER_FRONT_RIGHT           = 0x000002;
     const SPEAKER_FRONT_CENTER          = 0x000004;
@@ -617,7 +618,7 @@ class WavFile
         return $this->_channelMask;
     }
 
-    public function setChannelMask($channelMask = 0) {
+    public function setChannelMask($channelMask = self::SPEAKER_DEFAULT) {
         if ($channelMask != 0) {
             // count number of set bits - Hamming weight
             $c = (int)$channelMask;
@@ -1481,15 +1482,15 @@ class WavFile
      *              'blockOffset' => 0,                // (Optional) Block number to start mixing from.
      *              'numBlocks' => null                // (Optional) Number of blocks to mix in or to select for looping. Defaults to the end or all data for looping.
      *          ),
-     *          WavFile::FILTER_NORMALIZE => 0.6,      // Normalize (mixed) audio samples - see threshold for normalizeSample().
-     *          WavFile::FILTER_DEGRADE => 0.9         // Introduce random noise. The quality relative to the amplitude. 1 = no noise, 0 = max. noise.
+     *          WavFile::FILTER_NORMALIZE => 0.6,      // (Required) Normalization of (mixed) audio samples - see threshold parameter for normalizeSample().
+     *          WavFile::FILTER_DEGRADE => 0.9         // (Required) Introduce random noise. The quality relative to the amplitude. 1 = no noise, 0 = max. noise.
      *      ),
-     *      0,                                         // The block number of this WavFile to start with.
-     *      null                                       // The number of blocks to process.
+     *      0,                                         // (Optional) The block number of this WavFile to start with.
+     *      null                                       // (Optional) The number of blocks to process.
      *  );
      *  </code>
      *
-     * @param array $filters  (Required) An array of audio processing filters.
+     * @param array $filters  (Required) An array of 1 or more audio processing filters.
      * @param int $blockOffset  (Optional) The block number to start precessing from.
      * @param int $numBlocks  (Optional) The maximum  number of blocks to process.
      * @throws WavFileException
