@@ -904,7 +904,7 @@ class WavFile
         } elseif (!is_readable($filename)) {
             throw new WavFileException('Failed to open "' . $filename . '". File is not readable.');
         } elseif (is_resource($this->_fp)) {
-        	fclose($this->_fp);
+        	$this->closeWav();
         }
 
 
@@ -919,6 +919,16 @@ class WavFile
     }
 
     /**
+     * Close a with openWav() previously opened wav file or free the buffer of setWavData().
+     * Not necessary if the data has been read (readData = true) already.
+     */
+    public function closeWav() {
+        if (is_resource($this->_fp)) fclose($this->_fp);
+
+        return $this;
+    }
+
+    /**
      * Set the wav file data and properties from a wav file in a string.
      *
      * @param string $data  (Required) The wav file data. Passed by reference.
@@ -929,7 +939,7 @@ class WavFile
     public function setWavData(&$data, $free = true)
     {
         // check preconditions
-        if (is_resource($this->_fp)) fclose($this->_fp);
+        if (is_resource($this->_fp)) $this->closeWav();
 
 
         // open temporary stream in memory
@@ -965,7 +975,7 @@ class WavFile
         try {
             $this->readWavHeader();
         } catch (WavFileException $ex) {
-            fclose($this->_fp);
+            $this->closeWav();
             throw $ex;
         }
 
@@ -1235,6 +1245,7 @@ class WavFile
      */
     public function readWavData($dataOffset = 0, $dataSize = null)
     {
+        // check preconditions
         if (!is_resource($this->_fp)) {
             throw new WavFileException('No wav file open. Use openWav() first.');
         }
@@ -1250,16 +1261,17 @@ class WavFile
         }
 
 
+        // skip offset
         if ($dataOffset > 0 && fseek($this->_fp, $dataOffset, SEEK_CUR) !== 0) {
             throw new WavFileException('Seeking to data offset failed.');
         }
 
+        // read data
         $this->_samples .= fread($this->_fp, $dataSize);
         $this->setDataSize();  // implicit setSize(), setActualSize(), setNumBlocks()
 
-        fclose($this->_fp);
-
-        return $this;
+        // close file or memory stream
+        return $this->closeWav();
     }
 
 
