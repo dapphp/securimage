@@ -741,7 +741,7 @@ class WavFile
         return $this->_samples;
     }
 
-    public function setSamples($samples) {
+    public function setSamples(&$samples = '') {
         if (strlen($samples) % $this->_blockAlign != 0) {
             throw new WavFileException('Incorrect samples size. Has to be a multiple of BlockAlign.');
         }
@@ -1683,6 +1683,32 @@ class WavFile
         }
 
         $this->setDataSize();  // implicit setSize(), setActualSize(), setNumBlocks()
+
+        return $this;
+    }
+
+    /**
+     * Convert sample data to different bits per sample.
+     * 
+     * @param int $bitsPerSample  (Required) The new number of bits per sample;
+     * @throws WavFileException
+     */
+    public function convertBitsPerSample($bitsPerSample) {
+        if ($this->getBitsPerSample() == $bitsPerSample) {
+            return $this;
+        }
+
+        $tempWav = new WavFile($this->getNumChannels(), $this->getSampleRate(), $bitsPerSample);
+        $tempWav->filter(
+            array(self::FILTER_MIX => $this),
+            0,
+            $this->getNumBlocks()
+        );
+
+        $this->setSamples()                       // implicit setDataSize(), setSize(), setActualSize(), setNumBlocks()
+             ->setBitsPerSample($bitsPerSample);  // implicit setValidBitsPerSample(), setAudioFormat(), setAudioSubFormat(), setFmtChunkSize(), setFactChunkSize(), setSize(), setActualSize(), setDataOffset(), setByteRate(), setBlockAlign(), setNumBlocks()
+        $this->_samples = $tempWav->_samples;
+        $this->setDataSize();                     // implicit setSize(), setActualSize(), setNumBlocks()
 
         return $this;
     }
