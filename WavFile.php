@@ -193,13 +193,13 @@ class WavFile
      * $wav2 = new WavFile('./audio/sound.wav');  // open and read wav file
      * </code>
      *
-     * @param string|int $numChannelsOrFileName  (Optional) If string, the filename of the wav file to open. The number of channels otherwise - default is 1.
-     * @param int $sampleRate  (Optional) The sample rate in samples per second. 8000 = standard telephone, 16000 = wideband telephone, 32000 = FM radio and 44100 = CD quality.
-     * @param int $bitsPerSample  (Optional) The number of bits per sample. Has to be 8, 16 or 24 for PCM audio or 32 for IEEE FLOAT audio. 8 = telephone, 16 = CD and 24 or 32 = studio quality.
+     * @param string|int $numChannelsOrFileName  (Optional) If string, the filename of the wav file to open. The number of channels otherwise. Defaults to 1.
+     * @param int|bool $sampleRateOrReadData  (Optional) If opening a file and boolean, decides whether to read the data chunk or not. Defaults to true. The sample rate in samples per second otherwise. 8000 = standard telephone, 16000 = wideband telephone, 32000 = FM radio and 44100 = CD quality. Defaults to 8000.
+     * @param int $bitsPerSample  (Optional) The number of bits per sample. Has to be 8, 16 or 24 for PCM audio or 32 for IEEE FLOAT audio. 8 = telephone, 16 = CD and 24 or 32 = studio quality. Defaults to 8.
      * @throws WavFormatException
      * @throws WavFileException
      */
-    public function __construct($numChannelsOrFileName = null, $sampleRate = 8000, $bitsPerSample = 8)
+    public function __construct($numChannelsOrFileName = null, $sampleRateOrReadData = null, $bitsPerSample = null)
     {
         $this->_actualSize         = 44;
         $this->_chunkSize          = 36;
@@ -223,12 +223,12 @@ class WavFile
 
 
         if (is_string($numChannelsOrFileName)) {
-            $this->openWav($numChannelsOrFileName);
+            $this->openWav($numChannelsOrFileName, is_bool($sampleRateOrReadData) ? $sampleRateOrReadData : true);
 
-        } elseif (!is_null($numChannelsOrFileName)) {
-            $this->setNumChannels($numChannelsOrFileName)
-                 ->setSampleRate($sampleRate)
-                 ->setBitsPerSample($bitsPerSample);
+        } else {
+            $this->setNumChannels(is_null($numChannelsOrFileName) ? 1 : $numChannelsOrFileName)
+                 ->setSampleRate(is_null($sampleRateOrReadData) ? 8000 : $sampleRateOrReadData)
+                 ->setBitsPerSample(is_null($bitsPerSample) ? 8 : $bitsPerSample);
         }
     }
 
