@@ -352,17 +352,21 @@ class Securimage
      */
     public $audio_use_noise;
     /**
-     * The method and threshold used to normalize the mixing with background noise.
+     * The method and threshold (or gain factor) used to normalize the mixing with background noise.
      * See http://www.voegler.eu/pub/audio/ for more information.
-     * Valid:
-     *     null - Amplitudes are normalized by dividing by 2, i.e. loss of loudness by about 6dB.
-     *     [0, 1) - (open inverval - not including 1) - The threshold
-     *         above which amplitudes are comressed logarithmically.
-     *         e.g. 0.6 to leave amplitudes up to 60% "as is" and compress above.
-     *     (-1, 0) - (open inverval - not including 0 and -1) - The negative of the threshold
-     *         above which amplitudes are comressed linearly.
-     *         e.g. -0.6 to leave amplitudes up to 60% "as is" and compress above.
-     *     >= 1 - Normalize by dividing by $audio_mix_normalization.
+     *
+     * Valid: <ul>
+     *     <li> >= 1 - Normalize by multiplying by the threshold (boost - positive gain). <br />
+     *            A value of 1 in effect means no normalization (and results in clipping). </li>
+     *     <li> <= -1 - Normalize by dividing by the the absolute value of threshold (attenuate - negative gain). <br />
+     *            A factor of 2 (-2) is about 6dB reduction in volume.</li>
+     *     <li> [0, 1) - (open inverval - not including 1) - The threshold
+     *            above which amplitudes are comressed logarithmically. <br />
+     *            e.g. 0.6 to leave amplitudes up to 60% "as is" and compress above. </li>
+     *     <li> (-1, 0) - (open inverval - not including -1 and 0) - The threshold
+     *            above which amplitudes are comressed linearly. <br />
+     *            e.g. -0.6 to leave amplitudes up to 60% "as is" and compress above. </li></ul>
+     *
      * Default: 0.6
      *
      * @since 3.0.4
@@ -1347,14 +1351,22 @@ class Securimage
 
             if ($noiseFile !== false && is_readable($noiseFile)) {
                 try {
-                    $wavNoise = new WavFile($noiseFile);
+                    $wavNoise = new WavFile($noiseFile, false);
                 } catch(Exception $ex) {
                     throw $ex;
                 }
 
                 // start at a random offset from the beginning of the wavfile
                 // in order to add more randomness
-                $randOffset = rand(0, $wavNoise->getNumBlocks() - 1);
+                $randOffset = 0;
+                if ($wavNoise->getNumBlocks() > 2 * $wavCaptcha->getNumBlocks()) {
+                    $randBlock = rand(0, $wavNoise->getNumBlocks() - $wavCaptcha->getNumBlocks());
+                    $wavNoise->readWavData($randBlock * $wavNoise->getBlockAlign(), $wavCaptcha->getNumBlocks() * $wavNoise->getBlockAlign());
+                } else {
+                    $wavNoise->readWavData();
+                    $randOffset = rand(0, $wavNoise->getNumBlocks() - 1);
+                }
+
 
                 $mixOpts = array('wav'  => $wavNoise,
                                  'loop' => true,
