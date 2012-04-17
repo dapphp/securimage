@@ -211,7 +211,7 @@ class WavFile
         $this->_audioFormat        = self::WAVE_FORMAT_PCM;
         $this->_audioSubFormat     = null;
         $this->_numChannels        = 1;
-        $this->_channelMask        = 0;
+        $this->_channelMask        = self::SPEAKER_DEFAULT;
         $this->_sampleRate         = 8000;
         $this->_bitsPerSample      = 8;
         $this->_validBitsPerSample = 8;
