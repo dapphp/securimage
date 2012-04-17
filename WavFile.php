@@ -94,7 +94,7 @@ class WavFile
     const SPEAKER_TOP_BACK_CENTER       = 0x010000;
     const SPEAKER_TOP_BACK_RIGHT        = 0x020000;
     const SPEAKER_ALL                   = 0x03FFFF;
-    
+
     /** @var int PCM Audio Format */
     const WAVE_FORMAT_PCM           = 0x0001;
 
@@ -141,6 +141,12 @@ class WavFile
 
     /** @var int Size of the data chunk */
     protected $_dataSize;
+
+    /** @var int Size of the data chunk in the opened wav file */
+    protected $_dataSize_fp;
+
+    /** @var int Does _dataSize really reflect strlen($_samples)? Case when a wav file is read with readData = false */
+    protected $_dataSize_valid;
 
     /** @var int Starting offset of data chunk */
     protected $_dataOffset;
@@ -207,6 +213,8 @@ class WavFile
         $this->_fmtExtendedSize    = 0;
         $this->_factChunkSize      = 0;
         $this->_dataSize           = 0;
+        $this->_dataSize_fp        = 0;
+        $this->_dataSize_valid     = true;
         $this->_dataOffset         = 44;
         $this->_audioFormat        = self::WAVE_FORMAT_PCM;
         $this->_audioSubFormat     = null;
@@ -535,6 +543,7 @@ class WavFile
 
         $this->setChunkSize()   // implicit setActualSize()
              ->setNumBlocks();
+        $this->_dataSize_valid = true;
 
         return $this;
     }
@@ -756,10 +765,6 @@ class WavFile
 
         $this->_samples = $samples;
 
-        if (is_resource($this->_fp)) {
-            fclose($this->_fp);
-        }
-
         $this->setDataSize();  // implicit setSize(), setActualSize(), setNumBlocks()
 
         return $this;
@@ -893,17 +898,23 @@ class WavFile
      */
     public function openWav($filename, $readData = true)
     {
+        // check preconditions
         if (!file_exists($filename)) {
             throw new WavFileException('Failed to open "' . $filename . '". File not found.');
         } elseif (!is_readable($filename)) {
             throw new WavFileException('Failed to open "' . $filename . '". File is not readable.');
+        } elseif (is_resource($this->_fp)) {
+        	fclose($this->_fp);
         }
 
+
+        // open the file
         $this->_fp = @fopen($filename, 'rb');
         if (!is_resource($this->_fp)) {
             throw new WavFileException('Failed to open "' . $filename . '".');
         }
 
+        // read the file
         return $this->readWav($readData);
     }
 
@@ -911,22 +922,30 @@ class WavFile
      * Set the wav file data and properties from a wav file in a string.
      *
      * @param string $data  (Required) The wav file data. Passed by reference.
-     * @param bool $free  (Optional) True to free the passed $data object after copying.
+     * @param bool $free  (Optional) True to free the passed $data after copying.
      * @throws WavFormatException
      * @throws WavFileException
      */
     public function setWavData(&$data, $free = true)
     {
+        // check preconditions
+        if (is_resource($this->_fp)) fclose($this->_fp);
+
+
+        // open temporary stream in memory
         $this->_fp = @fopen('php://memory', 'w+b');
         if (!is_resource($this->_fp)) {
             throw new WavFileException('Failed to open memory stream to write wav data. Use openWav() instead.');
         }
 
+        // prepare stream
         fwrite($this->_fp, $data);
         rewind($this->_fp);
 
+        // free the passed data
         if ($free) $data = null;
 
+        // read the stream like a file
         return $this->readWav(true);
     }
 
@@ -1179,8 +1198,11 @@ class WavFile
             //throw new WavFormatException('Invalid "data" subchunk size.', 104);
         }
 
-        $this->_dataOffset = $dataOffset;
-        $this->_dataSize   = $dataSubchunk['SubchunkSize'];
+        $this->_dataOffset     = $dataOffset;
+        $this->_dataSize       = $dataSubchunk['SubchunkSize'];
+        $this->_dataSize_fp    = $dataSubchunk['SubchunkSize'];
+        $this->_dataSize_valid = false;
+        $this->_samples        = '';
 
 
         // check "fact" subchunk
@@ -1198,7 +1220,6 @@ class WavFile
 
         $this->_factChunkSize = $factSubchunk['SubchunkSize'];
         $this->_numBlocks     = $factSubchunk['SampleLength'];
-        $this->_samples       = '';
 
 
         return $this;
@@ -1223,7 +1244,7 @@ class WavFile
         }
 
         if (is_null($dataSize)) {
-            $dataSize = $this->getDataSize();
+            $dataSize = $this->_dataSize_fp - ($this->_dataSize_fp % $this->getBlockAlign());  // only read complete blocks
         } elseif ($dataSize < 0 || $dataSize % $this->getBlockAlign() > 0) {
             throw new WavFileException('Invalid data size to read. Has to be a multiple of BlockAlign.');
         }
@@ -1233,7 +1254,7 @@ class WavFile
             throw new WavFileException('Seeking to data offset failed.');
         }
 
-        $this->_samples = fread($this->_fp, $dataSize);
+        $this->_samples .= fread($this->_fp, $dataSize);
         $this->setDataSize();  // implicit setSize(), setActualSize(), setNumBlocks()
 
         fclose($this->_fp);
@@ -1249,16 +1270,23 @@ class WavFile
      * Return a single sample block from the file.
      *
      * @param int $blockNum  (Required) The sample block number. Zero based.
-     * @return string  The binary sample block (all channels). Returns null if the sample block number was out of range or false if the data has not been read yet.
+     * @return string  The binary sample block (all channels). Returns null if the sample block number was out of range.
      */
     public function getSampleBlock($blockNum)
     {
+        // check preconditions
+        if (!$this->_dataSize_valid) {
+            $this->setDataSize();  // implicit setSize(), setActualSize(), setNumBlocks()
+        }
+
         $offset = $blockNum * $this->_blockAlign;
         if ($offset + $this->_blockAlign > $this->_dataSize || $offset < 0) {
             return null;
-        } else {
-            return substr($this->_samples, $offset, $this->_blockAlign);
         }
+
+
+        // read data
+        return substr($this->_samples, $offset, $this->_blockAlign);
     }
 
     /**
@@ -1271,26 +1299,24 @@ class WavFile
      */
     public function setSampleBlock($sampleBlock, $blockNum)
     {
+        // check preconditions
         $blockAlign = $this->_blockAlign;
         if (!isset($sampleBlock[$blockAlign - 1]) || isset($sampleBlock[$blockAlign])) {  // faster than: if (strlen($sampleBlock) != $blockAlign)
             throw new WavFileException('Incorrect sample block size. Got ' . strlen($sampleBlock) . ', expected ' . $blockAlign . '.');
         }
 
-        $numBlocks = (int)($this->_dataSize / $blockAlign);
-        $offset     = $blockNum * $blockAlign;
-
-        if ($blockNum > $numBlocks || $blockNum < 0) {
-            throw new WavFileException('Sample block number is out of range.');
-        } elseif ($numBlocks !== 0 && $this->_samples === '') {
-            if ($offset == 0) {
-                trigger_error('Sample data not yet read. Use readWavData() or setSamples() first. Appending to empty data chunk.', E_USER_NOTICE);
-                $this->setSamples('');  // implicit setDataSize(), setSize(), setActualSize(), setNumBlocks()
-                $numBlocks = 0;
-            } else {
-                throw new WavFileException('Sample data not yet read. Use readWavData() or setSamples() first.');
-            }
+        if (!$this->_dataSize_valid) {
+            $this->setDataSize();  // implicit setSize(), setActualSize(), setNumBlocks()
         }
 
+        $numBlocks = (int)($this->_dataSize / $blockAlign);
+        $offset = $blockNum * $blockAlign;
+        if ($blockNum > $numBlocks || $blockNum < 0) {  // allow appending
+            throw new WavFileException('Sample block number is out of range.');
+        }
+
+
+        // replace or append data
         if ($blockNum == $numBlocks) {
             // append
             $this->_samples    .= $sampleBlock;
@@ -1313,7 +1339,7 @@ class WavFile
      *
      * @param int $blockNum  (Required) The sample block number to fetch. Zero based.
      * @param int $channelNum  (Required) The channel number within the sample block to fetch. First channel is 1.
-     * @return float  The float sample value. Returns null if the sample block number was out of range or false if the data has not been read yet.
+     * @return float  The float sample value. Returns null if the sample block number was out of range.
      * @throws WavFileException
      */
     public function getSampleValue($blockNum, $channelNum)
@@ -1323,12 +1349,14 @@ class WavFile
             throw new WavFileException('Channel number is out of range.');
         }
 
+        if (!$this->_dataSize_valid) {
+            $this->setDataSize();  // implicit setSize(), setActualSize(), setNumBlocks()
+        }
+
         $sampleBytes = $this->_bitsPerSample / 8;
         $offset = $blockNum * $this->_blockAlign + ($channelNum - 1) * $sampleBytes;
         if ($offset + $sampleBytes > $this->_dataSize || $offset < 0) {
             return null;
-        } elseif ($this->_samples === '') {
-            return false;
         }
 
         // read binary value
@@ -1385,20 +1413,16 @@ class WavFile
             throw new WavFileException('Channel number is out of range.');
         }
 
+        if (!$this->_dataSize_valid) {
+            $this->setDataSize();  // implicit setSize(), setActualSize(), setNumBlocks()
+        }
+
         $dataSize = $this->_dataSize;
         $bitsPerSample = $this->_bitsPerSample;
         $sampleBytes = $bitsPerSample / 8;
         $offset = $blockNum * $this->_blockAlign + ($channelNum - 1) * $sampleBytes;
         if (($offset + $sampleBytes > $dataSize && $offset != $dataSize) || $offset < 0) { // allow appending
             throw new WavFileException('Sample block or channel number is out of range.');
-        } elseif ($dataSize !== 0 && $this->_samples === '') {
-            if ($offset == 0) {
-                trigger_error('Sample data not yet read. Use readWavData() or setSamples() first. Appending to empty data chunk.', E_USER_NOTICE);
-                $this->setSamples('');  // implicit setDataSize(), setSize(), setActualSize(), setNumBlocks()
-                $dataSize = 0;
-            } else {
-                throw new WavFileException('Sample data not yet read. Use readWavData() or setSamples() first.');
-            }
         }
 
 
@@ -1453,6 +1477,7 @@ class WavFile
                 break;
         }
 
+        // replace or append data
         if ($offset == $dataSize) {
             // append
             $this->_samples    .= $sampleBinary;
