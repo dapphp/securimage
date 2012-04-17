@@ -232,6 +232,10 @@ class WavFile
         }
     }
 
+    public function __destruct() {
+        if (is_resource($this->_fp)) fclose($this->_fp);
+    }
+
     public function __clone() {
         $this->_fp = null;
     }
