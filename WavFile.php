@@ -92,7 +92,8 @@ class WavFile
     const SPEAKER_TOP_BACK_LEFT         = 0x008000;
     const SPEAKER_TOP_BACK_CENTER       = 0x010000;
     const SPEAKER_TOP_BACK_RIGHT        = 0x020000;
-
+    const SPEAKER_ALL                   = 0x03FFFF;
+    
     /** @var int PCM Audio Format */
     const WAVE_FORMAT_PCM           = 0x0001;
 
@@ -625,7 +626,7 @@ class WavFile
                 $n += $c & 1;
                 $c >>= 1;
             }
-            if ($c < 0 || $n != $this->_numChannels) {
+            if ($n != $this->_numChannels || (((int)$channelMask | self::SPEAKER_ALL) != self::SPEAKER_ALL)) {
                 throw new WavFileException('Invalid channel mask. The number of channels does not match the number of locations in the mask.');
             }
         }
@@ -1104,7 +1105,7 @@ class WavFile
                     $n += $c & 1;
                     $c >>= 1;
                 }
-                if ($c < 0 || $n != $fmt['NumChannels']) {
+                if ($n != $fmt['NumChannels'] || (((int)$extensibleFmt['ChannelMask'] | self::SPEAKER_ALL) != self::SPEAKER_ALL)) {
                     trigger_error('Invalid channel mask in EXTENSIBLE "fmt " subchunk. The number of channels does not match the number of locations in the mask.', E_USER_NOTICE);
                     $extensibleFmt['ChannelMask'] = 0;
                     //throw new WavFormatException('Invalid channel mask in EXTENSIBLE "fmt " subchunk. The number of channels does not match the number of locations in the mask.', 22);
