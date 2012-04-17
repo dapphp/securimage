@@ -1663,16 +1663,22 @@ class WavFile
     }
 
     /**
-     * Add silence to the end of the wav file.
+     * Add silence to the wav file.
      *
-     * @param float $duration  (Optional) How many seconds of silence. Defaults to 1s.
+     * @param float $duration  (Optional) How many seconds of silence. If negative, add to the beginning of the file. Defaults to 1s.
      */
     public function insertSilence($duration = 1.0)
     {
-        $numSamples  = $this->getSampleRate() * $duration;
+        $numSamples  = $this->getSampleRate() * abs($duration);
         $numChannels = $this->getNumChannels();
 
-        $this->_samples .= str_repeat(self::packSample($this->getZeroAmplitude(), $this->getBitsPerSample()), $numSamples * $numChannels);
+        $data = str_repeat(self::packSample($this->getZeroAmplitude(), $this->getBitsPerSample()), $numSamples * $numChannels);
+        if ($duration >= 0) {
+            $this->_samples .= $data;
+        } else {
+            $this->_samples = $data . $this->_samples;
+        }
+
         $this->setDataSize();  // implicit setSize(), setActualSize(), setNumBlocks()
 
         return $this;
