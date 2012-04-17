@@ -372,48 +372,50 @@ class WavFile
     }
 
     /**
-     * Normalizes a float audio sample. Maximum range assumed is [-2, 2].
+     * Normalizes a float audio sample. Maximum input range assumed for compression is [-2, 2].
      * See http://www.voegler.eu/pub/audio/ for more information.
      *
      * @param float $sampleFloat  (Required) The float sample to normalize.
-     * @param float $threshold  (Optional) The threshold for normalizing the amplitude. <ul>
-     *     <li> null/default - Amplitudes are normalized by dividing by 2, i.e. loss of loudness by about 6dB. </li>
+     * @param float $threshold  (Required) The threshold or gain factor for normalizing the amplitude. <ul>
+     *     <li> >= 1 - Normalize by multiplying by the threshold (boost - positive gain). <br />
+     *            A value of 1 in effect means no normalization (and results in clipping). </li>
+     *     <li> <= -1 - Normalize by dividing by the the absolute value of threshold (attenuate - negative gain). <br />
+     *            A factor of 2 (-2) is about 6dB reduction in volume.</li>
      *     <li> [0, 1) - (open inverval - not including 1) - The threshold
      *            above which amplitudes are comressed logarithmically. <br />
      *            e.g. 0.6 to leave amplitudes up to 60% "as is" and compress above. </li>
-     *     <li> (-1, 0) - (open inverval - not including 0 and -1) - The negative of the threshold
+     *     <li> (-1, 0) - (open inverval - not including -1 and 0) - The threshold
      *            above which amplitudes are comressed linearly. <br />
-     *            e.g. -0.6 to leave amplitudes up to 60% "as is" and compress above. </li>
-     *     <li> >= 1 - Normalize by dividing by $threshold. </li></ul>
+     *            e.g. -0.6 to leave amplitudes up to 60% "as is" and compress above. </li></ul>
      * @return float  The normalized sample.
      **/
-    public static function normalizeSample($sampleFloat, $threshold = null) {
-    	// normalitze by dividing by 2 - loss of loudness by about 6dB
-    	if ($threshold === null) {
-    		return $sampleFloat / 2;
+    public static function normalizeSample($sampleFloat, $threshold) {
+        // apply positive gain
+    	if ($threshold >= 1) {
+    		return $sampleFloat * $threshold;
     	}
-    
-    	// normalize by the divisor given
-    	if ($threshold > 1) {
-    		return $sampleFloat / $threshold;
+
+    	// apply negative gain
+    	if ($threshold <= -1) {
+    		return $sampleFloat / -$threshold;
     	}
-    
+
     	$sign = $sampleFloat < 0 ? -1 : 1;
     	$sampleAbs = abs($sampleFloat);
-    
+
     	// logarithmic compression
     	if ($threshold >= 0 && $threshold < 1 && $sampleAbs > $threshold) {
     		$loga = self::$LOOKUP_LOGBASE[(int)($threshold * 20)]; // log base modifier
     		return $sign * ($threshold + (1 - $threshold) * log(1 + $loga * ($sampleAbs - $threshold) / (2 - $threshold)) / log(1 + $loga));
     	}
-    
+
     	// linear compression
     	$thresholdAbs = abs($threshold);
     	if ($threshold > -1 && $threshold < 0 && $sampleAbs > $thresholdAbs) {
     		return $sign * ($thresholdAbs + (1 - $thresholdAbs) / (2 - $thresholdAbs) * ($sampleAbs - $thresholdAbs));
     	}
-    
-    	// else sample is untouched and has to be clipped later ($threshold == 1 || $threshold <= -1)
+
+    	// else ?
     	return $sampleFloat;
     }
 
@@ -1689,7 +1691,7 @@ class WavFile
 
     /**
      * Convert sample data to different bits per sample.
-     * 
+     *
      * @param int $bitsPerSample  (Required) The new number of bits per sample;
      * @throws WavFileException
      */
