@@ -409,6 +409,8 @@ class Securimage
 
     protected $captcha_code;
     protected $sqlite_handle;
+    protected $no_exit;
+    protected $no_session;
 
     protected $gdbgcolor;
     protected $gdtextcolor;
@@ -489,12 +491,22 @@ class Securimage
             $this->namespace = 'default';
         }
 
-        // Initialize session or attach to existing
-        if ( session_id() == '' ) { // no session has been started yet, which is needed for validation
-            if (!is_null($this->session_name) && trim($this->session_name) != '') {
-                session_name(trim($this->session_name)); // set session name if provided
+        if (is_null($this->no_exit)) {
+            $this->no_exit = false;
+        }
+
+        if (is_null($this->no_session)) {
+            $this->no_session = false;
+        }
+
+        if (!$this->no_session) {
+            // Initialize session or attach to existing
+            if ( session_id() == '' ) { // no session has been started yet, which is needed for validation
+                if (!is_null($this->session_name) && trim($this->session_name) != '') {
+                    session_name(trim($this->session_name)); // set session name if provided
+                }
+                session_start();
             }
-            session_start();
         }
     }
 
@@ -595,7 +607,7 @@ class Securimage
                 .'a PHP error was sent to the browser.</strong>';
         }
 
-        exit;
+        if (!$this->no_exit) exit;
     }
 
     /**
@@ -1056,7 +1068,8 @@ class Securimage
         }
 
         imagedestroy($this->im);
-        exit();
+
+        if (!$this->no_exit) exit;
     }
 
     /**
