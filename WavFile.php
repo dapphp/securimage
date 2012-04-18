@@ -35,11 +35,21 @@
 *
 * @copyright 2012 Drew Phillips
 * @author Drew Phillips <drew@drew-phillips.com>
-* @version 0.6-alpha (April 2012)
+* @author Paul Voegler <http://www.voegler.eu/>
+* @version 1.0RC1 (April 2012)
 * @package PHPWavUtils
 * @license BSD License
 *
 * Changelog:
+*
+*   1.0 RC1 (4/20/2012)
+*     - Initial release candidate
+*     - Supports 8, 16, 24, 32 bit PCM, 32-bit IEEE FLOAT, Extensible Format
+*     - Support for 18 channels of audio
+*     - Ability to read an offset from a file to reduce memory footprint with large files
+*     - Single-pass audio filter processing
+*     - Highly accurate and efficient mix and normalization filters (http://www.voegler.eu/pub/audio/)
+*     - Utility filters for degrading audio, and inserting silence
 *
 *   0.6 (4/12/2012)
 *     - Support 8, 16, 24, 32 bit and PCM float (Paul Voegler)
