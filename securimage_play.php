@@ -29,14 +29,21 @@
  * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
  * @copyright 2012 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
- * @version 3.0.2Beta (January 2012)
+ * @version 3.2RC1 (April 2012)
  * @package Securimage
  *
  */
 
 require_once dirname(__FILE__) . '/securimage.php';
 
-$img = new Securimage();
+$captchaId = (isset($_GET['id']) && strlen($_GET['id']) > 0) ? $_GET['id'] : '';
+$options   = array('captchaId' => $captchaId);
+
+// Uncomment the following 2 lines if you want to use only static captchas
+//$options['use_sqlite_db'] = true;
+//$options['no_session']    = true;
+
+$img = new Securimage($options);
 
 // To use an alternate language, uncomment the following and download the files from phpcaptcha.org
 // $img->audio_path = $img->securimage_path . '/audio/es/';

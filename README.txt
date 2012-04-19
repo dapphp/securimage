@@ -2,7 +2,7 @@ NAME:
 
     Securimage - A PHP class for creating captcha images and audio with many options.
 
-VERSION: 3.0
+VERSION: 3.2RC1
 
 AUTHOR:
 
@@ -77,7 +77,13 @@ COPYRIGHT:
     POSSIBILITY OF SUCH DAMAGE.
 
     -----------------------------------------------------------------------------
-    Flash code created for Securimage by Mario Romero (animario@hotmail.com)
+    The WavFile.php class used in Securimage by Drew Phillips and Paul Voegler is
+    used under the BSD License.  See WavFile.php for details.
+    Many thanks to Paul Voegler (http://voegler.eu/audio/pub) for contributing to
+    Securimage.
+
+    -----------------------------------------------------------------------------
+    Flash code created for Securimage by Age Bosma & Mario Romero (animario@hotmail.com)
     Many thanks for releasing this to the project!
 
     ------------------------------------------------------------------------------
@@ -136,4 +142,39 @@ COPYRIGHT:
      http://findicons.com/icon/192558/gnome_volume_control
      http://findicons.com/icon/192562/gtk_refresh
 
+     -------------------------------------------------------------------------------
+     Background noise sound files are from SoundJay.com
+     http://www.soundjay.com/tos.html
+     
+     All sound effects on this website are created by us and protected under
+     the copyright laws, international treaty provisions and other applicable
+     laws. By downloading sounds, music or any material from this site implies
+     that you have read and accepted these terms and conditions:
+
+     Sound Effects
+     You are allowed to use the sounds free of charge and royalty free in your
+     projects (such as films, videos, games, presentations, animations, stage
+     plays, radio plays, audio books, apps) be it for commercial or
+     non-commercial purposes.
+    
+     But you are NOT allowed to
+     - post the sounds (as sound effects or ringtones) on any website for
+       others to download, copy or use
+     - use them as a raw material to create sound effects or ringtones that
+       you will sell, distribute or offer for downloading
+     - sell, re-sell, license or re-license the sounds (as individual sound
+       effects or as a sound effects library) to anyone else
+     - claim the sounds as yours
+     - link directly to individual sound files
+     - distribute the sounds in apps or computer programs that are clearly
+       sound related in nature (such as sound machine, sound effect
+       generator, ringtone maker, funny sounds app, sound therapy app, etc.)
+       or in apps or computer programs that use the sounds as the program's
+       sound resource library for other people's use (such as animation
+       creator, digital book creator, song maker software, etc.). If you are
+       developing such computer programs, contact us for licensing options.
+    
+     If you use the sound effects, please consider giving us a credit and
+     linking back to us but it's not required.
+     
      
