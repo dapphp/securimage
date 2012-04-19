@@ -241,7 +241,7 @@ class WavFile
     }
 
     public function __destruct() {
-        if (is_resource($this->_fp)) fclose($this->_fp);
+        if (is_resource($this->_fp)) $this->closeWav();
     }
 
     public function __clone() {
