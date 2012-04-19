@@ -2,7 +2,7 @@ NAME:
 
     Securimage - A PHP class for creating captcha images and audio with many options.
 
-VERSION: 3.0
+VERSION: 3.2RC1
 
 AUTHOR:
 
@@ -77,7 +77,13 @@ COPYRIGHT:
     POSSIBILITY OF SUCH DAMAGE.
 
     -----------------------------------------------------------------------------
-    Flash code created for Securimage by Mario Romero (animario@hotmail.com)
+    The WavFile.php class used in Securimage by Drew Phillips and Paul Voegler is
+    used under the BSD License.  See WavFile.php for details.
+    Many thanks to Paul Voegler (http://voegler.eu/audio/pub) for contributing to
+    Securimage.
+
+    -----------------------------------------------------------------------------
+    Flash code created for Securimage by Age Bosma & Mario Romero (animario@hotmail.com)
     Many thanks for releasing this to the project!
 
     ------------------------------------------------------------------------------
