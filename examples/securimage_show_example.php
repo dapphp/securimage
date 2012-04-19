@@ -2,20 +2,20 @@
 
 /**
  * Project:     Securimage: A PHP class for creating and managing form CAPTCHA images<br />
- * File:        securimage_show_example2.php<br />
+ * File:        securimage_show_example.php<br />
  *
  * Copyright (c) 2011, Drew Phillips
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -44,20 +44,22 @@
  *
  */
 
-require_once dirname(__FILE__) . '/securimage.php';
+require_once '../securimage.php';
 
 $img = new Securimage();
 
 //Change some settings
-$img->image_width     = 280;
-$img->image_height    = 100;
-$img->perturbation    = 0.9;      // high level of distortion
-$img->code_length     = rand(5,6); // random code length
-$img->image_bg_color  = new Securimage_Color("#ffffff");
-$img->num_lines       = 12;
-$img->noise_level     = 5;
-$img->text_color      = new Securimage_Color("#000000");
-$img->noise_color     = $img->text_color;
-$img->line_color      = new Securimage_Color("#cccccc");
+$img->image_width = 250;
+$img->image_height = 80;
+$img->perturbation = 0.85;
+$img->image_bg_color = new Securimage_Color("#f6f6f6");
+$img->use_transparent_text = true;
+$img->text_transparency_percentage = 30; // 100 = completely transparent
+$img->num_lines = 7;
+$img->line_color = new Securimage_Color("#eaeaea");
+$img->image_signature = 'phpcaptcha.org';
+$img->signature_color = new Securimage_Color(rand(0, 64), rand(64, 128), rand(128, 255));
+$img->use_wordlist = true;
 
-$img->show();
+$img->show('backgrounds/bg3.jpg'); // alternate use:  $img->show('/path/to/background_image.jpg');
+
