@@ -460,7 +460,8 @@ class WavFile
             $this->_chunkSize = 4 +                                                            // "WAVE" chunk
                                 8 + $this->_fmtChunkSize +                                     // "fmt " subchunk
                                 ($this->_factChunkSize > 0 ? 8 + $this->_factChunkSize : 0) +  // "fact" subchunk
-                                8 + $this->_dataSize;                                          // "data" subchunk
+                                8 + $this->_dataSize +                                         // "data" subchunk
+                                ($this->_dataSize & 1);                                        // padding byte
         } else {
             $this->_chunkSize = $chunkSize;
         }
@@ -869,9 +870,17 @@ class WavFile
      */
     public function getDataSubchunk()
     {
-        return pack('N', 0x64617461) .            // SubchunkID - "data"
-               pack('V', $this->getDataSize()) .  // SubchunkSize
-               $this->_samples;                   // Subchunk data
+        // check preconditions
+        if (!$this->_dataSize_valid) {
+            $this->setDataSize();  // implicit setSize(), setActualSize(), setNumBlocks()
+        }
+
+
+        // create subchunk
+        return pack('N', 0x64617461) .                    // SubchunkID - "data"
+               pack('V', $this->getDataSize()) .          // SubchunkSize
+               $this->_samples .                          // Subchunk data
+               ($this->getDataSize() & 1 ? chr(0) : '');  // padding byte
     }
 
     /**
@@ -1025,13 +1034,13 @@ class WavFile
         }
 
         if ($actualSize - 8 < $RIFF['ChunkSize']) {
-            trigger_error('RIFF chunk size does not match actual file size. Found ' . $RIFF['ChunkSize'] . ', expected ' . ($actualSize - 8) . '.', E_USER_NOTICE);
+            trigger_error('"RIFF" chunk size does not match actual file size. Found ' . $RIFF['ChunkSize'] . ', expected ' . ($actualSize - 8) . '.', E_USER_NOTICE);
             $RIFF['ChunkSize'] = $actualSize - 8;
-            //throw new WavFormatException('RIFF chunk size does not match actual file size. Found ' . $RIFF['ChunkSize'] . ', expected ' . ($actualSize - 8) . '.', 3);
+            //throw new WavFormatException('"RIFF" chunk size does not match actual file size. Found ' . $RIFF['ChunkSize'] . ', expected ' . ($actualSize - 8) . '.', 3);
         }
 
         if ($RIFF['Format'] != 0x57415645) {  // "WAVE"
-            throw new WavFormatException('Not wav format. RIFF chunk format is not "WAVE".', 4);
+            throw new WavFormatException('Not wav format. "RIFF" chunk format is not "WAVE".', 4);
         }
 
         $this->_chunkSize = $RIFF['ChunkSize'];
@@ -1098,7 +1107,8 @@ class WavFile
         // read extended "fmt " subchunk data
         $extendedFmt = '';
         if ($fmt['SubchunkSize'] > 16) {
-            $extendedFmt = fread($this->_fp, $fmt['SubchunkSize'] - 16);
+            // possibly handle malformed subchunk without a padding byte
+            $extendedFmt = fread($this->_fp, $fmt['SubchunkSize'] - 16 + ($fmt['SubchunkSize'] & 1));  // also read padding byte
             if (strlen($extendedFmt) < $fmt['SubchunkSize'] - 16) {
                 throw new WavFormatException('Not wav format. Header too short.', 1);
             }
@@ -1108,7 +1118,7 @@ class WavFile
         // check extended "fmt " for EXTENSIBLE Audio Format
         if ($fmt['AudioFormat'] == self::WAVE_FORMAT_EXTENSIBLE) {
             if (strlen($extendedFmt) < 24) {
-                throw new WavFormatException('Invalid EXTENSIBLE "fmt " subchunk size. Found ' . $fmt['SubchunkSize'] . ', expected 40.', 19);
+                throw new WavFormatException('Invalid EXTENSIBLE "fmt " subchunk size. Found ' . $fmt['SubchunkSize'] . ', expected at least 40.', 19);
             }
 
             $extensibleFmt = unpack('vSize/vValidBitsPerSample/VChannelMask/H32SubFormat', substr($extendedFmt, 0, 24));
@@ -1178,7 +1188,8 @@ class WavFile
             $subchunk = unpack('NSubchunkID/VSubchunkSize', $subchunkHeader);
 
             if ($subchunk['SubchunkID'] == 0x66616374) {        // "fact"
-                $subchunkData = fread($this->_fp, $subchunk['SubchunkSize']);
+                // possibly handle malformed subchunk without a padding byte
+                $subchunkData = fread($this->_fp, $subchunk['SubchunkSize'] + ($subchunk['SubchunkSize'] & 1));  // also read padding byte
                 if (strlen($subchunkData) < 4) {
                     throw new WavFormatException('Invalid "fact" subchunk.', 102);
                 }
@@ -1192,11 +1203,13 @@ class WavFile
                 break;
 
             } elseif ($subchunk['SubchunkID'] == 0x7761766C) {  // "wavl"
-                throw new WavFormatException('Wave List Chunks ("wavl") are not supported.', 106);
+                throw new WavFormatException('Wave List Chunk ("wavl" subchunk) is not supported.', 106);
             } else {
                 // skip all other (unknown) subchunks
-                if ($subchunk['SubchunkSize'] < 0 || fseek($this->_fp, $subchunk['SubchunkSize'], SEEK_CUR) !== 0) {
-                    throw new WavFormatException('Invalid UNKNOWN subchunk.', 103);
+                // possibly handle malformed subchunk without a padding byte
+                if ( $subchunk['SubchunkSize'] < 0
+                  || fseek($this->_fp, $subchunk['SubchunkSize'] + ($subchunk['SubchunkSize'] & 1), SEEK_CUR) !== 0) {  // also skip padding byte
+                    throw new WavFormatException('Invalid subchunk (0x' . dechex($subchunk['SubchunkID']) . ') encountered.', 103);
                 }
             }
         }
@@ -1273,7 +1286,7 @@ class WavFile
         }
 
         // read data
-        $this->_samples .= fread($this->_fp, $dataSize);
+        $this->_samples .= fread($this->_fp, $dataSize);  // allow appending
         $this->setDataSize();  // implicit setSize(), setActualSize(), setNumBlocks()
 
         // close file or memory stream
