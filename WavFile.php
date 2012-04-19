@@ -415,32 +415,32 @@ class WavFile
      **/
     public static function normalizeSample($sampleFloat, $threshold) {
         // apply positive gain
-    	if ($threshold >= 1) {
-    		return $sampleFloat * $threshold;
-    	}
+        if ($threshold >= 1) {
+            return $sampleFloat * $threshold;
+        }
 
-    	// apply negative gain
-    	if ($threshold <= -1) {
-    		return $sampleFloat / -$threshold;
-    	}
+        // apply negative gain
+        if ($threshold <= -1) {
+            return $sampleFloat / -$threshold;
+        }
 
-    	$sign = $sampleFloat < 0 ? -1 : 1;
-    	$sampleAbs = abs($sampleFloat);
+        $sign = $sampleFloat < 0 ? -1 : 1;
+        $sampleAbs = abs($sampleFloat);
 
-    	// logarithmic compression
-    	if ($threshold >= 0 && $threshold < 1 && $sampleAbs > $threshold) {
-    		$loga = self::$LOOKUP_LOGBASE[(int)($threshold * 20)]; // log base modifier
-    		return $sign * ($threshold + (1 - $threshold) * log(1 + $loga * ($sampleAbs - $threshold) / (2 - $threshold)) / log(1 + $loga));
-    	}
+        // logarithmic compression
+        if ($threshold >= 0 && $threshold < 1 && $sampleAbs > $threshold) {
+            $loga = self::$LOOKUP_LOGBASE[(int)($threshold * 20)]; // log base modifier
+            return $sign * ($threshold + (1 - $threshold) * log(1 + $loga * ($sampleAbs - $threshold) / (2 - $threshold)) / log(1 + $loga));
+        }
 
-    	// linear compression
-    	$thresholdAbs = abs($threshold);
-    	if ($threshold > -1 && $threshold < 0 && $sampleAbs > $thresholdAbs) {
-    		return $sign * ($thresholdAbs + (1 - $thresholdAbs) / (2 - $thresholdAbs) * ($sampleAbs - $thresholdAbs));
-    	}
+        // linear compression
+        $thresholdAbs = abs($threshold);
+        if ($threshold > -1 && $threshold < 0 && $sampleAbs > $thresholdAbs) {
+            return $sign * ($thresholdAbs + (1 - $thresholdAbs) / (2 - $thresholdAbs) * ($sampleAbs - $thresholdAbs));
+        }
 
-    	// else ?
-    	return $sampleFloat;
+        // else ?
+        return $sampleFloat;
     }
 
 
@@ -929,7 +929,7 @@ class WavFile
         } elseif (!is_readable($filename)) {
             throw new WavFileException('Failed to open "' . $filename . '". File is not readable.');
         } elseif (is_resource($this->_fp)) {
-        	$this->closeWav();
+            $this->closeWav();
         }
 
 
