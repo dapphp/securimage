@@ -572,10 +572,15 @@ class WavFile
 
     protected function setAudioFormat($audioFormat = null) {
         if (is_null($audioFormat)) {
-            if ($this->_bitsPerSample <= 16 && $this->_channelMask == 0 && $this->_validBitsPerSample == $this->_bitsPerSample) {
-                $this->_audioFormat = self::WAVE_FORMAT_PCM;
-            } elseif ($this->_bitsPerSample == 32 && $this->_channelMask == 0 && $this->_validBitsPerSample == $this->_bitsPerSample) {
-                $this->_audioFormat = self::WAVE_FORMAT_IEEE_FLOAT;
+            if (($this->_bitsPerSample <= 16 || $this->_bitsPerSample == 32)
+              && $this->_validBitsPerSample == $this->_bitsPerSample
+              && $this->_channelMask == self::SPEAKER_DEFAULT
+              && $this->_numChannels <= 2) {
+                if ($this->_bitsPerSample <= 16) {
+                    $this->_audioFormat = self::WAVE_FORMAT_PCM;
+                } else {
+                    $this->_audioFormat = self::WAVE_FORMAT_IEEE_FLOAT;
+                }
             } else {
                 $this->_audioFormat = self::WAVE_FORMAT_EXTENSIBLE;
             }
@@ -621,7 +626,8 @@ class WavFile
 
         $this->_numChannels = (int)$numChannels;
 
-        $this->setByteRate()
+        $this->setAudioFormat()  // implicit setAudioSubFormat(), setFactChunkSize(), setFmtExtendedSize(), setFmtChunkSize(), setSize(), setActualSize(), setDataOffset()
+             ->setByteRate()
              ->setBlockAlign();  // implicit setNumBlocks()
 
         return $this;
