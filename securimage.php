@@ -41,13 +41,24 @@
  * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
  * @copyright 2012 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
- * @version 3.0.3Beta (April 2012)
+ * @version 3.2RC1 (April 2012)
  * @package Securimage
  *
  */
 
 /**
  ChangeLog
+
+ 3.2RC1
+ - New audio captcha code.  Faster, fully dynamic audio, full WAV support
+   (Paul Voegler, Drew Phillips) <http://voegler.eu/pub/audio>
+ - New Flash audio streaming button.  User defined image and size supported
+ - Additional options for customizing captcha (noise_level, send_headers,
+   no_exit, no_session, display_value
+ - Add captcha ID support.  Uses sqlite and unique captcha IDs to track captchas,
+   no session used
+ - Add static methods for creating and validating captcha by ID
+ - Automatic clearing of old codes from SQLite database
 
  3.0.3Beta
  - Add improved mixing function to WavFile class (Paul Voegler)
@@ -396,6 +407,11 @@ class Securimage
      */
     public $audio_gap_max = 600;
 
+    /**
+     * Captcha ID if using static captcha
+     * @var string Unique captcha id
+     */
+    protected static $_captchaId = null;
 
     protected $im;
     protected $tmpimg;
@@ -404,14 +420,62 @@ class Securimage
 
     protected $securimage_path = null;
 
+    /**
+     * The captcha challenge value (either the case-sensitive/insensitive word captcha, or the solution to the math captcha)
+     *
+     * @var string Captcha challenge value
+     */
     protected $code;
+
+    /**
+     * The display value of the captcha to draw on the image (the word captcha, or the math equation to present to the user)
+     *
+     * @var string Captcha display value to draw on the image
+     */
     protected $code_display;
 
+    /**
+     * A value that can be passed to the constructor that can be used to generate a captcha image with a given value
+     * This value does not get stored in the session or database and is only used when calling Securimage::show().
+     * If a display_value was passed to the constructor and the captcha image is generated, the display_value will be used
+     * as the string to draw on the captcha image.  Used only if captcha codes are generated and managed by a 3rd party app/library
+     *
+     * @var string Captcha code value to display on the image
+     */
+    protected $display_value;
+
+    /**
+     * Captcha code supplied by user [set from Securimage::check()]
+     *
+     * @var string
+     */
     protected $captcha_code;
-    protected $sqlite_handle;
+
+    /**
+     * Flag that can be specified telling securimage not to call exit after generating a captcha image or audio file
+     *
+     * @var bool If true, script will not terminate; if false script will terminate (default)
+     */
     protected $no_exit;
+
+    /**
+     * Flag indicating whether or not a PHP session should be started and used
+     *
+     * @var bool If true, no session will be started; if false, session will be started and used to store data (default)
+     */
     protected $no_session;
 
+    /**
+     * Flag indicating whether or not HTTP headers will be sent when outputting captcha image/audio
+     *
+     * @var bool If true (default) headers will be sent, if false, no headers are sent
+     */
+    protected $send_headers;
+
+    // sqlite database handle (if using sqlite)
+    protected $sqlite_handle;
+
+    // gd color resources that are allocated for drawing the image
     protected $gdbgcolor;
     protected $gdtextcolor;
     protected $gdlinecolor;
@@ -439,7 +503,12 @@ class Securimage
 
         if (is_array($options) && sizeof($options) > 0) {
             foreach($options as $prop => $val) {
-                $this->$prop = $val;
+                if ($prop == 'captchaId') {
+                    Securimage::$_captchaId = $val;
+                    $this->use_sqlite_db    = true;
+                } else {
+                    $this->$prop = $val;
+                }
             }
         }
 
@@ -499,7 +568,11 @@ class Securimage
             $this->no_session = false;
         }
 
-        if (!$this->no_session) {
+        if (is_null($this->send_headers)) {
+            $this->send_headers = true;
+        }
+
+        if ($this->no_session != true) {
             // Initialize session or attach to existing
             if ( session_id() == '' ) { // no session has been started yet, which is needed for validation
                 if (!is_null($this->session_name) && trim($this->session_name) != '') {
@@ -518,6 +591,63 @@ class Securimage
     {
         return dirname(__FILE__);
     }
+
+    /**
+     * Generate a new captcha ID or retrieve the current ID
+     *
+     * @param $new bool If true, generates a new challenge and returns and ID
+     * @param $options array Additional options to be passed to Securimage
+     *
+     * @return null|string Returns null if no captcha id set and new was false, or string captcha ID
+     */
+    public static function getCaptchaId($new = true, array $options = array())
+    {
+        if ((bool)$new == true) {
+            $id = sha1(uniqid($_SERVER['REMOTE_ADDR'], true));
+            $opts = array('no_session'    => true,
+                          'use_sqlite_db' => true);
+            if (sizeof($options) > 0) $opts = array_merge($opts, $options);
+            $si = new self($opts);
+            Securimage::$_captchaId = $id;
+            $si->createCode();
+
+            return $id;
+        } else {
+            return Securimage::$_captchaId;
+        }
+    }
+
+    /**
+     * Validate a captcha code input against a captcha ID
+     * @param string $id The captcha ID to check
+     * @param string $value The captcha value supplied by the user
+     *
+     * @return bool true if the code was valid for the given captcha ID, false if not or if database failed to open
+     */
+    public static function checkByCaptchaId($id, $value)
+    {
+        $si = new self(array('captchaId'     => $id,
+                             'no_session'    => true,
+                             'use_sqlite_db' => true));
+
+        if ($si->openDatabase()) {
+            $code = $si->getCodeFromDatabase();
+
+            if (is_array($code)) {
+                $si->code         = $code['code'];
+                $si->code_display = $code['code_disp'];
+            }
+
+            if ($si->check($value)) {
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+
 
     /**
      * Used to serve a captcha image to the browser
@@ -585,18 +715,20 @@ class Securimage
             $audio = $this->audioError();
         }
 
-        if ($this->canSendHeaders()) {
-            $uniq = md5(uniqid(microtime()));
-            header("Content-Disposition: attachment; filename=\"securimage_audio-{$uniq}.wav\"");
-            header('Cache-Control: no-store, no-cache, must-revalidate');
-            header('Expires: Sun, 1 Jan 2000 12:00:00 GMT');
-            header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . 'GMT');
-            header('Content-type: audio/x-wav');
+        if ($this->canSendHeaders() || $this->send_headers == false) {
+            if ($this->send_headers) {
+                $uniq = md5(uniqid(microtime()));
+                header("Content-Disposition: attachment; filename=\"securimage_audio-{$uniq}.wav\"");
+                header('Cache-Control: no-store, no-cache, must-revalidate');
+                header('Expires: Sun, 1 Jan 2000 12:00:00 GMT');
+                header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . 'GMT');
+                header('Content-type: audio/x-wav');
 
-            if (extension_loaded('zlib')) {
-                ini_set('zlib.output_compression', true);  // compress output if supported by browser
-            } else {
-                header('Content-Length: ' . strlen($audio));
+                if (extension_loaded('zlib')) {
+                    ini_set('zlib.output_compression', true);  // compress output if supported by browser
+                } else {
+                    header('Content-Length: ' . strlen($audio));
+                }
             }
 
             echo $audio;
@@ -620,17 +752,21 @@ class Securimage
     {
         $code = '';
         $time = 0;
-        $disp = '';
+        $disp = 'error';
 
-        if (isset($_SESSION['securimage_code_value'][$this->namespace]) &&
-                trim($_SESSION['securimage_code_value'][$this->namespace]) != '') {
-            if ($this->isCodeExpired(
-                    $_SESSION['securimage_code_ctime'][$this->namespace]) == false) {
-                $code = $_SESSION['securimage_code_value'][$this->namespace];
-                $time = $_SESSION['securimage_code_ctime'][$this->namespace];
-                $disp = $_SESSION['securimage_code_disp'] [$this->namespace];
+        if ($this->no_session != true) {
+            if (isset($_SESSION['securimage_code_value'][$this->namespace]) &&
+                    trim($_SESSION['securimage_code_value'][$this->namespace]) != '') {
+                if ($this->isCodeExpired(
+                        $_SESSION['securimage_code_ctime'][$this->namespace]) == false) {
+                    $code = $_SESSION['securimage_code_value'][$this->namespace];
+                    $time = $_SESSION['securimage_code_ctime'][$this->namespace];
+                    $disp = $_SESSION['securimage_code_disp'] [$this->namespace];
+                }
             }
-        } else if ($this->use_sqlite_db == true && function_exists('sqlite_open')) {
+        }
+
+        if ($this->use_sqlite_db == true && function_exists('sqlite_open')) {
             // no code in session - may mean user has cookies turned off
             $this->openDatabase();
             $code = $this->getCodeFromDatabase();
@@ -662,7 +798,36 @@ class Securimage
 
         $this->setBackground();
 
-        $this->createCode();
+        $code = '';
+
+        if ($this->getCaptchaId(false) !== null) {
+            // a captcha Id was supplied
+
+            // check to see if a display_value for the captcha image was set
+            if (is_string($this->display_value) && strlen($this->display_value) > 0) {
+                $this->code_display = $this->display_value;
+                $this->code         = ($this->case_sensitive) ?
+                                       $this->display_value   :
+                                       strtolower($this->display_value);
+                $code = $this->code;
+            } else if ($this->openDatabase()) {
+                // no display_value, check the database for existing captchaId
+                $code = $this->getCodeFromDatabase();
+
+                // got back a result from the database with a valid code for captchaId
+                if (is_array($code)) {
+                    $this->code         = $code['code'];
+                    $this->code_display = $code['code_disp'];
+                    $code = $code['code'];
+                }
+            }
+        }
+
+        if ($code == '') {
+            // if the code was not set using display_value or was not found in
+            // the database, create a new code
+            $this->createCode();
+        }
 
         if ($this->noise_level > 0) {
             $this->drawNoise();
@@ -1035,28 +1200,30 @@ class Securimage
      */
     protected function output()
     {
-        if ($this->canSendHeaders()) {
-            // only send the content-type headers if no headers have been output
-            // this will ease debugging on misconfigured servers where warnings
-            // may have been output which break the image and prevent easily viewing
-            // source to see the error.
-            header("Expires: Mon, 26 Jul 1997 05:00:00 GMT");
-            header("Last-Modified: " . gmdate("D, d M Y H:i:s") . "GMT");
-            header("Cache-Control: no-store, no-cache, must-revalidate");
-            header("Cache-Control: post-check=0, pre-check=0", false);
-            header("Pragma: no-cache");
+        if ($this->canSendHeaders() || $this->send_headers == false) {
+            if ($this->send_headers) {
+                // only send the content-type headers if no headers have been output
+                // this will ease debugging on misconfigured servers where warnings
+                // may have been output which break the image and prevent easily viewing
+                // source to see the error.
+                header("Expires: Mon, 26 Jul 1997 05:00:00 GMT");
+                header("Last-Modified: " . gmdate("D, d M Y H:i:s") . "GMT");
+                header("Cache-Control: no-store, no-cache, must-revalidate");
+                header("Cache-Control: post-check=0, pre-check=0", false);
+                header("Pragma: no-cache");
+            }
 
             switch ($this->image_type) {
                 case self::SI_IMAGE_JPEG:
-                    header("Content-Type: image/jpeg");
+                    if ($this->send_headers) header("Content-Type: image/jpeg");
                     imagejpeg($this->im, null, 90);
                     break;
                 case self::SI_IMAGE_GIF:
-                    header("Content-Type: image/gif");
+                    if ($this->send_headers) header("Content-Type: image/gif");
                     imagegif($this->im);
                     break;
                 default:
-                    header("Content-Type: image/png");
+                    if ($this->send_headers) header("Content-Type: image/png");
                     imagepng($this->im);
                     break;
             }
@@ -1163,9 +1330,13 @@ class Securimage
      */
     protected function validate()
     {
-        $code = $this->getCode();
-        // returns stored code, or an empty string if no stored code was found
-        // checks the session and sqlite database if enabled
+        if (!is_string($this->code) || strlen($this->code) == 0) {
+            $code = $this->getCode();
+            // returns stored code, or an empty string if no stored code was found
+            // checks the session and sqlite database if enabled
+        } else {
+            $code = $this->code;
+        }
 
         if ($this->case_sensitive == false && preg_match('/[A-Z]/', $code)) {
             // case sensitive was set from securimage_show.php but not in class
@@ -1181,8 +1352,10 @@ class Securimage
         if ($code != '') {
             if ($code == $code_entered) {
                 $this->correct_code = true;
-                $_SESSION['securimage_code_value'][$this->namespace] = '';
-                $_SESSION['securimage_code_ctime'][$this->namespace] = '';
+                if ($this->no_session != true) {
+                    $_SESSION['securimage_code_value'][$this->namespace] = '';
+                    $_SESSION['securimage_code_ctime'][$this->namespace] = '';
+                }
                 $this->clearCodeFromDatabase();
             }
         }
@@ -1193,15 +1366,17 @@ class Securimage
      */
     protected function saveData()
     {
-        if (isset($_SESSION['securimage_code_value']) && is_scalar($_SESSION['securimage_code_value'])) {
-            // fix for migration from v2 - v3
-            unset($_SESSION['securimage_code_value']);
-            unset($_SESSION['securimage_code_ctime']);
-        }
+        if ($this->no_session != true) {
+            if (isset($_SESSION['securimage_code_value']) && is_scalar($_SESSION['securimage_code_value'])) {
+                // fix for migration from v2 - v3
+                unset($_SESSION['securimage_code_value']);
+                unset($_SESSION['securimage_code_ctime']);
+            }
 
-        $_SESSION['securimage_code_disp'] [$this->namespace] = $this->code_display;
-        $_SESSION['securimage_code_value'][$this->namespace] = $this->code;
-        $_SESSION['securimage_code_ctime'][$this->namespace] = time();
+            $_SESSION['securimage_code_disp'] [$this->namespace] = $this->code_display;
+            $_SESSION['securimage_code_value'][$this->namespace] = $this->code;
+            $_SESSION['securimage_code_ctime'][$this->namespace] = time();
+        }
 
         $this->saveCodeToDatabase();
     }
@@ -1216,12 +1391,22 @@ class Securimage
         $this->openDatabase();
 
         if ($this->use_sqlite_db && $this->sqlite_handle !== false) {
+            $id      = $this->getCaptchaId(false);
             $ip      = $_SERVER['REMOTE_ADDR'];
-            $time    = time();
-            $code    = $_SESSION['securimage_code_value'][$this->namespace]; // if cookies are disabled the session still exists at this point
-            $success = sqlite_query($this->sqlite_handle,
-                                    "INSERT OR REPLACE INTO codes(ip, code, namespace, created)
-                                    VALUES('$ip', '$code', '{$this->namespace}', $time)");
+
+            if (empty($id)) {
+                $id = $ip;
+            }
+
+            $time      = time();
+            $code      = $this->code;
+            $code_disp = $this->code_display;
+
+            $query = "INSERT OR REPLACE INTO codes(id, ip, code, code_display,"
+                    ."namespace, created) VALUES('$id', '$ip', '$code', "
+                    ."'$code_disp', '{$this->namespace}', $time)";
+
+            $success = sqlite_query($this->sqlite_handle, $query);
         }
 
         return $success !== false;
@@ -1234,13 +1419,38 @@ class Securimage
     {
         $this->sqlite_handle = false;
 
+        if ($this->use_sqlite_db == true && !function_exists('sqlite_open')) {
+            trigger_error('Securimage use_sqlite_db option is enable, but SQLIte is not supported by this PHP installation', E_USER_WARNING);
+        }
+
         if ($this->use_sqlite_db && function_exists('sqlite_open')) {
+            if (!file_exists($this->sqlite_database)) {
+                $fp = fopen($this->sqlite_database, 'w+');
+                if (!$fp) {
+                    trigger_error('Securimage failed to open sqlite database "' . $this->sqlite_database, E_USER_WARNING);
+                    return false;
+                }
+                fclose($fp);
+                chmod($this->sqlite_database, 0666);
+            }
+
             $this->sqlite_handle = sqlite_open($this->sqlite_database, 0666, $error);
 
             if ($this->sqlite_handle !== false) {
                 $res = sqlite_query($this->sqlite_handle, "PRAGMA table_info(codes)");
+
                 if (sqlite_num_rows($res) == 0) {
-                    sqlite_query($this->sqlite_handle, "CREATE TABLE codes (ip VARCHAR(32) PRIMARY KEY, code VARCHAR(32) NOT NULL, namespace VARCHAR(32) NOT NULL, created INTEGER)");
+                    $res = sqlite_query(
+                            $this->sqlite_handle,
+                            "CREATE TABLE codes (id VARCHAR(40) PRIMARY KEY, ip VARCHAR(32),
+                             code VARCHAR(32) NOT NULL, code_display VARCHAR(32) NOT NULL,
+                             namespace VARCHAR(32) NOT NULL, created INTEGER)"
+                    );
+                }
+
+                if (mt_rand(0, 100) / 100.0 == 1.0) {
+                    // randomly purge old codes
+                    $this->purgeOldCodesFromDatabase();
                 }
             }
 
@@ -1251,22 +1461,38 @@ class Securimage
     }
 
     /**
-     * Get a code from the sqlite database for ip address
+     * Get a code from the sqlite database for ip address/captchaId.
+     *
+     * @return string|array Empty string if no code was found or has expired,
+     * otherwise returns the stored captcha code.  If a captchaId is set, this
+     * returns an array with indices "code" and "code_disp"
      */
     protected function getCodeFromDatabase()
     {
         $code = '';
 
         if ($this->use_sqlite_db && $this->sqlite_handle !== false) {
-            $ip = $_SERVER['REMOTE_ADDR'];
-            $ns = sqlite_escape_string($this->namespace);
+            if (Securimage::$_captchaId !== null) {
+                $query = "SELECT * FROM codes WHERE id = '" . sqlite_escape_string(Securimage::$_captchaId) . "'";
+            } else {
+                $ip = $_SERVER['REMOTE_ADDR'];
+                $ns = sqlite_escape_string($this->namespace);
+                $query = "SELECT * FROM codes WHERE ip = '$ip' AND namespace = '$ns'";
+            }
 
-            $res = sqlite_query($this->sqlite_handle, "SELECT * FROM codes WHERE ip = '$ip' AND namespace = '$ns'");
+            $res = sqlite_query($this->sqlite_handle, $query);
             if ($res && sqlite_num_rows($res) > 0) {
                 $res = sqlite_fetch_array($res);
 
                 if ($this->isCodeExpired($res['created']) == false) {
-                    $code = $res['code'];
+                    if (Securimage::$_captchaId !== null) {
+                        // return an array when using captchaId
+                        $code = array('code'      => $res['code'],
+                                      'code_disp' => $res['code_display']);
+                    } else {
+                        // return only the code if no captchaId specified
+                        $code = $res['code'];
+                    }
                 }
             }
         }
