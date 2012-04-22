@@ -109,7 +109,6 @@ package {
 			_flashVars = parameters;
 			_iconArea  = iconArea;
 
-
 			// Set up accessibility for screen reader support
 			_accessProps      = new AccessibilityProperties();
 			_accessProps.name = "Play Audio Captcha";
@@ -154,6 +153,13 @@ package {
 
 			if (_flashVars.lang != undefined) {
 				lang = _flashVars.lang;
+			}
+			
+			if (_flashVars.bgcol != undefined) {
+				if (_flashVars.bgcol.match(/^#[0-9a-fA-F]{6}$/) != null) {
+					_flashVars.bgcol = _flashVars.bgcol.replace("#", "");
+					_iconArea.opaqueBackground = parseInt(_flashVars.bgcol, 16);
+				}
 			}
 
 			if (_flashVars.icon_file != undefined) {
