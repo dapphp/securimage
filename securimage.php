@@ -664,6 +664,8 @@ class Securimage
      */
     public function show($background_image = '')
     {
+        set_error_handler(array(&$this, 'errorHandler'));
+
         if($background_image != '' && is_readable($background_image)) {
             $this->bgimg = $background_image;
         }
@@ -702,6 +704,8 @@ class Securimage
      */
     public function outputAudioFile()
     {
+        set_error_handler(array(&$this, 'errorHandler'));
+
         require_once dirname(__FILE__) . '/WavFile.php';
 
         try {
@@ -738,6 +742,8 @@ class Securimage
                 .'output.<br />This is most likely due to misconfiguration or '
                 .'a PHP error was sent to the browser.</strong>';
         }
+
+        restore_error_handler();
 
         if (!$this->no_exit) exit;
     }
@@ -1235,6 +1241,7 @@ class Securimage
         }
 
         imagedestroy($this->im);
+        restore_error_handler();
 
         if (!$this->no_exit) exit;
     }
@@ -1715,6 +1722,34 @@ class Securimage
         } else {
             return new Securimage_Color($default);
         }
+    }
+
+    /**
+     * Error handler used when outputting captcha image or audio.
+     * This error handler helps determine if any errors raised would
+     * prevent captcha image or audio from displaying.  If they have
+     * no effect on the output buffer or headers, true is returned so
+     * the script can continue processing.
+     * See https://github.com/dapphp/securimage/issues/15
+     *
+     * @param int $errno
+     * @param string $errstr
+     * @param string $errfile
+     * @param int $errline
+     * @param array $errcontext
+     * @return boolean true if handled, false if PHP should handle
+     */
+    public function errorHandler($errno, $errstr, $errfile = '', $errline = 0, $errcontext = array())
+    {
+        // get the current error reporting level
+        $level = error_reporting();
+
+        // if error was supressed or $errno not set in current error level
+        if ($level == 0 || ($level & $errno) == 0) {
+            return true;
+        }
+
+        return false;
     }
 }
 
