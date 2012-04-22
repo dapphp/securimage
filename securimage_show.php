@@ -49,14 +49,7 @@
 
 require_once dirname(__FILE__) . '/securimage.php';
 
-$captchaId = (isset($_GET['id']) && strlen($_GET['id']) > 0) ? $_GET['id'] : '';
-$options   = array('captchaId' => $captchaId);
-
-// Uncomment the following 2 lines if you want to use only static captchas
-//$options['use_sqlite_db'] = true;
-//$options['no_session']    = true;
-
-$img = new Securimage($options);
+$img = new Securimage();
 
 // You can customize the image by making changes below, some examples are included - remove the "//" to uncomment
 
