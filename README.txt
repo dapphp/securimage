@@ -2,7 +2,7 @@ NAME:
 
     Securimage - A PHP class for creating captcha images and audio with many options.
 
-VERSION: 3.2RC1
+VERSION: 3.2RC2
 
 AUTHOR:
 

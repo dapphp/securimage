@@ -3,7 +3,7 @@
 /**
  * Display Value Captcha Example
  * 2012-04-18
- * @version 3.2RC1 (April 2012)
+ * @version 3.2RC2 (April 2012)
  *
  * This example shows how to use the "display_value" option in Securimage which
  * allows the application to define the code that will be displayed on the

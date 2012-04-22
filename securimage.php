@@ -41,13 +41,17 @@
  * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
  * @copyright 2012 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
- * @version 3.2RC1 (April 2012)
+ * @version 3.2RC2 (April 2012)
  * @package Securimage
  *
  */
 
 /**
  ChangeLog
+
+ 3.2RC2
+ - Add error handler (https://github.com/dapphp/securimage/issues/15)
+ - Fix flash examples to use the correct value name for audio parameter
 
  3.2RC1
  - New audio captcha code.  Faster, fully dynamic audio, full WAV support
