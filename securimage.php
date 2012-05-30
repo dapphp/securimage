@@ -41,13 +41,16 @@
  * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
  * @copyright 2012 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
- * @version 3.2RC2 (April 2012)
+ * @version 3.2RC3 (May 2012)
  * @package Securimage
  *
  */
 
 /**
  ChangeLog
+
+ 3.2RC3
+ - Fix canSendHeaders() check which was breaking if a PHP startup error was issued
 
  3.2RC2
  - Add error handler (https://github.com/dapphp/securimage/issues/15)
@@ -1684,9 +1687,6 @@ class Securimage
     {
         if (headers_sent()) {
             // output has been flushed and headers have already been sent
-            return false;
-        } else if (function_exists('error_get_last') && null !== error_get_last() && ini_get('display_errors') != false) {
-            // an error has been output and display_errors is on
             return false;
         } else if (strlen((string)ob_get_contents()) > 0) {
             // headers haven't been sent, but there is data in the buffer that will break image and audio data
