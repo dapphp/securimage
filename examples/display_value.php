@@ -36,17 +36,22 @@ require_once '../securimage.php';
 
 $options = array('display_value' => date('h:i:s a'),
                  'captchaId'     => sha1(uniqid($_SERVER['REMOTE_ADDR'] . $_SERVER['REMOTE_PORT'])),
-                 'image_width'   => 250,
+                 'image_width'   => 270,
+                 'image_height'  => 80,
                  'no_session'    => true,
                  'no_exit'       => true,
-                 'use_sqlite_db' => false,
+                 'use_database'  => false,
                  'send_headers'  => false);
 
 // construct new Securimage object with the given options
 $img = new Securimage($options);
 
-// show the image using the supplied display_value
-// this demonstrates how to use output buffering to capture the output
+// show the image using the supplied display_value.
+// This demonstrates how to use output buffering to capture the output.
+
+// Note: It isn't required to use 'no_exit' and 'send_headers' or output buffering
+// in conjunction with display value.  Doing so is a common use case and serves to show
+// 2 examples in 1.
 
 ob_start();   // start the output buffer
 $img->show(); // output the image so it is captured by the buffer
