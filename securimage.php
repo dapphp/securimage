@@ -179,6 +179,11 @@ class Securimage
      * @var int
      */
     const SI_CAPTCHA_MATHEMATIC = 1;
+    /**
+     * Create a word based captcha using 2 words
+     * @var int
+     */
+    const SI_CAPTCHA_WORDS      = 2;
     
     /**
      * MySQL option identifier for database storage option
@@ -1126,6 +1131,12 @@ class Securimage
                 $this->code_display = "$left $sign $right";
                 break;
             }
+            
+            case self::SI_CAPTCHA_WORDS:
+                $words = $this->readCodeFromFile(2);
+                $this->code = implode(' ', $words);
+                $this->code_display = $this->code;
+                break;
 
             default:
             {
@@ -1412,29 +1423,42 @@ class Securimage
     /**
      * Gets a captcha code from a wordlist
      */
-    protected function readCodeFromFile()
+    protected function readCodeFromFile($numWords = 1)
     {
-        $fp = @fopen($this->wordlist_file, 'rb');
+        $fp = fopen($this->wordlist_file, 'rb');
         if (!$fp) return false;
 
         $fsize = filesize($this->wordlist_file);
         if ($fsize < 128) return false; // too small of a list to be effective
+        
+        if ((int)$numWords < 1 || (int)$numWords > 5) $numWords = 1;
 
-        fseek($fp, rand(0, $fsize - 64), SEEK_SET); // seek to a random position of file from 0 to filesize-64
-        $data = fread($fp, 64); // read a chunk from our random position
-        fclose($fp);
-        $data = preg_replace("/\r?\n/", "\n", $data);
-
-        $start = @strpos($data, "\n", rand(0, 56)) + 1; // random start position
-        $end   = @strpos($data, "\n", $start);          // find end of word
-
-        if ($start === false) {
-            return false;
-        } else if ($end === false) {
-            $end = strlen($data);
+        $words = array();
+        $i = 0;
+        do {
+            fseek($fp, rand(0, $fsize - 64), SEEK_SET); // seek to a random position of file from 0 to filesize-64
+            $data = fread($fp, 64); // read a chunk from our random position
+            $data = preg_replace("/\r?\n/", "\n", $data);
+    
+            $start = @strpos($data, "\n", mt_rand(0, 56)) + 1; // random start position
+            $end   = @strpos($data, "\n", $start);          // find end of word
+            
+            if ($start === false) {
+                // picked start position at end of file
+                continue;
+            } else if ($end === false) {
+                $end = strlen($data);
+            }
+    
+            $word = strtolower(substr($data, $start, $end - $start)); // return a line of the file
+            $words[] = $word;
+        } while (++$i < $numWords);
+        
+        if ($numWords < 2) {
+            return $words[0];
+        } else {
+            return $words;
         }
-
-        return strtolower(substr($data, $start, $end - $start)); // return a line of the file
     }
 
     /**
@@ -1462,7 +1486,7 @@ class Securimage
         if (!is_string($this->code) || strlen($this->code) == 0) {
             $code = $this->getCode();
             // returns stored code, or an empty string if no stored code was found
-            // checks the session and sqlite database if enabled
+            // checks the session and database if enabled
         } else {
             $code = $this->code;
         }
@@ -1479,6 +1503,12 @@ class Securimage
         $this->correct_code = false;
 
         if ($code != '') {
+            if (strpos($code, ' ') !== false) {
+                // for multi word captchas, remove more than once space from input
+                $code_entered = preg_replace('/\s+/', ' ', $code_entered);
+                $code_entered = strtolower($code_entered);
+            }
+            
             if ($code == $code_entered) {
                 $this->correct_code = true;
                 if ($this->no_session != true) {
