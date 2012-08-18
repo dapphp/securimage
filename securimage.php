@@ -1810,16 +1810,19 @@ class Securimage
     protected function clearCodeFromDatabase()
     {
         if ($this->pdo_conn) {
-            $ip = $this->pdo_conn->quote($_SERVER['REMOTE_ADDR']);
+            $ip = $_SERVER['REMOTE_ADDR'];
             $ns = $this->pdo_conn->quote($this->namespace);
-            $id = $this->pdo_conn->quote(Securimage::$_captchaId);
+            $id = Securimage::$_captchaId;
             
             if (empty($id)) {
                 $id = $ip; // if no captchaId set, IP address is captchaId.
-                $query = sprintf("DELETE FROM %s WHERE id = %s AND namespace = %s",
-                                 $this->database_table, $id, $ns);
             }
             
+            $id = $this->pdo_conn->quote($id);
+            
+            $query = sprintf("DELETE FROM %s WHERE id = %s AND namespace = %s",
+                             $this->database_table, $id, $ns);
+
             $result = $this->pdo_conn->query($query);
             if (!$result) {
                 trigger_error("Failed to delete code from database.", E_USER_WARNING);
