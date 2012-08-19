@@ -41,13 +41,19 @@
  * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
  * @copyright 2012 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
- * @version 3.2RC3 (May 2012)
+ * @version 3.2RC4 (Aug 2012)
  * @package Securimage
  *
  */
 
 /**
  ChangeLog
+ 
+ 3.2RC4
+ - Add MySQL, PostgreSQL, and SQLite3 support for database storage 
+ - Deprecate "use_sqlite_db" option and remove SQLite2/sqlite_* functions
+ - Add new captcha type that displays 2 dictionary words on one image
+ - Update examples
 
  3.2RC3
  - Fix canSendHeaders() check which was breaking if a PHP startup error was issued
@@ -552,7 +558,7 @@ class Securimage
      *
      * @var string Captcha code value to display on the image
      */
-    protected $display_value;
+    public $display_value;
 
     /**
      * Captcha code supplied by user [set from Securimage::check()]
@@ -881,11 +887,22 @@ class Securimage
      * @param $array bool   True to receive an array containing the code and properties
      * @return array|string Array if $array = true, otherwise a string containing the code
      */
-    public function getCode($array = false)
+    public function getCode($array = false, $returnExisting = false)
     {
         $code = '';
         $time = 0;
         $disp = 'error';
+        
+        if ($returnExisting && strlen($this->code) > 0) {
+            if ($array) {
+                return array('code' => $this->code,
+                             'display' => $this->code_display,
+                             'code_display' => $this->code_display,
+                             'time' => 0);
+            } else {
+                return $this->code;
+            }
+        }
 
         if ($this->no_session != true) {
             if (isset($_SESSION['securimage_code_value'][$this->namespace]) &&
@@ -1107,7 +1124,7 @@ class Securimage
     /**
      * Generates the code or math problem and saves the value to the session
      */
-    protected function createCode()
+    public function createCode()
     {
         $this->code = false;
 
@@ -1387,11 +1404,15 @@ class Securimage
     protected function getAudibleCode()
     {
         $letters = array();
-        $code    = $this->getCode(true);
+        $code    = $this->getCode(true, true);
 
         if ($code['code'] == '') {
-            $this->createCode();
-            $code = $this->getCode(true);
+            if (strlen($this->display_value) > 0) {
+                $code = array('code' => $this->display_value, 'display' => $this->display_value);
+            } else {
+                $this->createCode();
+                $code = $this->getCode(true);
+            }
         }
 
         if (preg_match('/(\d+) (\+|-|x) (\d+)/i', $code['display'], $eq)) {
@@ -1453,6 +1474,8 @@ class Securimage
             $word = strtolower(substr($data, $start, $end - $start)); // return a line of the file
             $words[] = $word;
         } while (++$i < $numWords);
+        
+        fclose($fp);
         
         if ($numWords < 2) {
             return $words[0];
