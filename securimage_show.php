@@ -56,8 +56,8 @@ $img = new Securimage();
 //$img->ttf_file        = './Quiff.ttf';
 //$img->captcha_type    = Securimage::SI_CAPTCHA_MATHEMATIC; // show a simple math problem instead of text
 //$img->case_sensitive  = true;                              // true to use case sensitve codes - not recommended
-//$img->image_height    = 90;                                // width in pixels of the image
-//$img->image_width     = $img->image_height * M_E;          // a good formula for image size
+//$img->image_height    = 90;                                // height in pixels of the image
+//$img->image_width     = $img->image_height * M_E;          // a good formula for image size based on the height
 //$img->perturbation    = .75;                               // 1.0 = high distortion, higher numbers = more distortion
 //$img->image_bg_color  = new Securimage_Color("#0099CC");   // image background color
 //$img->text_color      = new Securimage_Color("#EAEAEA");   // captcha text color
