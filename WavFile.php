@@ -1710,7 +1710,7 @@ class WavFile
      */
     public function insertSilence($duration = 1.0)
     {
-        $numSamples  = $this->getSampleRate() * abs($duration);
+        $numSamples  = (int)($this->getSampleRate() * abs($duration));
         $numChannels = $this->getNumChannels();
 
         $data = str_repeat(self::packSample($this->getZeroAmplitude(), $this->getBitsPerSample()), $numSamples * $numChannels);
