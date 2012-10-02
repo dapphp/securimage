@@ -79,7 +79,7 @@ COPYRIGHT:
     -----------------------------------------------------------------------------
     The WavFile.php class used in Securimage by Drew Phillips and Paul Voegler is
     used under the BSD License.  See WavFile.php for details.
-    Many thanks to Paul Voegler (http://voegler.eu/audio/pub) for contributing to
+    Many thanks to Paul Voegler (http://www.voegler.eu/) for contributing to
     Securimage.
 
     -----------------------------------------------------------------------------
