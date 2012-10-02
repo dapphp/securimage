@@ -42,6 +42,9 @@
 *
 * Changelog:
 *
+*   1.0 RC3 (10/2/2012)
+*     - Fix insertSilence() creating invalid block size
+*
 *   1.0 RC1 (4/20/2012)
 *     - Initial release candidate
 *     - Supports 8, 16, 24, 32 bit PCM, 32-bit IEEE FLOAT, Extensible Format
