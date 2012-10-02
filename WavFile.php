@@ -36,11 +36,14 @@
 * @copyright 2012 Drew Phillips
 * @author Drew Phillips <drew@drew-phillips.com>
 * @author Paul Voegler <http://www.voegler.eu/>
-* @version 1.0RC1 (April 2012)
+* @version 1.0 (October 2012)
 * @package PHPWavUtils
 * @license BSD License
 *
 * Changelog:
+* 
+*   1.0 (10/2/2012)
+*     - Fix insertSilence() creating invalid block size
 *
 *   1.0 RC1 (4/20/2012)
 *     - Initial release candidate
