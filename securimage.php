@@ -1491,11 +1491,15 @@ class Securimage
     {
         $code = '';
 
-        for($i = 1, $cslen = strlen($this->charset); $i <= $this->code_length; ++$i) {
-            $code .= $this->charset{rand(0, $cslen - 1)};
+        if (function_exists('mb_strlen')) {
+            for($i = 1, $cslen = mb_strlen($this->charset); $i <= $this->code_length; ++$i) {
+                $code .= mb_substr($this->charset, rand(0, $cslen - 1), 1, 'UTF-8');
+            }
+        } else {
+            for($i = 1, $cslen = strlen($this->charset); $i <= $this->code_length; ++$i) {
+                $code .= substr($this->charset, rand(0, $cslen - 1), 1);
+            }
         }
-
-        //return 'testing';  // debug, set the code to given string
 
         return $code;
     }
