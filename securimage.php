@@ -457,7 +457,7 @@ class Securimage
      * The path to the securimage audio directory, can be set in securimage_play.php
      * @var string
      * <code>
-     * $img->audio_path = '/home/yoursite/public_html/securimage/audio/';
+     * $img->audio_path = '/home/yoursite/public_html/securimage/audio/en';
      * </code>
      */
     public $audio_path;
@@ -655,7 +655,7 @@ class Securimage
         }
 
         if (is_null($this->audio_path)) {
-            $this->audio_path = $this->securimage_path . '/audio/';
+            $this->audio_path = $this->securimage_path . '/audio/en/';
         }
 
         if (is_null($this->audio_noise_path)) {
@@ -2011,7 +2011,7 @@ class Securimage
      */
     protected function audioError()
     {
-        return @file_get_contents(dirname(__FILE__) . '/audio/error.wav');
+        return @file_get_contents(dirname(__FILE__) . '/audio/en/error.wav');
     }
 
     /**
