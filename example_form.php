@@ -5,6 +5,9 @@ $GLOBALS['DEBUG_MODE'] = 1;
 // CHANGE TO 0 TO TURN OFF DEBUG MODE
 // IN DEBUG MODE, ONLY THE CAPTCHA CODE IS VALIDATED, AND NO EMAIL IS SENT
 
+$GLOBALS['ct_recipient']   = 'YOU@EXAMPLE.COM'; // Change to your email address!
+$GLOBALS['ct_msg_subject'] = 'Securimage Test Contact Form';
+
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -32,9 +35,6 @@ $GLOBALS['DEBUG_MODE'] = 1;
 </p>
 
 <?php
-
-$GLOBALS['ct_recipient']   = 'YOU@EXAMPLE.COm'; // Change to your email address!
-$GLOBALS['ct_msg_subject'] = 'Securimage Test Contact Form';
 
 process_si_contact_form(); // Process the form, if it was submitted
 
