@@ -2,7 +2,7 @@ NAME:
 
     Securimage - A PHP class for creating captcha images and audio with many options.
 
-VERSION: 3.2RC2
+VERSION: 3.5
 
 AUTHOR:
 
@@ -22,6 +22,7 @@ REQUIREMENTS:
     PHP 5.2 or greater
     GD  2.0
     FreeType (Required, for TTF fonts)
+    PDO (if using Sqlite, MySQL, or PostgreSQL)
 
 SYNOPSIS:
 
@@ -52,7 +53,7 @@ DESCRIPTION:
 
 
 COPYRIGHT:
-    Copyright (c) 2012 Drew Phillips
+    Copyright (c) 2013 Drew Phillips
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without modification,
