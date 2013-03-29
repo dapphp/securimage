@@ -45,6 +45,9 @@
 *   1.0 (10/2/2012)
 *     - Fix insertSilence() creating invalid block size
 *
+*   1.0 (10/2/2012)
+*     - Fix insertSilence() creating invalid block size
+*
 *   1.0 RC1 (4/20/2012)
 *     - Initial release candidate
 *     - Supports 8, 16, 24, 32 bit PCM, 32-bit IEEE FLOAT, Extensible Format
@@ -253,11 +256,13 @@ class WavFile
         }
     }
 
-    public function __destruct() {
+    public function __destruct()
+    {
         if (is_resource($this->_fp)) $this->closeWav();
     }
 
-    public function __clone() {
+    public function __clone()
+    {
         $this->_fp = null;
     }
 
@@ -367,7 +372,8 @@ class WavFile
      * @param int $numChannels  (Optional) The number of channels to decode. If omitted, derives it from the length of $sampleBlock and $bitDepth.
      * @return array  The sample values as an array of integers of floats for 32 bits. First channel is array index 1.
      */
-    public static function unpackSampleBlock($sampleBlock, $bitDepth, $numChannels = null) {
+    public static function unpackSampleBlock($sampleBlock, $bitDepth, $numChannels = null)
+    {
         $sampleBytes = $bitDepth / 8;
         if ($numChannels === null) {
             $numChannels = strlen($sampleBlock) / $sampleBytes;
@@ -389,7 +395,8 @@ class WavFile
      * @param int $bitDepth  (Required) The bits per sample to encode with.
      * @return string  The encoded binary sample block.
      */
-    public static function packSampleBlock($samples, $bitDepth) {
+    public static function packSampleBlock($samples, $bitDepth)
+    {
         $sampleBlock = '';
         foreach($samples as $sample) {
             $sampleBlock .= self::packSample($sample, $bitDepth);
@@ -416,7 +423,8 @@ class WavFile
      *            e.g. -0.6 to leave amplitudes up to 60% "as is" and compress above. </li></ul>
      * @return float  The normalized sample.
      **/
-    public static function normalizeSample($sampleFloat, $threshold) {
+    public static function normalizeSample($sampleFloat, $threshold)
+    {
         // apply positive gain
         if ($threshold >= 1) {
             return $sampleFloat * $threshold;
@@ -450,11 +458,13 @@ class WavFile
     /*%******************************************************************************************%*/
     // Getter and Setter methods for properties
 
-    public function getActualSize() {
+    public function getActualSize()
+    {
         return $this->_actualSize;
     }
 
-    protected function setActualSize($actualSize = null) {
+    protected function setActualSize($actualSize = null)
+    {
         if (is_null($actualSize)) {
             $this->_actualSize = 8 + $this->_chunkSize;  // + "RIFF" header (ID + size)
         } else {
@@ -464,11 +474,13 @@ class WavFile
         return $this;
     }
 
-    public function getChunkSize() {
+    public function getChunkSize()
+    {
         return $this->_chunkSize;
     }
 
-    protected function setChunkSize($chunkSize = null) {
+    protected function setChunkSize($chunkSize = null)
+    {
         if (is_null($chunkSize)) {
             $this->_chunkSize = 4 +                                                            // "WAVE" chunk
                                 8 + $this->_fmtChunkSize +                                     // "fmt " subchunk
@@ -484,11 +496,13 @@ class WavFile
         return $this;
     }
 
-    public function getFmtChunkSize() {
+    public function getFmtChunkSize()
+    {
         return $this->_fmtChunkSize;
     }
 
-    protected function setFmtChunkSize($fmtChunkSize = null) {
+    protected function setFmtChunkSize($fmtChunkSize = null)
+    {
         if (is_null($fmtChunkSize)) {
             $this->_fmtChunkSize = 16 + $this->_fmtExtendedSize;
         } else {
@@ -501,11 +515,13 @@ class WavFile
         return $this;
     }
 
-    public function getFmtExtendedSize() {
+    public function getFmtExtendedSize()
+    {
         return $this->_fmtExtendedSize;
     }
 
-    protected function setFmtExtendedSize($fmtExtendedSize = null) {
+    protected function setFmtExtendedSize($fmtExtendedSize = null)
+    {
         if (is_null($fmtExtendedSize)) {
             if ($this->_audioFormat == self::WAVE_FORMAT_EXTENSIBLE) {
                 $this->_fmtExtendedSize = 2 + 22;                          // extension size for WAVE_FORMAT_EXTENSIBLE
@@ -523,11 +539,13 @@ class WavFile
         return $this;
     }
 
-    public function getFactChunkSize() {
+    public function getFactChunkSize()
+    {
         return $this->_factChunkSize;
     }
 
-    protected function setFactChunkSize($factChunkSize = null) {
+    protected function setFactChunkSize($factChunkSize = null)
+    {
         if (is_null($factChunkSize)) {
             if ($this->_audioFormat != self::WAVE_FORMAT_PCM) {
                 $this->_factChunkSize = 4;
@@ -544,11 +562,13 @@ class WavFile
         return $this;
     }
 
-    public function getDataSize() {
+    public function getDataSize()
+    {
         return $this->_dataSize;
     }
 
-    protected function setDataSize($dataSize = null) {
+    protected function setDataSize($dataSize = null)
+    {
         if (is_null($dataSize)) {
             $this->_dataSize = strlen($this->_samples);
         } else {
@@ -562,11 +582,13 @@ class WavFile
         return $this;
     }
 
-    public function getDataOffset() {
+    public function getDataOffset()
+    {
         return $this->_dataOffset;
     }
 
-    protected function setDataOffset($dataOffset = null) {
+    protected function setDataOffset($dataOffset = null)
+    {
         if (is_null($dataOffset)) {
             $this->_dataOffset = 8 +                                                            // "RIFF" header (ID + size)
                                  4 +                                                            // "WAVE" chunk
@@ -580,11 +602,13 @@ class WavFile
         return $this;
     }
 
-    public function getAudioFormat() {
+    public function getAudioFormat()
+    {
         return $this->_audioFormat;
     }
 
-    protected function setAudioFormat($audioFormat = null) {
+    protected function setAudioFormat($audioFormat = null)
+    {
         if (is_null($audioFormat)) {
             if (($this->_bitsPerSample <= 16 || $this->_bitsPerSample == 32)
               && $this->_validBitsPerSample == $this->_bitsPerSample
@@ -609,11 +633,13 @@ class WavFile
         return $this;
     }
 
-    public function getAudioSubFormat() {
+    public function getAudioSubFormat()
+    {
         return $this->_audioSubFormat;
     }
 
-    protected function setAudioSubFormat($audioSubFormat = null) {
+    protected function setAudioSubFormat($audioSubFormat = null)
+    {
         if (is_null($audioSubFormat)) {
             if ($this->_bitsPerSample == 32) {
                 $this->_audioSubFormat = self::WAVE_SUBFORMAT_IEEE_FLOAT;  // 32 bits are IEEE FLOAT in this class
@@ -627,11 +653,13 @@ class WavFile
         return $this;
     }
 
-    public function getNumChannels() {
+    public function getNumChannels()
+    {
         return $this->_numChannels;
     }
 
-    public function setNumChannels($numChannels) {
+    public function setNumChannels($numChannels)
+    {
         if ($numChannels < 1 || $numChannels > self::MAX_CHANNEL) {
             throw new WavFileException('Unsupported number of channels. Only up to ' . self::MAX_CHANNEL . ' channels are supported.');
         } elseif ($this->_samples !== '') {
@@ -647,11 +675,13 @@ class WavFile
         return $this;
     }
 
-    public function getChannelMask() {
+    public function getChannelMask()
+    {
         return $this->_channelMask;
     }
 
-    public function setChannelMask($channelMask = self::SPEAKER_DEFAULT) {
+    public function setChannelMask($channelMask = self::SPEAKER_DEFAULT)
+    {
         if ($channelMask != 0) {
             // count number of set bits - Hamming weight
             $c = (int)$channelMask;
@@ -672,11 +702,13 @@ class WavFile
         return $this;
     }
 
-    public function getSampleRate() {
+    public function getSampleRate()
+    {
         return $this->_sampleRate;
     }
 
-    public function setSampleRate($sampleRate) {
+    public function setSampleRate($sampleRate)
+    {
         if ($sampleRate < 1 || $sampleRate > self::MAX_SAMPLERATE) {
             throw new WavFileException('Invalid sample rate.');
         } elseif ($this->_samples !== '') {
@@ -690,11 +722,13 @@ class WavFile
         return $this;
     }
 
-    public function getBitsPerSample() {
+    public function getBitsPerSample()
+    {
         return $this->_bitsPerSample;
     }
 
-    public function setBitsPerSample($bitsPerSample) {
+    public function setBitsPerSample($bitsPerSample)
+    {
         if (!in_array($bitsPerSample, array(8, 16, 24, 32))) {
             throw new WavFileException('Unsupported bits per sample. Only 8, 16, 24 and 32 bits are supported.');
         } elseif ($this->_samples !== '') {
@@ -710,11 +744,13 @@ class WavFile
         return $this;
     }
 
-    public function getValidBitsPerSample() {
+    public function getValidBitsPerSample()
+    {
         return $this->_validBitsPerSample;
     }
 
-    protected function setValidBitsPerSample($validBitsPerSample = null) {
+    protected function setValidBitsPerSample($validBitsPerSample = null)
+    {
         if (is_null($validBitsPerSample)) {
             $this->_validBitsPerSample = $this->_bitsPerSample;
         } else {
@@ -729,11 +765,13 @@ class WavFile
         return $this;
     }
 
-    public function getBlockAlign() {
+    public function getBlockAlign()
+    {
         return $this->_blockAlign;
     }
 
-    protected function setBlockAlign($blockAlign = null) {
+    protected function setBlockAlign($blockAlign = null)
+    {
         if (is_null($blockAlign)) {
             $this->_blockAlign = $this->_numChannels * $this->_bitsPerSample / 8;
         } else {
@@ -750,7 +788,8 @@ class WavFile
         return $this->_numBlocks;
     }
 
-    protected function setNumBlocks($numBlocks = null) {
+    protected function setNumBlocks($numBlocks = null)
+    {
         if (is_null($numBlocks)) {
             $this->_numBlocks = (int)($this->_dataSize / $this->_blockAlign);  // do not count incomplete sample blocks
         } else {
@@ -760,11 +799,13 @@ class WavFile
         return $this;
     }
 
-    public function getByteRate() {
+    public function getByteRate()
+    {
         return $this->_byteRate;
     }
 
-    protected function setByteRate($byteRate = null) {
+    protected function setByteRate($byteRate = null)
+    {
         if (is_null($byteRate)) {
             $this->_byteRate = $this->_sampleRate * $this->_numChannels * $this->_bitsPerSample / 8;
         } else {
@@ -774,11 +815,13 @@ class WavFile
         return $this;
     }
 
-    public function getSamples() {
+    public function getSamples()
+    {
         return $this->_samples;
     }
 
-    public function setSamples(&$samples = '') {
+    public function setSamples(&$samples = '')
+    {
         if (strlen($samples) % $this->_blockAlign != 0) {
             throw new WavFileException('Incorrect samples size. Has to be a multiple of BlockAlign.');
         }
@@ -950,7 +993,8 @@ class WavFile
      * Close a with openWav() previously opened wav file or free the buffer of setWavData().
      * Not necessary if the data has been read (readData = true) already.
      */
-    public function closeWav() {
+    public function closeWav()
+    {
         if (is_resource($this->_fp)) fclose($this->_fp);
 
         return $this;
@@ -1675,7 +1719,8 @@ class WavFile
      * @param WavFile $wav  (Required) The wav file to append.
      * @throws WavFileException
      */
-    public function appendWav(WavFile $wav) {
+    public function appendWav(WavFile $wav)
+    {
         // basic checks
         if ($wav->getSampleRate() != $this->getSampleRate()) {
             throw new WavFileException("Sample rate for wav files do not match.");
@@ -1699,7 +1744,8 @@ class WavFile
      * @param float $normalizeThreshold  (Optional) See normalizeSample for an explanation.
      * @throws WavFileException
      */
-    public function mergeWav(WavFile $wav, $normalizeThreshold = null) {
+    public function mergeWav(WavFile $wav, $normalizeThreshold = null)
+    {
         return $this->filter(array(
             WavFile::FILTER_MIX       => $wav,
             WavFile::FILTER_NORMALIZE => $normalizeThreshold
@@ -1776,7 +1822,8 @@ class WavFile
      * @param int $bitsPerSample  (Required) The new number of bits per sample;
      * @throws WavFileException
      */
-    public function convertBitsPerSample($bitsPerSample) {
+    public function convertBitsPerSample($bitsPerSample)
+    {
         if ($this->getBitsPerSample() == $bitsPerSample) {
             return $this;
         }
