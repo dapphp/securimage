@@ -39,7 +39,7 @@
  * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
  * @copyright 2013 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
- * @version 3.5 (April 2013)
+  * @version 3.5.1 (June 21, 2013)
  * @package Securimage
  *
  */
