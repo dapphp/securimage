@@ -44,7 +44,7 @@ if (isset($_SESSION['ctform']['error']) &&  $_SESSION['ctform']['error'] == true
 <span class="success">The captcha was correct and the message has been sent!</span><br /><br />
 <?php endif; ?>
 
-<form method="post" action="<?php echo $_SERVER['REQUEST_URI'] . $_SERVER['QUERY_STRING'] ?>" id="contact_form">
+<form method="post" action="<?php echo htmlspecialchars($_SERVER['REQUEST_URI'] . $_SERVER['QUERY_STRING']) ?>" id="contact_form">
   <input type="hidden" name="do" value="contact" />
 
   <p>
