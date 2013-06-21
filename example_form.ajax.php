@@ -26,45 +26,7 @@ process_si_contact_form();
         .note { font-size: 18px; }
     -->
     </style>
-
-    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/prototype/1.7.0.0/prototype.js"></script>
-
-    <script type="text/javascript">
-        function reloadCaptcha()
-        {
-            document.getElementById('siimage').src = './securimage_show.php?sid=' + Math.random();
-        }
-
-        function processForm()
-        {
-            new Ajax.Request('<?php echo $_SERVER['PHP_SELF'] ?>', {
-                method: 'post',
-                parameters: $('contact_form').serialize(),
-                onSuccess: function(transport) {
-                    try {
-                        var r = transport.responseText.evalJSON();
-
-                        if (r.error == 0) {
-                            $('success_message').show();
-                            $('contact_form').reset();
-                            reloadCaptcha();
-                            setTimeout("$('success_message').hide()", 30000);
-                        } else {
-                            alert("There was an error with your submission.\n\n" + r.message);
-                        }
-                    } catch(ex) {
-                        alert("There was an error parsing the json");
-                    }
-                },
-                onFailure: function(err) {
-                    alert("Ajax request failed");
-                }
-            });
-
-            return false;
-        }
-    </script>
-</head>
+    </head>
 <body>
 
 <fieldset>
@@ -118,6 +80,37 @@ process_si_contact_form();
 
 </form>
 </fieldset>
+
+<script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+<script type="text/javascript">
+    $.noConflict();
+
+    function reloadCaptcha()
+    {
+        jQuery('#siimage').src = './securimage_show.php?sid=' + Math.random();
+    }
+
+    function processForm()
+    {
+		jQuery.ajax({
+			url: '<?php echo $_SERVER['PHP_SELF'] ?>',
+			type: 'POST',
+			data: jQuery('#contact_form').serialize(),
+			dataType: 'json',
+		}).done(function(data) {
+			if (data.error === 0) {
+				jQuery('#success_message').show();
+				jQuery('#contact_form')[0].reset();
+				reloadCaptcha();
+				setTimeout("jQuery('#success_message').fadeOut()", 30000);
+			} else {
+				alert("There was an error with your submission.\n\n" + data.message);
+			}
+		});
+
+        return false;
+    }
+</script>
 
 </body>
 </html>
