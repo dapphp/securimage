@@ -1,0 +1,15 @@
+{
+    "name": "dapphp/securimage",
+    "description": "PHP CAPTCHA Script",
+    "authors": [
+        {
+            "name": "Drew Phillips",
+            "email": "drew@drew-phillips.com"
+        }
+    ],
+    "require": {
+    },
+    "autoload": {
+        "classmap": ["securimage.php"]
+    }
+}
