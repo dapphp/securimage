@@ -898,7 +898,7 @@ class Securimage
      */
     public function getCode($array = false, $returnExisting = false)
     {
-        $code = '';
+        $codeArray = array();
         $time = 0;
         $disp = 'error';
 
@@ -918,9 +918,9 @@ class Securimage
                     trim($_SESSION['securimage_code_value'][$this->namespace]) != '') {
                 if ($this->isCodeExpired(
                         $_SESSION['securimage_code_ctime'][$this->namespace]) == false) {
-                    $code = $_SESSION['securimage_code_value'][$this->namespace];
-                    $time = $_SESSION['securimage_code_ctime'][$this->namespace];
-                    $disp = $_SESSION['securimage_code_disp'] [$this->namespace];
+                    $codeArray['code'] = $_SESSION['securimage_code_value'][$this->namespace];
+                    $codeArray['time'] = $_SESSION['securimage_code_ctime'][$this->namespace];
+                    $codeArray['display'] = $_SESSION['securimage_code_disp'] [$this->namespace];                    
                 }
             }
         }
@@ -928,13 +928,15 @@ class Securimage
         if (empty($code) && $this->use_database) {
             // no code in session - may mean user has cookies turned off
             $this->openDatabase();
-            $code = $this->getCodeFromDatabase();
+            $codeArray = $this->getCodeFromDatabase();
+            $codeArray['display'] = $codeArray['code_disp'];
+            unset($codeArray['code_disp']);
         } else { /* no code stored in session or sqlite database, validation will fail */ }
 
         if ($array == true) {
-            return array('code' => $code, 'ctime' => $time, 'display' => $disp);
+            return $codeArray;
         } else {
-            return $code;
+            return $codeArray['code'];
         }
     }
 
@@ -1835,13 +1837,9 @@ class Securimage
             } else {
                 if ( ($row = $stmt->fetch()) !== false ) {
                     if (false == $this->isCodeExpired($row['created'])) {
-                        if (Securimage::$_captchaId !== null) {
-                            // return an array when using captchaId
-                            $code = array('code'      => $row['code'],
-                                          'code_disp' => $row['code_display']);
-                        } else {
-                            $code = $row['code'];
-                        }
+                        $code = array('code'      => $row['code'],
+                            'code_disp' => $row['code_display'],
+                            'time' => $row['created']);
                     }
                 }
             }
