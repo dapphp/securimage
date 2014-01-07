@@ -48,6 +48,8 @@
 
 /**
  ChangeLog
+ 3.5.2
+ - Add font_size variable to change ratio via config
 
  3.5.1
  - Fix XSS vulnerability in example_form.php (discovered by Gjoko Krstic - <gjoko@zeroscience.mk>)
@@ -446,6 +448,11 @@ class Securimage
      * @var string
      */
     public $ttf_file;
+    /**
+     * Font size is calculated by image height and this ratio, leave blank for default ratio of .4
+     * @var int
+     */
+    public $font_size;
     /**
      * The path to the wordlist file to use, leave blank for default words/words.txt
      * @var string
@@ -1189,12 +1196,13 @@ class Securimage
     {
         $width2  = $this->image_width * $this->iscale;
         $height2 = $this->image_height * $this->iscale;
+        $font_ratio = $this->font_size ? $this->font_size : .4;
 
         if (!is_readable($this->ttf_file)) {
             imagestring($this->im, 4, 10, ($this->image_height / 2) - 5, 'Failed to load TTF font file!', $this->gdtextcolor);
         } else {
             if ($this->perturbation > 0) {
-                $font_size = $height2 * .4;
+                $font_size = $height2 * $font_ratio;
                 $bb = imageftbbox($font_size, 0, $this->ttf_file, $this->code_display);
                 $tx = $bb[4] - $bb[0];
                 $ty = $bb[5] - $bb[1];
@@ -1203,7 +1211,7 @@ class Securimage
 
                 imagettftext($this->tmpimg, $font_size, 0, $x, $y, $this->gdtextcolor, $this->ttf_file, $this->code_display);
             } else {
-                $font_size = $this->image_height * .4;
+                $font_size = $this->image_height * $font_ratio;
                 $bb = imageftbbox($font_size, 0, $this->ttf_file, $this->code_display);
                 $tx = $bb[4] - $bb[0];
                 $ty = $bb[5] - $bb[1];
