@@ -234,6 +234,16 @@ class Securimage
      * @var int
      */
     public $image_height = 80;
+
+    /**
+     * Font size is calculated by image height and this ratio - leave blank for default ratio of 0.4.
+     * Valid range: 0.1 - 0.99.
+     * Depending on image_width, values > 0.6 are probably too large and values < 0.3 are too small.
+     *
+     * @var float
+     */
+    public $font_ratio;
+
     /**
      * The type of the image, default = png
      * @var int
@@ -1195,12 +1205,17 @@ class Securimage
     {
         $width2  = $this->image_width * $this->iscale;
         $height2 = $this->image_height * $this->iscale;
+        $ratio   = ($this->font_ratio) ? $this->font_ratio : 0.4;
+
+        if ((float)$ratio < 0.1 || (float)$ratio >= 1) {
+            $ratio = 0.4;
+        }
 
         if (!is_readable($this->ttf_file)) {
             imagestring($this->im, 4, 10, ($this->image_height / 2) - 5, 'Failed to load TTF font file!', $this->gdtextcolor);
         } else {
             if ($this->perturbation > 0) {
-                $font_size = $height2 * .4;
+                $font_size = $height2 * $ratio;
                 $bb = imageftbbox($font_size, 0, $this->ttf_file, $this->code_display);
                 $tx = $bb[4] - $bb[0];
                 $ty = $bb[5] - $bb[1];
@@ -1209,7 +1224,7 @@ class Securimage
 
                 imagettftext($this->tmpimg, $font_size, 0, $x, $y, $this->gdtextcolor, $this->ttf_file, $this->code_display);
             } else {
-                $font_size = $this->image_height * .4;
+                $font_size = $this->image_height * $ratio;
                 $bb = imageftbbox($font_size, 0, $this->ttf_file, $this->code_display);
                 $tx = $bb[4] - $bb[0];
                 $ty = $bb[5] - $bb[1];
