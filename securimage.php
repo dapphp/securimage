@@ -368,6 +368,14 @@ class Securimage
     public $use_database = false;
 
     /**
+     * Whether or not to skip checking if Securimage tables exist when using a database.
+     * Turn this to true once database functionality is working to improve performance.
+     *
+     * @var bool true to not check if captcha_codes tables are set up, false to check (and create if necessary)
+     */
+    public $skip_table_check = false;
+
+    /**
      * Database driver to use for database support.
      * Allowable values: 'mysql', 'pgsql', 'sqlite'.
      * Default: sqlite
@@ -1698,7 +1706,7 @@ class Securimage
         }
 
         try {
-            if (!$this->checkTablesExist()) {
+            if (!$this->skip_table_check && !$this->checkTablesExist()) {
                 // create tables...
                 $this->createDatabaseTables();
             }
