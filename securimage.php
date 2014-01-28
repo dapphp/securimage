@@ -898,16 +898,17 @@ class Securimage
      */
     public function getCode($array = false, $returnExisting = false)
     {
-        $code = '';
+        $code = array();
         $time = 0;
         $disp = 'error';
 
         if ($returnExisting && strlen($this->code) > 0) {
             if ($array) {
-                return array('code' => $this->code,
-                             'display' => $this->code_display,
-                             'code_display' => $this->code_display,
-                             'time' => 0);
+                return array(
+                    'code'         => $this->code,
+                    'display'      => $this->code_display,
+                    'code_display' => $this->code_display,
+                    'time'         => 0);
             } else {
                 return $this->code;
             }
@@ -918,9 +919,9 @@ class Securimage
                     trim($_SESSION['securimage_code_value'][$this->namespace]) != '') {
                 if ($this->isCodeExpired(
                         $_SESSION['securimage_code_ctime'][$this->namespace]) == false) {
-                    $code = $_SESSION['securimage_code_value'][$this->namespace];
-                    $time = $_SESSION['securimage_code_ctime'][$this->namespace];
-                    $disp = $_SESSION['securimage_code_disp'] [$this->namespace];
+                    $code['code'] = $_SESSION['securimage_code_value'][$this->namespace];
+                    $code['time'] = $_SESSION['securimage_code_ctime'][$this->namespace];
+                    $code['display'] = $_SESSION['securimage_code_disp'] [$this->namespace];
                 }
             }
         }
@@ -929,12 +930,17 @@ class Securimage
             // no code in session - may mean user has cookies turned off
             $this->openDatabase();
             $code = $this->getCodeFromDatabase();
+
+            if (!empty($code)) {
+                $code['display'] = $code['code_disp'];
+                unset($code['code_disp']);
+            }
         } else { /* no code stored in session or sqlite database, validation will fail */ }
 
         if ($array == true) {
-            return array('code' => $code, 'ctime' => $time, 'display' => $disp);
-        } else {
             return $code;
+        } else {
+            return $code['code'];
         }
     }
 
@@ -1415,13 +1421,19 @@ class Securimage
         $letters = array();
         $code    = $this->getCode(true, true);
 
-        if ($code['code'] == '') {
+        if (empty($code) || $code['code'] == '') {
             if (strlen($this->display_value) > 0) {
                 $code = array('code' => $this->display_value, 'display' => $this->display_value);
             } else {
                 $this->createCode();
                 $code = $this->getCode(true);
             }
+        }
+
+        if (empty($code)) {
+            $error = 'Failed to get audible code (are database settings correct?).  Check the error log for details';
+            trigger_error($error, E_USER_WARNING);
+            throw new Exception($error);
         }
 
         if (preg_match('/(\d+) (\+|-|x) (\d+)/i', $code['display'], $eq)) {
@@ -1657,13 +1669,16 @@ class Securimage
             }
         }
 
-        $dsn = $this->getDsn();
-
         try {
-            $options        = array();
+            $dsn = $this->getDsn();
+
+            $options = array();
             $this->pdo_conn = new PDO($dsn, $this->database_user, $this->database_pass, $options);
         } catch (PDOException $pdoex) {
             trigger_error("Database connection failed: " . $pdoex->getMessage(), E_USER_WARNING);
+            return false;
+        } catch (Exception $ex) {
+            trigger_error($ex->getMessage(), E_USER_WARNING);
             return false;
         }
 
@@ -1696,6 +1711,12 @@ class Securimage
 
             case self::SI_DRIVER_MYSQL:
             case self::SI_DRIVER_PGSQL:
+                if (empty($this->database_host)) {
+                    throw new Exception('Securimage::database_host is not set');
+                } else if (empty($this->database_name)) {
+                    throw new Exception('Securimage::database_name is not set');
+                }
+
                 $dsn .= sprintf('host=%s;dbname=%s',
                                 $this->database_host,
                                 $this->database_name);
@@ -1815,8 +1836,7 @@ class Securimage
      * Get a code from the sqlite database for ip address/captchaId.
      *
      * @return string|array Empty string if no code was found or has expired,
-     * otherwise returns the stored captcha code.  If a captchaId is set, this
-     * returns an array with indices "code" and "code_disp"
+     * otherwise returns array of code information.
      */
     protected function getCodeFromDatabase()
     {
@@ -1843,13 +1863,11 @@ class Securimage
             } else {
                 if ( ($row = $stmt->fetch()) !== false ) {
                     if (false == $this->isCodeExpired($row['created'])) {
-                        if (Securimage::$_captchaId !== null) {
-                            // return an array when using captchaId
-                            $code = array('code'      => $row['code'],
-                                          'code_disp' => $row['code_display']);
-                        } else {
-                            $code = $row['code'];
-                        }
+                        $code = array(
+                            'code'      => $row['code'],
+                            'code_disp' => $row['code_display'],
+                            'time'      => $row['created'],
+                        );
                     }
                 }
             }
