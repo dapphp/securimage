@@ -1609,8 +1609,16 @@ class Securimage
             $success = $stmt->execute(array($id, $code, $code_disp, $this->namespace, $time));
 
             if (!$success) {
-                $err = $stmt->errorInfo();
-                trigger_error("Failed to insert code into database. {$err[1]}: {$err[2]}", E_USER_WARNING);
+                $err   = $stmt->errorInfo();
+                $error = "Failed to insert code into database. {$err[1]}: {$err[2]}.";
+
+                if ($this->database_driver == self::SI_DRIVER_SQLITE3) {
+                    $err14 = ($err[1] == 14);
+                    if ($err14) $error .= sprintf(" Ensure database directory and file are writeable by user '%s' (%d).",
+                                                   get_current_user(), getmyuid());
+                }
+
+                trigger_error($error, E_USER_WARNING);
             }
         }
 
