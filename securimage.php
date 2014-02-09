@@ -488,6 +488,22 @@ class Securimage
      * </code>
      */
     public $audio_path;
+
+    /**
+     * Use SoX (The Swiss Army knife of audio manipulation) for audio effects and processing
+     *
+     * @see Securimage::$sox_binary_path
+     * @var bool true to use SoX, false to use PHP
+     */
+    public $audio_use_sox = false;
+
+    /**
+     * The path to the SoX binary on your system
+     *
+     * @var string
+     */
+    public $sox_binary_path = '/usr/bin/sox';
+
     /**
      * The path to the directory containing audio files that will be selected
      * randomly and mixed with the captcha audio.
@@ -526,7 +542,7 @@ class Securimage
      * @since 3.0.4
      * @var float
      */
-    public $audio_mix_normalization = 0.6;
+    public $audio_mix_normalization = 0.8;
     /**
      * Whether or not to degrade audio by introducing random noise (improves security of audio captcha)
      * Default: true
@@ -548,7 +564,7 @@ class Securimage
      * @since 3.0.3
      * @var float
      */
-    public $audio_gap_max = 600;
+    public $audio_gap_max = 3000;
 
     /**
      * Captcha ID if using static captcha
@@ -1971,11 +1987,30 @@ class Securimage
         $wavCaptcha = new WavFile();
         $first      = true;     // reading first wav file
 
+        if ($this->audio_use_sox && !is_executable($this->sox_binary_path)) {
+            throw new Exception("Path to SoX binary is incorrect or not executable");
+        }
+
         foreach ($letters as $letter) {
             $letter = strtoupper($letter);
 
             try {
-                $l = new WavFile($this->audio_path . '/' . $letter . '.wav');
+                $letter_file = realpath($this->audio_path) . DIRECTORY_SEPARATOR . $letter . '.wav';
+
+                if ($this->audio_use_sox) {
+                    $sox_cmd = sprintf("%s %s -t wav - %s",
+                                       $this->sox_binary_path,
+                                       $letter_file,
+                                       $this->getSoxEffectChain());
+
+                    $data = `$sox_cmd`;
+
+                    $l = new WavFile();
+                    $l->setIgnoreChunkSizes(true);
+                    $l->setWavData($data);
+                } else {
+                    $l = new WavFile($letter_file);
+                }
 
                 if ($first) {
                     // set sample rate, bits/sample, and # of channels for file based on first letter
@@ -1995,7 +2030,7 @@ class Securimage
             } catch (Exception $ex) {
                 // failed to open file, or the wav file is broken or not supported
                 // 2 wav files were not compatible, different # channels, bits/sample, or sample rate
-                throw $ex;
+                throw new Exception("Error generating audio captcha on letter '$letter': " . $ex->getMessage());
             }
         }
 
@@ -2004,9 +2039,27 @@ class Securimage
 
         if ($this->audio_use_noise == true) {
             // use background audio - find random file
-            $noiseFile = $this->getRandomNoiseFile();
+            $wavNoise   = false;
+            $randOffset = 0;
 
-            if ($noiseFile !== false && is_readable($noiseFile)) {
+            /*
+            // uncomment to try experimental SoX noise generation.
+            // warning: sounds may be considered annoying
+            if ($this->audio_use_sox) {
+                $duration = $wavCaptcha->getDataSize() / ($wavCaptcha->getBitsPerSample() / 8) /
+                            $wavCaptcha->getNumChannels() / $wavCaptcha->getSampleRate();
+                $duration = round($duration, 2);
+                $wavNoise = new WavFile();
+                $wavNoise->setIgnoreChunkSizes(true);
+                $noiseData = $this->getSoxNoiseData($duration,
+                                                    $wavCaptcha->getNumChannels(),
+                                                    $wavCaptcha->getSampleRate(),
+                                                    $wavCaptcha->getBitsPerSample());
+                $wavNoise->setWavData($noiseData, true);
+
+            } else
+            */
+            if ( ($noiseFile = $this->getRandomNoiseFile()) !== false) {
                 try {
                     $wavNoise = new WavFile($noiseFile, false);
                 } catch(Exception $ex) {
@@ -2015,7 +2068,9 @@ class Securimage
 
                 // start at a random offset from the beginning of the wavfile
                 // in order to add more randomness
+
                 $randOffset = 0;
+
                 if ($wavNoise->getNumBlocks() > 2 * $wavCaptcha->getNumBlocks()) {
                     $randBlock = mt_rand(0, $wavNoise->getNumBlocks() - $wavCaptcha->getNumBlocks());
                     $wavNoise->readWavData($randBlock * $wavNoise->getBlockAlign(), $wavCaptcha->getNumBlocks() * $wavNoise->getBlockAlign());
@@ -2023,8 +2078,9 @@ class Securimage
                     $wavNoise->readWavData();
                     $randOffset = mt_rand(0, $wavNoise->getNumBlocks() - 1);
                 }
+            }
 
-
+            if ($wavNoise !== false) {
                 $mixOpts = array('wav'  => $wavNoise,
                                  'loop' => true,
                                  'blockOffset' => $randOffset);
@@ -2066,10 +2122,134 @@ class Securimage
             if (sizeof($list) > 0) {
                 $file   = $list[array_rand($list, 1)];
                 $return = $this->audio_noise_path . DIRECTORY_SEPARATOR . $file;
+
+                if (!is_readable($return)) $return = false;
             }
         }
 
         return $return;
+    }
+
+    protected function getSoxEffectChain($numEffects = 2)
+    {
+        $effectsList = array('bend', 'chorus', 'overdrive', 'pitch', 'reverb', 'tempo', 'tremolo');
+        $effects     = array_rand($effectsList, $numEffects);
+        $outEffects  = array();
+
+        if (!is_array($effects)) $effects = array($effects);
+
+        foreach($effects as $effect) {
+            $effect = $effectsList[$effect];
+
+            switch($effect)
+            {
+                case 'bend':
+                    $delay = mt_rand(0, 15) / 100.0;
+                    $cents = mt_rand(-120, 120);
+                    $dur   = mt_rand(75, 400) / 100.0;
+                    $outEffects[] = "$effect $delay,$cents,$dur";
+                    break;
+
+                case 'chorus':
+                    $gainIn  = mt_rand(75, 90) / 100.0;
+                    $gainOut = mt_rand(70, 95) / 100.0;
+                    $chorStr = "$effect $gainIn $gainOut";
+
+                    for ($i = 0; $i < mt_rand(2, 3); ++$i) {
+                        $delay = mt_rand(20, 100);
+                        $decay = mt_rand(10, 100) / 100.0;
+                        $speed = mt_rand(20, 50) / 100.0;
+                        $depth = mt_rand(150, 250) / 100.0;
+
+                        $chorStr .= " $delay $decay $speed $depth -s";
+                    }
+
+                    $outEffects[] = $chorStr;
+                    break;
+
+                case 'overdrive':
+                    $gain = mt_rand(5, 25);
+                    $color = mt_rand(20, 70);
+                    $outEffects[] = "$effect $gain $color";
+                    break;
+
+                case 'pitch':
+                    $cents = mt_rand(-300, 300);
+                    $outEffects[] = "$effect $cents";
+                    break;
+
+                case 'reverb':
+                    $reverberance = mt_rand(20, 80);
+                    $damping      = mt_rand(10, 80);
+                    $scale        = mt_rand(85, 100);
+                    $depth        = mt_rand(90, 100);
+                    $predelay     = mt_rand(0, 5);
+                    $outEffects[] = "$effect $reverberance $damping $scale $depth $predelay";
+                    break;
+
+                case 'tempo':
+                    $factor = mt_rand(65, 135) / 100.0;
+                    $outEffects[] = "$effect -s $factor";
+                    break;
+
+                case 'tremolo':
+                    $hz    = mt_rand(10, 30);
+                    $depth = mt_rand(40, 85);
+                    $outEffects[] = "$effect $hz $depth";
+                    break;
+            }
+        }
+
+        return implode(' ', $outEffects);
+    }
+
+    /**
+     * Not yet used - Generate random background noise from sweeping oscillators
+     *
+     * @param float $duration  How long in seconds the generated sound will be
+     * @param int $numChannels Number of channels in output wav
+     * @param int $sampleRate  Sample rate of output wav
+     * @param int $bitRate     Bits per sample (8, 16, 24)
+     * @return string          Audio data in wav format
+     */
+    protected function getSoxNoiseData($duration, $numChannels, $sampleRate, $bitRate)
+    {
+        $shapes = array('sine', 'square', 'triangle', 'sawtooth', 'trapezium');
+        $steps  = array(':', '+', '/', '-');
+        $selShapes = array_rand($shapes, 2);
+        $selSteps  = array_rand($steps, 2);
+        $sweep0    = array();
+        $sweep0[0] = mt_rand(100, 700);
+        $sweep0[1] = mt_rand(1500, 2500);
+        $sweep1    = array();
+        $sweep1[0] = mt_rand(500, 1000);
+        $sweep1[1] = mt_rand(1200, 2000);
+
+        if (mt_rand(0, 10) % 2 == 0)
+            $sweep0 = array_reverse($sweep0);
+
+        if (mt_rand(0, 10) % 2 == 0)
+            $sweep1 = array_reverse($sweep1);
+
+        $cmd = sprintf("%s -c %d -r %d -b %d -n -t wav - synth noise create vol 0.3 synth %.2f %s mix %d%s%d vol 0.3 synth %.2f %s fmod %d%s%d vol 0.3",
+                       $this->sox_binary_path,
+                       $numChannels,
+                       $sampleRate,
+                       $bitRate,
+                       $duration,
+                       $shapes[$selShapes[0]],
+                       $sweep0[0],
+                       $steps[$selSteps[0]],
+                       $sweep0[1],
+                       $duration,
+                       $shapes[$selShapes[1]],
+                       $sweep1[0],
+                       $steps[$selSteps[1]],
+                       $sweep1[1]
+                       );
+        $data = `$cmd`;
+
+        return $data;
     }
 
     /**
