@@ -87,7 +87,7 @@ process_si_contact_form();
 
     function reloadCaptcha()
     {
-        jQuery('#siimage').src = './securimage_show.php?sid=' + Math.random();
+        jQuery('#siimage').prop('src', './securimage_show.php?sid=' + Math.random());
     }
 
     function processForm()
@@ -102,7 +102,7 @@ process_si_contact_form();
 				jQuery('#success_message').show();
 				jQuery('#contact_form')[0].reset();
 				reloadCaptcha();
-				setTimeout("jQuery('#success_message').fadeOut()", 30000);
+				setTimeout("jQuery('#success_message').fadeOut()", 12000);
 			} else {
 				alert("There was an error with your submission.\n\n" + data.message);
 			}
