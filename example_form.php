@@ -41,7 +41,7 @@ process_si_contact_form(); // Process the form, if it was submitted
 if (isset($_SESSION['ctform']['error']) &&  $_SESSION['ctform']['error'] == true): /* The last form submission had 1 or more errors */ ?>
 <span class="error">There was a problem with your submission.  Errors are displayed below in red.</span><br /><br />
 <?php elseif (isset($_SESSION['ctform']['success']) && $_SESSION['ctform']['success'] == true): /* form was processed successfully */ ?>
-<span class="success">The captcha was correct and the message has been sent!</span><br /><br />
+<span class="success">The captcha was correct and the message has been sent!  The captcha was solved in <?php echo $_SESSION['ctform']['timetosolve'] ?> seconds.</span><br /><br />
 <?php endif; ?>
 
 <form method="post" action="<?php echo htmlspecialchars($_SERVER['REQUEST_URI'] . $_SERVER['QUERY_STRING']) ?>" id="contact_form">
@@ -170,6 +170,7 @@ function process_si_contact_form()
         mail($GLOBALS['ct_recipient'], $GLOBALS['ct_msg_subject'], $message, "From: {$GLOBALS['ct_recipient']}\r\nReply-To: {$email}\r\nContent-type: text/html; charset=ISO-8859-1\r\nMIME-Version: 1.0");
       }
 
+      $_SESSION['ctform']['timetosolve'] = $securimage->getTimeToSolve();
       $_SESSION['ctform']['error'] = false;  // no error with form
       $_SESSION['ctform']['success'] = true; // message sent
     } else {

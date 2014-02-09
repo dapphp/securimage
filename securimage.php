@@ -611,6 +611,13 @@ class Securimage
     protected $captcha_code;
 
     /**
+     * Time (in seconds) that the captcha was solved in (correctly or incorrectly).  This is from the time of code creation, to when validation was attempted.
+     *
+     * @var int
+     */
+    protected $_timeToSolve = 0;
+
+    /**
      * Flag that can be specified telling securimage not to call exit after generating a captcha image or audio file
      *
      * @var bool If true, script will not terminate; if false script will terminate (default)
@@ -867,6 +874,16 @@ class Securimage
         $this->code_entered = $code;
         $this->validate();
         return $this->correct_code;
+    }
+
+    /**
+     * Get the time in seconds that it took to solve the captcha.
+     *
+     * @return int The time in seconds from when the code was created, to when it was solved
+     */
+    public function getTimeToSolve()
+    {
+        return $this->_timeToSolve;
     }
 
     /**
@@ -1571,11 +1588,18 @@ class Securimage
     protected function validate()
     {
         if (!is_string($this->code) || strlen($this->code) == 0) {
-            $code = $this->getCode();
+            $code = $this->getCode(true);
             // returns stored code, or an empty string if no stored code was found
             // checks the session and database if enabled
         } else {
             $code = $this->code;
+        }
+
+        if (is_array($code)) {
+            $ctime = $code['time'];
+            $code  = $code['code'];
+
+            $this->_timeToSolve = time() - $ctime;
         }
 
         if ($this->case_sensitive == false && preg_match('/[A-Z]/', $code)) {
@@ -1599,6 +1623,7 @@ class Securimage
             if ($code == $code_entered) {
                 $this->correct_code = true;
                 if ($this->no_session != true) {
+                    $_SESSION['securimage_code_disp'] [$this->namespace] = '';
                     $_SESSION['securimage_code_value'][$this->namespace] = '';
                     $_SESSION['securimage_code_ctime'][$this->namespace] = '';
                 }
