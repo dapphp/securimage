@@ -59,4 +59,7 @@ $img = new Securimage();
 // If you have more than one captcha on a page, one must use a custom namespace
 // $img->namespace = 'form2';
 
+// set namespace if supplied to script via HTTP GET
+if (!empty($_GET['namespace'])) $img->setNamespace($_GET['namespace']);
+
 $img->outputAudioFile();

@@ -70,6 +70,8 @@ $img = new Securimage();
 
 // see securimage.php for more options that can be set
 
+// set namespace if supplied to script via HTTP GET
+if (!empty($_GET['namespace'])) $img->setNamespace($_GET['namespace']);
 
 
 $img->show();  // outputs the image and content headers to the browser

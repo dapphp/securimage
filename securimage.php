@@ -887,6 +887,23 @@ class Securimage
     }
 
     /**
+     * Set the namespace for the captcha being stored in the session or database.
+     *
+     * @param string $namespace  Namespace value, String consisting of characters "a-zA-Z0-9_-"
+     */
+    public function setNamespace($namespace)
+    {
+        $namespace = preg_replace('/[^a-z0-9-_]/i', '', $namespace);
+        $namespace = substr($namespace, 0, 64);
+
+        if (!empty($namespace)) {
+            $this->namespace = $namespace;
+        } else {
+            $this->namespace = 'default';
+        }
+    }
+
+    /**
      * Output a wav file of the captcha code to the browser
      *
      * <code>
@@ -1596,10 +1613,14 @@ class Securimage
         }
 
         if (is_array($code)) {
-            $ctime = $code['time'];
-            $code  = $code['code'];
+            if (!empty($code)) {
+                $ctime = $code['time'];
+                $code  = $code['code'];
 
-            $this->_timeToSolve = time() - $ctime;
+                $this->_timeToSolve = time() - $ctime;
+            } else {
+                $code = '';
+            }
         }
 
         if ($this->case_sensitive == false && preg_match('/[A-Z]/', $code)) {
