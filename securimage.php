@@ -59,7 +59,7 @@
  - Add .htaccess file to audio directory to deny access; update audio files
  - Option to skip checking of database tables during connection
  - Add composer.json to package, submit to packagist
- - Add font_ration variable to determine size of font (github.com/wilkor)
+ - Add font_ratio variable to determine size of font (github.com/wilkor)
  - Add hint if sqlite3 database is not writeable.  Improve database error handling, add example database options to securimage_play.php
  - Fixed issue regarding database storage and math captcha breaking audio output (github.com/SoftwareAndOutsourcing)
 
