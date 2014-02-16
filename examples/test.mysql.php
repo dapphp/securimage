@@ -1,6 +1,6 @@
 <?php
 
-require_once 'securimage.php';
+require_once '../securimage.php';
 
 $t0         = microtime(true);
 

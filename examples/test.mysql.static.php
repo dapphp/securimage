@@ -20,7 +20,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 // defines Securimage class
-require_once 'securimage.php';
+require_once '../securimage.php';
 
 // define options for securimage
 $options = array('database_driver' => Securimage::SI_DRIVER_MYSQL,

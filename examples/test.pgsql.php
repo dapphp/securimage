@@ -1,6 +1,6 @@
 <?php
 
-require_once 'securimage.php';
+require_once '../securimage.php';
 
 $securimage = new Securimage(array('no_exit' => true));
 $securimage->use_database = true;
