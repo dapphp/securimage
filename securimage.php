@@ -877,6 +877,135 @@ class Securimage
     }
 
     /**
+     * Returns HTML for displaying the captcha image, audio button, and text input for forms
+     *
+     * @param array $options Array of options for modifying the HTML code. Accepted options are:
+     *   'securimage_path'     => Optional: The URI to where securimage is installed (e.g. /securimage)
+     *   'image_id'            => A string that sets the "id" attribute of the captcha image (default: captcha_image)
+     *   'image_alt_text'      => The alt text of the captcha image (default: CAPTCHA Image)
+     *   'show_audio_button'   => true/false  Whether or not to show the audio button (default: true)
+     *   'show_refresh_button' => true/false  Whether or not to show a button to refresh the image (default: true)
+     *   'show_text_input'     => true/false  Whether or not to show the text input for the captcha (default: true)
+     *   'refresh_alt_text'    => Alt text for the refresh image (default: Refresh Image)
+     *   'refresh_title_text'  => Title text for the refresh image link (default: Refresh Image)
+     *   'input_id'            => A string that sets the "id" attribute of the captcha text input (default: captcha_code)
+     *   'input_name'          => A string that sets the "name" attribute of the captcha text input (default: same as input_id)
+     *   'input_text'          => A string that sets the text of the label for the captcha text input (default: Type the text:)
+     *   'input_attributes'    => An array of additional HTML tag attributes to pass to the text input tag (default: empty)
+     *   'image_attributes'    => An array of additional HTML tag attributes to pass to the captcha image tag (default: empty)
+     *   'namespace'           => The optional captcha namespace to use for showing the image and playing back the audio. Namespaces are for using multiple captchas on the same page.
+     *
+     * @return string  The generated HTML code for the captcha image
+     */
+    public static function getCaptchaHtml($options = array())
+    {
+        if (!isset($options['securimage_path'])) {
+            $docroot = (isset($_SERVER['DOCUMENT_ROOT'])) ? $_SERVER['DOCUMENT_ROOT'] : substr($_SERVER['SCRIPT_FILENAME'], 0, -strlen($_SERVER['SCRIPT_NAME']));
+            $docroot = realpath($docroot);
+            $sipath  = dirname(__FILE__);
+            $securimage_path = str_replace($docroot, '', $sipath);
+        } else {
+            $securimage_path = $options['securimage_path'];
+        }
+
+        $image_id          = (isset($options['image_id'])) ? $options['image_id'] : 'captcha_image';
+        $image_alt         = (isset($options['image_alt_text'])) ? $options['image_alt_text'] : 'CAPTCHA Image';
+        $show_audio_btn    = (isset($options['show_audio_button'])) ? (bool)$options['show_audio_button'] : true;
+        $show_refresh_btn  = (isset($options['show_refresh_button'])) ? (bool)$options['show_refresh_button'] : true;
+        $show_input        = (isset($options['show_text_input'])) ? (bool)$options['show_text_input'] : true;
+        $refresh_alt       = (isset($options['refresh_alt_text'])) ? $options['refresh_alt_text'] : 'Refresh Image';
+        $refresh_title     = (isset($options['refresh_title_text'])) ? $options['refresh_title_text'] : 'Refresh Image';
+        $input_text        = (isset($options['input_text'])) ? $options['input_text'] : 'Type the text:';
+        $input_id          = (isset($options['input_id'])) ? $options['input_id'] : 'captcha_code';
+        $input_name        = (isset($options['input_name'])) ? $options['input_name'] :  $input_id;
+        $input_attrs       = (isset($options['input_attributes'])) ? $options['input_attributes'] : array();
+        $image_attrs       = (isset($options['image_attributes'])) ? $options['image_attributes'] : array();
+        $error_html        = (isset($options['error_html'])) ? $options['error_html'] : null;
+        $namespace         = (isset($options['namespace'])) ? $options['namespace'] : '';
+
+        $rand              = md5(uniqid($_SERVER['REMOTE_PORT'], true));
+        $securimage_path   = rtrim($securimage_path, '/\\');
+
+        $image_attr = '';
+        if (!is_array($image_attrs)) $image_attrs = array();
+        if (!isset($image_attrs['align'])) $image_attrs['align'] = 'left';
+        $image_attrs['id']  = $image_id;
+
+        $show_path = $securimage_path . '/securimage_show.php?';
+        if (!empty($namespace)) {
+            $show_path .= sprintf('namespace=%s&', $namespace);
+        }
+        $image_attrs['src'] = $show_path . $rand;
+
+        $image_attrs['alt'] = $image_alt;
+
+        foreach($image_attrs as $name => $val) {
+            $image_attr .= sprintf('%s="%s" ', $name, htmlspecialchars($val));
+        }
+
+        $html = sprintf('<img %s/>', $image_attr);
+
+        if ($show_audio_btn) {
+            $swf_path  = $securimage_path . '/securimage_play.swf';
+            $play_path = $securimage_path . '/securimage_play.php';
+            $icon_path = $securimage_path . '/images/audio_icon.png';
+
+            $html .= sprintf('<object type="application/x-shockwave-flash" data="%s?bgcol=%s&amp;icon_file=%s&amp;audio_file=%s" height="32" width="32">',
+                    htmlspecialchars($swf_path),
+                    '#ffffff',
+                    htmlspecialchars($icon_path),
+                    htmlspecialchars($play_path)
+            );
+
+            $html .= sprintf('<param name="movie" value="%s?bgcol=%s&amp;icon_file=%s&amp;audio_file=%s" />',
+                    htmlspecialchars($swf_path),
+                    '#ffffff',
+                    htmlspecialchars($icon_path),
+                    $play_path
+            );
+
+            $html .= '</object><br />';
+        }
+
+        if ($show_refresh_btn) {
+            $icon_path = $securimage_path . '/images/refresh.png';
+            $img_tag = sprintf('<img height="32" width="32" src="%s" alt="%s" onclick="this.blur()" align="bottom" border="0" />',
+                               htmlspecialchars($icon_path), htmlspecialchars($refresh_alt));
+
+            $html .= sprintf('<a tabindex="-1" style="border: 0" href="#" title="%s" onclick="document.getElementById(\'%s\').src = \'%s\' + Math.random(); this.blur(); return false">%s</a><br />',
+                    htmlspecialchars($refresh_title),
+                    $image_id,
+                    $show_path,
+                    $img_tag
+            );
+        }
+
+        $html .= '<div style="clear: both"></div>';
+
+        $html .= sprintf('<label for="%s">%s</label> ',
+                htmlspecialchars($input_id),
+                htmlspecialchars($input_text));
+
+        if (!empty($error_html)) {
+            $html .= $error_html;
+        }
+
+        $input_attr = '';
+        if (!is_array($input_attrs)) $input_attrs = array();
+        $input_attrs['type'] = 'text';
+        $input_attrs['name'] = $input_name;
+        $input_attrs['id']   = $input_id;
+
+        foreach($input_attrs as $name => $val) {
+            $input_attr .= sprintf('%s="%s" ', $name, htmlspecialchars($val));
+        }
+
+        $html .= sprintf('<input %s/>', $input_attr);
+
+        return $html;
+    }
+
+    /**
      * Get the time in seconds that it took to solve the captcha.
      *
      * @return int The time in seconds from when the code was created, to when it was solved
