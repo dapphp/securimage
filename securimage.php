@@ -873,6 +873,7 @@ class Securimage
     /**
      * Check a submitted code against the stored value
      * @param string $code  The captcha code to check
+     * @param bool $noclear Do not clear image (use with ajax)
      * <code>
      * $code = $_POST['code'];
      * $img  = new Securimage();
@@ -883,10 +884,10 @@ class Securimage
      * }
      * </code>
      */
-    public function check($code)
+    public function check($code, $noclear = false)
     {
         $this->code_entered = $code;
-        $this->validate();
+        $this->validate($noclear);
         return $this->correct_code;
     }
 
@@ -1744,8 +1745,9 @@ class Securimage
     /**
      * Checks the entered code against the value stored in the session or sqlite database, handles case sensitivity
      * Also clears the stored codes if the code was entered correctly to prevent re-use
+     * @param bool $noclear Do not clear image (use with ajax)
      */
-    protected function validate()
+    protected function validate($noclear = false)
     {
         if (!is_string($this->code) || strlen($this->code) == 0) {
             $code = $this->getCode(true);
@@ -1786,6 +1788,8 @@ class Securimage
 
             if ($code == $code_entered) {
                 $this->correct_code = true;
+                if ($noclear){ return; }
+                
                 if ($this->no_session != true) {
                     $_SESSION['securimage_code_disp'] [$this->namespace] = '';
                     $_SESSION['securimage_code_value'][$this->namespace] = '';
