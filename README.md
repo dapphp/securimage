@@ -44,6 +44,8 @@ at http://www.phpcaptcha.org/Securimage_Docs/
     
 **Within your PHP form processor**
 
+    require_once 'securimage.php';
+
     // Code Validation
 
     $image = new Securimage();
@@ -106,7 +108,7 @@ It also creates audible codes which are played for visually impared users.
 
 ---------------------------------------------------------------------------
 
-** Flash code for Securimage**
+**Flash code for Securimage**
 
 Flash code created by Age Bosma & Mario Romero (animario@hotmail.com)
 Many thanks for releasing this to the project!
