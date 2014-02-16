@@ -6,7 +6,7 @@
  * Project:     Securimage: A PHP class for creating and managing form CAPTCHA images<br />
  * File:        securimage.php<br />
  *
- * Copyright (c) 2013, Drew Phillips
+ * Copyright (c) 2014, Drew Phillips
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -39,15 +39,29 @@
  * @link http://www.phpcaptcha.org Securimage PHP CAPTCHA
  * @link http://www.phpcaptcha.org/latest.zip Download Latest Version
  * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
- * @copyright 2013 Drew Phillips
+ * @copyright 2014 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
- * @version 3.5.1 (June 21, 2013)
+ * @version 3.5.2 (Feb 15, 2014)
  * @package Securimage
  *
  */
 
 /**
  ChangeLog
+
+ 3.5.2
+
+ - Add Securimage::getCaptchaHtml() for getting automatically generated captcha html code
+ - Option for using SoX to add effects to captcha audio to make identification by neural networks more difficult
+ - Add setNamespace() method
+ - Add getTimeToSolve() method
+ - Add session_status() check so session still starts if one had previously been opened and closed
+ - Add .htaccess file to audio directory to deny access; update audio files
+ - Option to skip checking of database tables during connection
+ - Add composer.json to package, submit to packagist
+ - Add font_ration variable to determine size of font (github.com/wilkor)
+ - Add hint if sqlite3 database is not writeable.  Improve database error handling, add example database options to securimage_play.php
+ - Fixed issue regarding database storage and math captcha breaking audio output (github.com/SoftwareAndOutsourcing)
 
  3.5.1
  - Fix XSS vulnerability in example_form.php (discovered by Gjoko Krstic - <gjoko@zeroscience.mk>)
@@ -156,7 +170,7 @@
 /**
  * Securimage CAPTCHA Class.
  *
- * @version    3.5
+ * @version    3.5.2
  * @package    Securimage
  * @subpackage classes
  * @author     Drew Phillips <drew@drew-phillips.com>
