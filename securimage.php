@@ -41,13 +41,20 @@
  * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
  * @copyright 2014 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
- * @version 3.5.2 (Feb 15, 2014)
+ * @version 3.5.3 (Mar 17, 2014)
  * @package Securimage
  *
  */
 
 /**
+
+ TODO:
+ - Implement HTML5 playback of audio using Javascript, DOM, and HTML5 <audio> with Flash fallback
+
  ChangeLog
+
+ 3.5.3
+ - Add options for audio button to getCaptchaHtml(), fix urlencoding of flash parameters that was breaking button
 
  3.5.2
 
@@ -1144,6 +1151,10 @@ class Securimage
         $image_alt         = (isset($options['image_alt_text'])) ? $options['image_alt_text'] : 'CAPTCHA Image';
         $show_audio_btn    = (isset($options['show_audio_button'])) ? (bool)$options['show_audio_button'] : true;
         $show_refresh_btn  = (isset($options['show_refresh_button'])) ? (bool)$options['show_refresh_button'] : true;
+        $audio_but_bg_col  = (isset($options['audio_button_bgcol'])) ? $options['audio_button_bgcol'] : '#ffffff';
+        $audio_icon_url    = (isset($options['audio_icon_url'])) ? $options['audio_icon_url'] : null;
+        $audio_play_url    = (isset($options['audio_play_url'])) ? $options['audio_play_url'] : null;
+        $audio_swf_url     = (isset($options['audio_swf_url'])) ? $options['audio_swf_url'] : null;
         $show_input        = (isset($options['show_text_input'])) ? (bool)$options['show_text_input'] : true;
         $refresh_alt       = (isset($options['refresh_alt_text'])) ? $options['refresh_alt_text'] : 'Refresh Image';
         $refresh_title     = (isset($options['refresh_title_text'])) ? $options['refresh_title_text'] : 'Refresh Image';
@@ -1182,18 +1193,30 @@ class Securimage
             $play_path = $securimage_path . '/securimage_play.php';
             $icon_path = $securimage_path . '/images/audio_icon.png';
 
+            if (!empty($audio_icon_url)) {
+                $icon_path = $audio_icon_url;
+            }
+
+            if (!empty($audio_play_url)) {
+                $play_path = $audio_play_url;
+            }
+
+            if (!empty($audio_swf_url)) {
+                $swf_path = $audio_swf_url;
+            }
+
             $html .= sprintf('<object type="application/x-shockwave-flash" data="%s?bgcol=%s&amp;icon_file=%s&amp;audio_file=%s" height="32" width="32">',
                     htmlspecialchars($swf_path),
-                    '#ffffff',
-                    htmlspecialchars($icon_path),
-                    htmlspecialchars($play_path)
+                    urlencode($audio_but_bg_col),
+                    urlencode($icon_path),
+                    urlencode($play_path)
             );
 
             $html .= sprintf('<param name="movie" value="%s?bgcol=%s&amp;icon_file=%s&amp;audio_file=%s" />',
                     htmlspecialchars($swf_path),
-                    '#ffffff',
-                    htmlspecialchars($icon_path),
-                    $play_path
+                    urlencode($audio_but_bg_col),
+                    urlencode($icon_path),
+                    urlencode($play_path)
             );
 
             $html .= '</object><br />';
