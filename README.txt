@@ -33,7 +33,7 @@ SYNOPSIS:
     
     **Within your HTML form**
     
-    <form metod="post" action="">
+    <form method="post" action="">
     .. form elements
     
     <div>

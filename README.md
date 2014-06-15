@@ -30,7 +30,7 @@ at http://www.phpcaptcha.org/Securimage_Docs/
     
 **Within your HTML form**
     
-    <form metod="post" action="">
+    <form method="post" action="">
     .. form elements
     
     <div>
