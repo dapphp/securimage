@@ -2044,7 +2044,7 @@ class Securimage
                 $code_entered = strtolower($code_entered);
             }
 
-            if ($code == $code_entered) {
+            if ((string)$code === (string)$code_entered) {
                 $this->correct_code = true;
                 if ($this->no_session != true) {
                     $_SESSION['securimage_code_disp'] [$this->namespace] = '';
