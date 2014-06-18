@@ -1235,27 +1235,29 @@ class Securimage
             );
         }
 
-        $html .= '<div style="clear: both"></div>';
+        if($show_input) {
+            $html .= '<div style="clear: both"></div>';
 
-        $html .= sprintf('<label for="%s">%s</label> ',
-                htmlspecialchars($input_id),
-                htmlspecialchars($input_text));
+            $html .= sprintf('<label for="%s">%s</label> ',
+                    htmlspecialchars($input_id),
+                    htmlspecialchars($input_text));
 
-        if (!empty($error_html)) {
-            $html .= $error_html;
+            if (!empty($error_html)) {
+                $html .= $error_html;
+            }
+
+            $input_attr = '';
+            if (!is_array($input_attrs)) $input_attrs = array();
+            $input_attrs['type'] = 'text';
+            $input_attrs['name'] = $input_name;
+            $input_attrs['id']   = $input_id;
+
+            foreach($input_attrs as $name => $val) {
+                $input_attr .= sprintf('%s="%s" ', $name, htmlspecialchars($val));
+            }
+
+            $html .= sprintf('<input %s/>', $input_attr);
         }
-
-        $input_attr = '';
-        if (!is_array($input_attrs)) $input_attrs = array();
-        $input_attrs['type'] = 'text';
-        $input_attrs['name'] = $input_name;
-        $input_attrs['id']   = $input_id;
-
-        foreach($input_attrs as $name => $val) {
-            $input_attr .= sprintf('%s="%s" ', $name, htmlspecialchars($val));
-        }
-
-        $html .= sprintf('<input %s/>', $input_attr);
 
         return $html;
     }
