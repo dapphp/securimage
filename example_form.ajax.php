@@ -151,7 +151,7 @@ function process_si_contact_form()
             if (strlen($email) == 0) {
                 // no email address given
                 $errors['email_error'] = 'Email address is required';
-            } else if ( !preg_match('/^(?:[\w\d]+\.?)+@(?:(?:[\w\d]\-?)+\.)+\w{2,4}$/i', $email)) {
+            } else if ( !preg_match('/^(?:[\w\d-]+\.?)+@(?:(?:[\w\d]\-?)+\.)+\w{2,4}$/i', $email)) {
                 // invalid email format
                 $errors['email_error'] = 'Email address entered is invalid';
             }
