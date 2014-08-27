@@ -1168,6 +1168,7 @@ class Securimage
 
         $rand              = md5(uniqid($_SERVER['REMOTE_PORT'], true));
         $securimage_path   = rtrim($securimage_path, '/\\');
+        $securimage_path   = str_replace('\\', '/', $securimage_path);
 
         $image_attr = '';
         if (!is_array($image_attrs)) $image_attrs = array();
