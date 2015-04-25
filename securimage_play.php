@@ -52,6 +52,7 @@ $img = new Securimage();
 //$img->audio_use_noise = true;
 //$img->degrade_audio   = false;
 //$img->sox_binary_path = 'sox';
+//$img->lame_binary_path = '/usr/bin/lame'; // for mp3 audio support
 
 // To use an alternate language, uncomment the following and download the files from phpcaptcha.org
 // $img->audio_path = $img->securimage_path . '/audio/es/';
@@ -62,4 +63,8 @@ $img = new Securimage();
 // set namespace if supplied to script via HTTP GET
 if (!empty($_GET['namespace'])) $img->setNamespace($_GET['namespace']);
 
-$img->outputAudioFile();
+
+// mp3 or wav format
+$format = (isset($_GET['format']) && strtolower($_GET['format']) == 'mp3') ? 'mp3' : null;
+
+$img->outputAudioFile($format);

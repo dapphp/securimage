@@ -633,6 +633,14 @@ class Securimage
     public $sox_binary_path = '/usr/bin/sox';
 
     /**
+     * The path to the lame (mp3 encoder) binary on your system
+     *
+     * @since 3.6
+     * @var string
+     */
+    public $lame_binary_path = '/usr/bin/lame';
+
+    /**
      * The path to the directory containing audio files that will be selected
      * randomly and mixed with the captcha audio.
      *
@@ -1303,7 +1311,7 @@ class Securimage
      *     exit;
      *
      */
-    public function outputAudioFile()
+    public function outputAudioFile($format = null)
     {
         set_error_handler(array(&$this, 'errorHandler'));
 
@@ -1311,6 +1319,10 @@ class Securimage
 
         try {
             $audio = $this->getAudibleCode();
+
+            if (strtolower($format) == 'mp3') {
+                $audio = $this->wavToMp3($audio);
+            }
         } catch (Exception $ex) {
             if (($fp = @fopen(dirname(__FILE__) . '/si.error_log', 'a+')) !== false) {
                 fwrite($fp, date('Y-m-d H:i:s') . ': Securimage audio error "' . $ex->getMessage() . '"' . "\n");
@@ -1322,12 +1334,20 @@ class Securimage
 
         if ($this->canSendHeaders() || $this->send_headers == false) {
             if ($this->send_headers) {
+                if ($format == 'mp3') {
+                    $ext  = '.mp3';
+                    $type = 'audio/mpeg';
+                } else {
+                    $ext  = '.wav';
+                    $type = 'audio/x-wav';
+                }
+
                 $uniq = md5(uniqid(microtime()));
-                header("Content-Disposition: attachment; filename=\"securimage_audio-{$uniq}.wav\"");
+                header("Content-Disposition: attachment; filename=\"securimage_audio-{$uniq}.{$ext}\"");
                 header('Cache-Control: no-store, no-cache, must-revalidate');
                 header('Expires: Sun, 1 Jan 2000 12:00:00 GMT');
                 header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . 'GMT');
-                header('Content-type: audio/x-wav');
+                header('Content-type: ' . $type);
 
                 if (extension_loaded('zlib')) {
                     ini_set('zlib.output_compression', true);  // compress output if supported by browser
@@ -2753,6 +2773,73 @@ class Securimage
                        $sweep1[1]
                        );
         $data = `$cmd`;
+
+        return $data;
+    }
+
+    /**
+     * Convert WAV data to MP3 using the Lame MP3 encoder binary
+     *
+     * @param string $data  Contents of the WAV file to convert
+     * @return string       MP3 file data
+     */
+    protected function wavToMp3($data)
+    {
+        if (!file_exists($this->lame_binary_path) || !is_executable($this->lame_binary_path)) {
+            throw new Exception('Lame binary "' . $this->lame_binary_path . '" does not exist or is not executable');
+        }
+
+        // file descriptors for reading and writing to the Lame process
+        $descriptors = array(
+                0 => array('pipe', 'r'), // stdin
+                1 => array('pipe', 'w'), // stdout
+                2 => array('pipe', 'a'), // stderr
+        );
+
+        // Mono, variable bit rate, 32 kHz sampling rate, read WAV from stdin, write MP3 to stdout
+        $cmd  = sprintf("%s -m m -v -b 32 - -", $this->lame_binary_path);
+        $proc = proc_open($cmd, $descriptors, $pipes);
+
+        if (!is_resource($proc)) {
+            throw new Exception('Failed to open process for MP3 encoding');
+        }
+
+        stream_set_blocking($pipes[0], 0); // set stdin to be non-blocking
+        $size  = strlen($data);
+
+        for ($written = 0; $written < $size; $written += $len) {
+            // write to stdin until all WAV data is written
+            $len = fwrite($pipes[0], substr($data, $written, 0x20000));
+
+            if ($len === 0) {
+                // fwrite wrote no data, make sure process is still alive, otherwise wait for it to process
+                $status = proc_get_status($proc);
+                if ($status['running'] === false) break;
+                usleep(25000);
+            } else if ($written < $size) {
+                // couldn't write all data, small pause and try again
+                usleep(10000);
+            } else if ($len === false) {
+                // fwrite failed, should not happen
+                break;
+            }
+        }
+
+        fclose($pipes[0]);
+
+        $data = stream_get_contents($pipes[1]);
+        $err  = trim(stream_get_contents($pipes[2]));
+
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+
+        $return = proc_close($proc);
+
+        if ($return !== 0) {
+            throw new Exception("Failed to convert WAV to MP3.  Shell returned ({$return}): {$err}");
+        } else if ($written < $size) {
+            throw new Exception('Failed to convert WAV to MP3.  Failed to write all data to encoder');
+        }
 
         return $data;
     }
