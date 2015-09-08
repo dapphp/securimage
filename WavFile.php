@@ -6,7 +6,7 @@
 * Project: PHPWavUtils: Classes for creating, reading, and manipulating WAV files in PHP<br />
 * File: WavFile.php<br />
 *
-* Copyright (c) 2012 - 2014, Drew Phillips
+* Copyright (c) 2014, Drew Phillips
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without modification,
@@ -33,14 +33,16 @@
 * Any modifications to the library should be indicated clearly in the source code
 * to inform users that the changes are not a part of the original software.<br /><br />
 *
-* @copyright 2012 Drew Phillips
+* @copyright 2014 Drew Phillips
 * @author Drew Phillips <drew@drew-phillips.com>
 * @author Paul Voegler <http://www.voegler.eu/>
-* @version 1.1 (Feb 2014)
+* @version 1.1.1 (Sep 2015)
 * @package PHPWavUtils
 * @license BSD License
 *
 * Changelog:
+*   1.1.1 (09/08/2015)
+*     - Fix degrade() method to call filter correctly (Rasmus Lerdorf)
 *
 *   1.1 (02/8/2014)
 *     - Add method setIgnoreChunkSizes() to allow reading of wav data with bogus chunk sizes set.
@@ -1251,7 +1253,6 @@ class WavFile
             throw new WavFormatException('Missing "data" subchunk.', 101);
         }
 
-
         // check "data" subchunk
         $dataOffset = ftell($this->_fp);
         if ($this->getIgnoreChunkSizes()) {
@@ -1770,8 +1771,8 @@ class WavFile
      */
     public function degrade($quality = 1.0)
     {
-        return $this->filter(self::FILTER_DEGRADE, array(
-            WavFile::FILTER_DEGRADE => $quality
+        return $this->filter(array(
+            self::FILTER_DEGRADE => $quality
         ));
     }
 
