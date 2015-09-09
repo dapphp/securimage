@@ -300,25 +300,25 @@ class Securimage
 
     /**
      * The background color of the captcha
-     * @var Securimage_Color
+     * @var Securimage_Color|string
      */
     public $image_bg_color = '#ffffff';
 
     /**
      * The color of the captcha text
-     * @var Securimage_Color
+     * @var Securimage_Color|string
      */
     public $text_color     = '#707070';
 
     /**
      * The color of the lines over the captcha
-     * @var Securimage_Color
+     * @var Securimage_Color|string
      */
     public $line_color     = '#707070';
 
     /**
      * The color of the noise that is drawn
-     * @var Securimage_Color
+     * @var Securimage_Color|string
      */
     public $noise_color    = '#707070';
 
@@ -415,7 +415,7 @@ class Securimage
 
     /**
      * The color of the signature text
-     * @var Securimage_Color
+     * @var Securimage_Color|string
      */
     public $signature_color = '#707070';
 
@@ -743,7 +743,7 @@ class Securimage
 
     /**
      * The background image GD resource
-     * @var resource
+     * @var string
      */
     protected $bgimg;
 
@@ -769,7 +769,7 @@ class Securimage
      * Either the case-sensitive/insensitive word captcha, or the solution to
      * the math captcha.
      *
-     * @var string Captcha challenge value
+     * @var string|bool Captcha challenge value
      */
     protected $code;
 
@@ -844,35 +844,35 @@ class Securimage
     /**
      * PDO connection when a database is used
      *
-     * @var resource
+     * @var PDO|bool
      */
     protected $pdo_conn;
 
     /**
-     * The GD color resource for the background color
+     * The GD color for the background color
      *
-     * @var resource
+     * @var int
      */
     protected $gdbgcolor;
 
     /**
-     * The GD color resource for the text color
+     * The GD color for the text color
      *
-     * @var resource
+     * @var int
      */
     protected $gdtextcolor;
 
     /**
-     * The GD color resource for the line color
+     * The GD color for the line color
      *
-     * @var resource
+     * @var int
      */
     protected $gdlinecolor;
 
     /**
-     * The GD color resource for the signature text color
+     * The GD color for the signature text color
      *
-     * @var resource
+     * @var int
      */
     protected $gdsignaturecolor;
 
@@ -1310,6 +1310,7 @@ class Securimage
      *     $img->outputAudioFile(); // outputs a wav file to the browser
      *     exit;
      *
+     * @param string $format
      */
     public function outputAudioFile($format = null)
     {
@@ -1596,6 +1597,7 @@ class Securimage
 
     /**
      * Scan the directory for a background image to use
+     * @return string|bool
      */
     protected function getBackgroundFromDirectory()
     {
@@ -1641,7 +1643,7 @@ class Securimage
                     }
                 } while ($c <= 0); // no negative #'s or 0
 
-                $this->code         = $c;
+                $this->code         = "$c";
                 $this->code_display = "$left $sign $right";
                 break;
             }
@@ -1694,7 +1696,7 @@ class Securimage
                 $x  = floor($width2 / 2 - $tx / 2 - $bb[0]);
                 $y  = round($height2 / 2 - $ty / 2 - $bb[1]);
 
-                imagettftext($this->tmpimg, $font_size, 0, $x, $y, $this->gdtextcolor, $this->ttf_file, $this->code_display);
+                imagettftext($this->tmpimg, $font_size, 0, (int)$x, (int)$y, $this->gdtextcolor, $this->ttf_file, $this->code_display);
             } else {
                 $font_size = $this->image_height * $ratio;
                 $bb = imageftbbox($font_size, 0, $this->ttf_file, $this->code_display);
@@ -1703,7 +1705,7 @@ class Securimage
                 $x  = floor($this->image_width / 2 - $tx / 2 - $bb[0]);
                 $y  = round($this->image_height / 2 - $ty / 2 - $bb[1]);
 
-                imagettftext($this->im, $font_size, 0, $x, $y, $this->gdtextcolor, $this->ttf_file, $this->code_display);
+                imagettftext($this->im, $font_size, 0, (int)$x, (int)$y, $this->gdtextcolor, $this->ttf_file, $this->code_display);
             }
         }
 
@@ -1955,7 +1957,7 @@ class Securimage
      * Seek to a random offset in the file and reads a block of data and returns a line from the file.
      *
      * @param int $numWords Number of words (lines) to read from the file
-     * @return string|array  Returns a string if only one word is to be read, or an array of words
+     * @return string|array|bool  Returns a string if only one word is to be read, or an array of words
      */
     protected function readCodeFromFile($numWords = 1)
     {
@@ -2207,7 +2209,7 @@ class Securimage
             }
         } catch (Exception $ex) {
             trigger_error($ex->getMessage(), E_USER_WARNING);
-            $this->pdo_conn = null;
+            $this->pdo_conn = false;
             return false;
         }
 
@@ -2453,8 +2455,8 @@ class Securimage
 
             $query = sprintf("DELETE FROM %s WHERE %s - created > %s",
                              $this->database_table,
-                             $this->pdo_conn->quote($now, PDO::PARAM_INT),
-                             $this->pdo_conn->quote($limit, PDO::PARAM_INT));
+                             $now,
+                             $this->pdo_conn->quote("$limit", PDO::PARAM_INT));
 
             $result = $this->pdo_conn->query($query);
         }
@@ -2886,7 +2888,7 @@ class Securimage
     /**
      * Convert an html color code to a Securimage_Color
      * @param string $color
-     * @param Securimage_Color $default The defalt color to use if $color is invalid
+     * @param Securimage_Color|string $default The defalt color to use if $color is invalid
      */
     protected function initColor($color, $default)
     {
