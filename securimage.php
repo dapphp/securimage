@@ -1159,10 +1159,12 @@ class Securimage
             $securimage_path = $options['securimage_path'];
         }
 
+        $show_image_url    = (isset($options['show_image_url'])) ? $options['show_image_url'] : null;
         $image_id          = (isset($options['image_id'])) ? $options['image_id'] : 'captcha_image';
         $image_alt         = (isset($options['image_alt_text'])) ? $options['image_alt_text'] : 'CAPTCHA Image';
         $show_audio_btn    = (isset($options['show_audio_button'])) ? (bool)$options['show_audio_button'] : true;
         $show_refresh_btn  = (isset($options['show_refresh_button'])) ? (bool)$options['show_refresh_button'] : true;
+        $refresh_icon_url  = (isset($options['refresh_icon_url'])) ? $options['refresh_icon_url'] : null;
         $audio_but_bg_col  = (isset($options['audio_button_bgcol'])) ? $options['audio_button_bgcol'] : '#ffffff';
         $audio_icon_url    = (isset($options['audio_icon_url'])) ? $options['audio_icon_url'] : null;
         $audio_play_url    = (isset($options['audio_play_url'])) ? $options['audio_play_url'] : null;
@@ -1188,6 +1190,13 @@ class Securimage
         $image_attrs['id']  = $image_id;
 
         $show_path = $securimage_path . '/securimage_show.php?';
+        if ($show_image_url) {
+            if (parse_url($show_image_url, PHP_URL_QUERY)) {
+                $show_path = "{$show_image_url}&";
+            } else {
+                $show_path = "{$show_image_url}?";
+            }
+        }
         if (!empty($namespace)) {
             $show_path .= sprintf('namespace=%s&', $namespace);
         }
@@ -1237,6 +1246,9 @@ class Securimage
 
         if ($show_refresh_btn) {
             $icon_path = $securimage_path . '/images/refresh.png';
+            if ($refresh_icon_url) {
+                $icon_path = $refresh_icon_url;
+            }
             $img_tag = sprintf('<img height="32" width="32" src="%s" alt="%s" onclick="this.blur()" align="bottom" border="0" />',
                                htmlspecialchars($icon_path), htmlspecialchars($refresh_alt));
 
