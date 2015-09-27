@@ -6,7 +6,7 @@
  * Project:  Securimage: A PHP class dealing with CAPTCHA images, audio, and validation
  * File:     securimage.php
  *
- * Copyright (c) 2014, Drew Phillips
+ * Copyright (c) 2015, Drew Phillips
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -39,19 +39,21 @@
  * @link http://www.phpcaptcha.org Securimage PHP CAPTCHA
  * @link http://www.phpcaptcha.org/latest.zip Download Latest Version
  * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
- * @copyright 2014 Drew Phillips
+ * @copyright 2015 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
- * @version 3.5.4 (Aug 27, 2014)
+ * @version 3.6 (Sep 20, 2015)
  * @package Securimage
  *
  */
 
 /**
 
- TODO:
- - Implement HTML5 playback of audio using Javascript, DOM, and HTML5 <audio> with Flash fallback
-
  ChangeLog
+
+ 3.6
+ - Implement CAPTCHA audio using HTML5 <audio> with optional Flash fallback
+ - Support MP3 audio using LAME MP3 Encoder (Internet Explorer 9+ does not support WAV format in <audio> tags)
+ - Add getCaptchaHtml() options to support full framework integration (ruifil)
 
  3.5.4
  - Fix email validation code in example form files
@@ -634,11 +636,12 @@ class Securimage
 
     /**
      * The path to the lame (mp3 encoder) binary on your system
+     * Static so that Securimage::getCaptchaHtml() has access to this value.
      *
      * @since 3.6
      * @var string
      */
-    public $lame_binary_path = '/usr/bin/lame';
+    public static $lame_binary_path = '/usr/bin/lame';
 
     /**
      * The path to the directory containing audio files that will be selected
@@ -1115,14 +1118,25 @@ class Securimage
      *
      *     'securimage_path':
      *         Optional: The URI to where securimage is installed (e.g. /securimage)
+     *     'show_image_url':
+     *         Path to the securimage_show.php script (useful when integrating with a framework or moving outside the securimage directory)
+     *         This will be passed as a urlencoded string to the <img> tag for outputting the captcha image
+     *     'audio_play_url':
+     *         Same as show_image_url, except this indicates the URL of the audio playback script
      *     'image_id':
      *          A string that sets the "id" attribute of the captcha image (default: captcha_image)
      *     'image_alt_text':
      *         The alt text of the captcha image (default: CAPTCHA Image)
      *     'show_audio_button':
      *         true/false  Whether or not to show the audio button (default: true)
+     *     'disable_flash_fallback':)
+     *         Allow only HTML5 audio and disable Flash fallback
      *     'show_refresh_button':
      *         true/false  Whether or not to show a button to refresh the image (default: true)
+     *     'audio_icon_url':
+     *         URL to the image used for showing the HTML5 audio icon
+     *     'icon_size':
+     *         Size (for both height & width) in pixels of the audio and refresh buttons
      *     'show_text_input':
      *         true/false  Whether or not to show the text input for the captcha (default: true)
      *     'refresh_alt_text':
@@ -1150,6 +1164,8 @@ class Securimage
      */
     public static function getCaptchaHtml($options = array())
     {
+        static $javascript_init = false;
+
         if (!isset($options['securimage_path'])) {
             $docroot = (isset($_SERVER['DOCUMENT_ROOT'])) ? $_SERVER['DOCUMENT_ROOT'] : substr($_SERVER['SCRIPT_FILENAME'], 0, -strlen($_SERVER['SCRIPT_NAME']));
             $docroot = realpath($docroot);
@@ -1163,10 +1179,13 @@ class Securimage
         $image_id          = (isset($options['image_id'])) ? $options['image_id'] : 'captcha_image';
         $image_alt         = (isset($options['image_alt_text'])) ? $options['image_alt_text'] : 'CAPTCHA Image';
         $show_audio_btn    = (isset($options['show_audio_button'])) ? (bool)$options['show_audio_button'] : true;
+        $disable_flash_fbk = (isset($options['disable_flash_fallback'])) ? (bool)$options['disable_flash_fallback'] : false;
         $show_refresh_btn  = (isset($options['show_refresh_button'])) ? (bool)$options['show_refresh_button'] : true;
         $refresh_icon_url  = (isset($options['refresh_icon_url'])) ? $options['refresh_icon_url'] : null;
         $audio_but_bg_col  = (isset($options['audio_button_bgcol'])) ? $options['audio_button_bgcol'] : '#ffffff';
         $audio_icon_url    = (isset($options['audio_icon_url'])) ? $options['audio_icon_url'] : null;
+        $loading_icon_url  = (isset($options['loading_icon_url'])) ? $options['loading_icon_url'] : null;
+        $icon_size         = (isset($options['icon_size'])) ? $options['icon_size'] : 32;
         $audio_play_url    = (isset($options['audio_play_url'])) ? $options['audio_play_url'] : null;
         $audio_swf_url     = (isset($options['audio_swf_url'])) ? $options['audio_swf_url'] : null;
         $show_input        = (isset($options['show_text_input'])) ? (bool)$options['show_text_input'] : true;
@@ -1186,7 +1205,7 @@ class Securimage
 
         $image_attr = '';
         if (!is_array($image_attrs)) $image_attrs = array();
-        if (!isset($image_attrs['align'])) $image_attrs['align'] = 'left';
+        if (!isset($image_attrs['style'])) $image_attrs['style'] = 'float: left; padding-right: 5px';
         $image_attrs['id']  = $image_id;
 
         $show_path = $securimage_path . '/securimage_show.php?';
@@ -1198,7 +1217,7 @@ class Securimage
             }
         }
         if (!empty($namespace)) {
-            $show_path .= sprintf('namespace=%s&', $namespace);
+            $show_path .= sprintf('namespace=%s&amp;', $namespace);
         }
         $image_attrs['src'] = $show_path . $rand;
 
@@ -1208,40 +1227,87 @@ class Securimage
             $image_attr .= sprintf('%s="%s" ', $name, htmlspecialchars($val));
         }
 
+        $audio_obj = null;
+
         $html = sprintf('<img %s/>', $image_attr);
 
         if ($show_audio_btn) {
             $swf_path  = $securimage_path . '/securimage_play.swf';
-            $play_path = $securimage_path . '/securimage_play.php';
+            $play_path = $securimage_path . '/securimage_play.php?';
             $icon_path = $securimage_path . '/images/audio_icon.png';
+            $load_path = $securimage_path . '/images/loading.png';
+            $js_path   = $securimage_path . '/securimage.js';
+            $audio_obj = $image_id . '_audioObj';
 
             if (!empty($audio_icon_url)) {
                 $icon_path = $audio_icon_url;
             }
 
+            if (!empty($loading_icon_url)) {
+                $load_path = $loading_icon_url;
+            }
+
             if (!empty($audio_play_url)) {
-                $play_path = $audio_play_url;
+                if (parse_url($audio_play_url, PHP_URL_QUERY)) {
+                    $play_path = "{$audio_play_url}&";
+                } else {
+                    $play_path = "{$audio_play_url}?";
+                }
+            }
+
+            if (!empty($namespace)) {
+                $play_path .= sprintf('namespace=%s&amp;', $namespace);
             }
 
             if (!empty($audio_swf_url)) {
                 $swf_path = $audio_swf_url;
             }
 
-            $html .= sprintf('<object type="application/x-shockwave-flash" data="%s?bgcol=%s&amp;icon_file=%s&amp;audio_file=%s" height="32" width="32">',
-                    htmlspecialchars($swf_path),
-                    urlencode($audio_but_bg_col),
-                    urlencode($icon_path),
-                    urlencode($play_path)
-            );
+            // html5 audio
+            $html .= sprintf('<div id="%s_audio_div">', $image_id) . "\n" .
+                     sprintf('<audio id="%s_audio" preload="none" style="display: none">', $image_id) . "\n";
 
-            $html .= sprintf('<param name="movie" value="%s?bgcol=%s&amp;icon_file=%s&amp;audio_file=%s" />',
-                    htmlspecialchars($swf_path),
-                    urlencode($audio_but_bg_col),
-                    urlencode($icon_path),
-                    urlencode($play_path)
-            );
+            // check for existence and executability of LAME binary
+            // prefer mp3 over wav by sourcing it first, if available
+            if (is_executable(Securimage::$lame_binary_path)) {
+                $html .= sprintf('<source id="%s_source_mp3" src="%sid=%s&amp;format=mp3" type="audio/mpeg">', $image_id, $play_path, uniqid()) . "\n";
+            }
 
-            $html .= '</object><br />';
+            // output wav source
+            $html .= sprintf('<source id="%s_source_wav" src="%sid=%s" type="audio/wav">', $image_id, $play_path, uniqid()) . "\n";
+
+            // flash audio button
+            if (!$disable_flash_fbk) {
+                $html .= sprintf('<object type="application/x-shockwave-flash" data="%s?bgcol=%s&amp;icon_file=%s&amp;audio_file=%s" height="%d" width="%d">',
+                        htmlspecialchars($swf_path),
+                        urlencode($audio_but_bg_col),
+                        urlencode($icon_path),
+                        urlencode(html_entity_decode($play_path)),
+                        $icon_size, $icon_size
+                );
+
+                $html .= sprintf('<param name="movie" value="%s?bgcol=%s&amp;icon_file=%s&amp;audio_file=%s" />',
+                        htmlspecialchars($swf_path),
+                        urlencode($audio_but_bg_col),
+                        urlencode($icon_path),
+                        urlencode(html_entity_decode($play_path))
+                );
+
+                $html .= '</object><br />';
+            }
+
+            // html5 audio close
+            $html .= "</audio>\n</div>\n";
+
+            // html5 audio controls
+            $html .= sprintf('<div id="%s_audio_controls">', $image_id) . "\n" .
+                     sprintf('<a tabindex="-1" class="captcha_play_button" href="%sid=%s" onclick="return false">',
+                             $play_path, uniqid()
+                     ) . "\n" .
+                     sprintf('<img class="captcha_play_image" height="%d" width="%d" src="%s" alt="Play CAPTCHA Audio" style="border: 0px">', $icon_size, $icon_size, htmlspecialchars($icon_path)) . "\n" .
+                     sprintf('<img class="captcha_loading_image rotating" height="%d" width="%d" src="%s" alt="Loading audio" style="display: none">', $icon_size, $icon_size, htmlspecialchars($load_path)) . "\n" .
+                     "</a>\n<noscript>Enable Javascript for audio controls</noscript>\n" .
+                     "</div>\n";
         }
 
         if ($show_refresh_btn) {
@@ -1249,15 +1315,27 @@ class Securimage
             if ($refresh_icon_url) {
                 $icon_path = $refresh_icon_url;
             }
-            $img_tag = sprintf('<img height="32" width="32" src="%s" alt="%s" onclick="this.blur()" align="bottom" border="0" />',
-                               htmlspecialchars($icon_path), htmlspecialchars($refresh_alt));
+            $img_tag = sprintf('<img height="%d" width="%d" src="%s" alt="%s" onclick="this.blur()" style="border: 0px; vertical-align: bottom" />',
+                               $icon_size, $icon_size, htmlspecialchars($icon_path), htmlspecialchars($refresh_alt));
 
-            $html .= sprintf('<a tabindex="-1" style="border: 0" href="#" title="%s" onclick="document.getElementById(\'%s\').src = \'%s\' + Math.random(); this.blur(); return false">%s</a><br />',
+            $html .= sprintf('<a tabindex="-1" style="border: 0" href="#" title="%s" onclick="%sdocument.getElementById(\'%s\').src = \'%s\' + Math.random(); this.blur(); return false">%s</a><br />',
                     htmlspecialchars($refresh_title),
+                    ($audio_obj) ? "{$audio_obj}.refresh(); " : '',
                     $image_id,
                     $show_path,
                     $img_tag
             );
+        }
+
+        if ($show_audio_btn) {
+            // html5 javascript
+            if (!$javascript_init) {
+                $html .= sprintf('<script type="text/javascript" src="%s"></script>', $js_path) . "\n";
+                $javascript_init = true;
+            }
+            $html .= '<script type="text/javascript">' .
+                     "$audio_obj = new SecurimageAudio({ audioElement: '{$image_id}_audio', controlsElement: '{$image_id}_audio_controls' });" .
+                     "</script>\n";
         }
 
         $html .= '<div style="clear: both"></div>';
@@ -1348,11 +1426,11 @@ class Securimage
         if ($this->canSendHeaders() || $this->send_headers == false) {
             if ($this->send_headers) {
                 if ($format == 'mp3') {
-                    $ext  = '.mp3';
+                    $ext  = 'mp3';
                     $type = 'audio/mpeg';
                 } else {
-                    $ext  = '.wav';
-                    $type = 'audio/x-wav';
+                    $ext  = 'wav';
+                    $type = 'audio/wav';
                 }
 
                 $uniq = md5(uniqid(microtime()));
@@ -2799,9 +2877,12 @@ class Securimage
      */
     protected function wavToMp3($data)
     {
-        if (!file_exists($this->lame_binary_path) || !is_executable($this->lame_binary_path)) {
+        if (!file_exists(self::$lame_binary_path) || !is_executable(self::$lame_binary_path)) {
             throw new Exception('Lame binary "' . $this->lame_binary_path . '" does not exist or is not executable');
         }
+
+        // size of wav data input
+        $size = strlen($data);
 
         // file descriptors for reading and writing to the Lame process
         $descriptors = array(
@@ -2810,8 +2891,21 @@ class Securimage
                 2 => array('pipe', 'a'), // stderr
         );
 
+        if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+            // workaround for Windows conversion
+            // writing to STDIN seems to hang indefinitely after writing approximately 0xC400 bytes
+            $wavinput = tempnam(sys_get_temp_dir(), 'wav');
+            if (!$wavinput) {
+                throw new Exception('Failed to create temporary file for WAV to MP3 conversion');
+            }
+            file_put_contents($wavinput, $data);
+            $size = 0;
+        } else {
+            $wavinput = '-'; // stdin
+        }
+
         // Mono, variable bit rate, 32 kHz sampling rate, read WAV from stdin, write MP3 to stdout
-        $cmd  = sprintf("%s -m m -v -b 32 - -", $this->lame_binary_path);
+        $cmd  = sprintf("%s -m m -v -b 32 %s -", self::$lame_binary_path, $wavinput);
         $proc = proc_open($cmd, $descriptors, $pipes);
 
         if (!is_resource($proc)) {
@@ -2819,7 +2913,6 @@ class Securimage
         }
 
         stream_set_blocking($pipes[0], 0); // set stdin to be non-blocking
-        $size  = strlen($data);
 
         for ($written = 0; $written < $size; $written += $len) {
             // write to stdin until all WAV data is written
@@ -2848,6 +2941,8 @@ class Securimage
         fclose($pipes[2]);
 
         $return = proc_close($proc);
+
+        if ($wavinput != '-') unlink($wavinput); // delete temp file on Windows
 
         if ($return !== 0) {
             throw new Exception("Failed to convert WAV to MP3.  Shell returned ({$return}): {$err}");
