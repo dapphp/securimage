@@ -1,9 +1,9 @@
 {
     "name": "dapphp/securimage",
     "type": "library",
-    "description": "PHP CAPTCHA Script",
+    "description": "PHP CAPTCHA Library",
     "keywords": ["captcha","security"],
-    "homepage": "http://phpcaptcha.org",
+    "homepage": "https://www.phpcaptcha.org",
     "license": "BSD",
     "authors": [
         {
