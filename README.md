@@ -4,7 +4,7 @@
 
 ## Version:
 
-**3.5.4**
+**3.6**
 
 ## Author:
 
@@ -12,7 +12,7 @@ Drew Phillips <drew@drew-phillips.com>
 
 ## Download:
 
-The latest version can always be found at [phpcaptcha.org](http://www.phpcaptcha.org)
+The latest version can always be found at [phpcaptcha.org](https://www.phpcaptcha.org)
 
 ## Documentation:
 
@@ -72,7 +72,7 @@ the image.
 It also creates audible codes which are played for visually impared users.
 
 ## Copyright:
-
+Script
     Copyright (c) 2014 Drew Phillips
     All rights reserved.
 
@@ -105,7 +105,7 @@ It also creates audible codes which are played for visually impared users.
     is used under the BSD License.  See WavFile.php for details.
     Many thanks to Paul Voegler (http://www.voegler.eu/) for contributing to
     Securimage.
-
+Script
 ---------------------------------------------------------------------------
 
 **Flash code for Securimage**
