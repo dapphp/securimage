@@ -52,7 +52,7 @@ $img = new Securimage();
 //$img->audio_use_noise = true;
 //$img->degrade_audio   = false;
 //$img->sox_binary_path = 'sox';
-//$img->lame_binary_path = '/usr/bin/lame'; // for mp3 audio support
+//Securimage::$lame_binary_path = '/usr/bin/lame'; // for mp3 audio support
 
 // To use an alternate language, uncomment the following and download the files from phpcaptcha.org
 // $img->audio_path = $img->securimage_path . '/audio/es/';
