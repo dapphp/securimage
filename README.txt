@@ -4,7 +4,7 @@ NAME:
 
 VERSION:
 
-    3.5.4
+    3.6.1
 
 AUTHOR:
 

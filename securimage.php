@@ -41,7 +41,7 @@
  * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
  * @copyright 2015 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
- * @version 3.6 (Sep 20, 2015)
+ * @version 3.6.1 (Oct 1, 2015)
  * @package Securimage
  *
  */
@@ -49,6 +49,9 @@
 /**
 
  ChangeLog
+
+ 3.6.1
+ - Fix copyElement bug in securimage.js for IE Flash fallback
 
  3.6
  - Implement CAPTCHA audio using HTML5 <audio> with optional Flash fallback
