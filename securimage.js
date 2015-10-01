@@ -73,11 +73,18 @@ SecurimageAudio.prototype.init = function() {
                 
                 if (this.flashFallback) {
                     // ie9+? bug - flash object does not display when moved from within audio tag to other dom node
-                    var newObjAu = this.copyElement(objAu);
+                    var newObjAu = document.createElement('object');
+                    var newParams = document.createElement('param');
+                    var oldParams = objAu.getElementsByTagName('param');
+                    this.copyElementAttributes(newObjAu, objAu);
+                    if (oldParams.length > 0) {
+                        this.copyElementAttributes(newParams, oldParams[0]);
+                        newObjAu.appendChild(newParams);
+                    }
                     objAu.parentNode.removeChild(objAu);
                     this.audioElement.parentNode.appendChild(newObjAu);
                 }
-                
+
                 this.audioElement.parentNode.removeChild(this.audioElement);
                 this.controlsElement.parentNode.removeChild(this.controlsElement);
                 
