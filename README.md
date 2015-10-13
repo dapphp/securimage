@@ -4,7 +4,7 @@
 
 ## Version:
 
-**3.6.1**
+**3.6.2**
 
 ## Author:
 
@@ -71,9 +71,24 @@ the image.
     
 It also creates audible codes which are played for visually impared users.
 
+## UPGRADE NOTICE:
+
+**3.6.2 and above:**
+
+If you are upgrading to 3.6.2 or greater *AND* are using database storage,
+the table structure has changed in 3.6.2 adding an audio_data column for
+storing audio files in the database in order to support HTTP range
+requests.  Delete your tables and have Securimage recreate them or see
+the function createDatabaseTables() in securimage.php for the new structure
+depending on which database backend you are using and alter the tables as
+needed.  If using SQLite, just overwrite your existing securimage.sq3 file
+with the one from this release.
+
+*If you are not using database tables for storage, ignore this notice.*
+
 ## Copyright:
 Script
-    Copyright (c) 2014 Drew Phillips
+    Copyright (c) 2015 Drew Phillips
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
