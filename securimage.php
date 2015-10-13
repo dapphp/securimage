@@ -41,7 +41,7 @@
  * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
  * @copyright 2015 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
- * @version 3.6.1 (Oct 1, 2015)
+ * @version 3.6.2 (Oct 13, 2015)
  * @package Securimage
  *
  */
@@ -49,6 +49,9 @@
 /**
 
  ChangeLog
+
+ 3.6.2
+ - Support HTTP range requests with audio playback (iOS requirement)
 
  3.6.1
  - Fix copyElement bug in securimage.js for IE Flash fallback
@@ -1409,13 +1412,27 @@ class Securimage
     {
         set_error_handler(array(&$this, 'errorHandler'));
 
-        require_once dirname(__FILE__) . '/WavFile.php';
+        if (isset($_SERVER['HTTP_RANGE'])) {
+            $range   = true;
+            $rangeId = (isset($_SERVER['HTTP_X_PLAYBACK_SESSION_ID'])) ?
+                       'ID' . $_SERVER['HTTP_X_PLAYBACK_SESSION_ID']   :
+                       'ID' . md5($_SERVER['REQUEST_URI']);
+            $uniq    = $rangeId;
+        } else {
+            $uniq = md5(uniqid(microtime()));
+        }
 
         try {
-            $audio = $this->getAudibleCode();
+            if (!($audio = $this->getAudioData())) {
+                // if previously generated audio not found for current captcha
+                require_once dirname(__FILE__) . '/WavFile.php';
+                $audio = $this->getAudibleCode();
 
-            if (strtolower($format) == 'mp3') {
-                $audio = $this->wavToMp3($audio);
+                if (strtolower($format) == 'mp3') {
+                    $audio = $this->wavToMp3($audio);
+                }
+
+                $this->saveAudioData($audio);
             }
         } catch (Exception $ex) {
             if (($fp = @fopen(dirname(__FILE__) . '/si.error_log', 'a+')) !== false) {
@@ -1424,6 +1441,12 @@ class Securimage
             }
 
             $audio = $this->audioError();
+        }
+
+        if ($this->no_session != true) {
+            // close session to make it available to other requests in the event
+            // streaming the audio takes sevaral seconds or more
+            session_write_close();
         }
 
         if ($this->canSendHeaders() || $this->send_headers == false) {
@@ -1436,21 +1459,15 @@ class Securimage
                     $type = 'audio/wav';
                 }
 
-                $uniq = md5(uniqid(microtime()));
+                header('Accept-Ranges: bytes');
                 header("Content-Disposition: attachment; filename=\"securimage_audio-{$uniq}.{$ext}\"");
                 header('Cache-Control: no-store, no-cache, must-revalidate');
                 header('Expires: Sun, 1 Jan 2000 12:00:00 GMT');
                 header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . 'GMT');
                 header('Content-type: ' . $type);
-
-                if (extension_loaded('zlib')) {
-                    ini_set('zlib.output_compression', true);  // compress output if supported by browser
-                } else {
-                    header('Content-Length: ' . strlen($audio));
-                }
             }
 
-            echo $audio;
+            $this->rangeDownload($audio);
         } else {
             echo '<hr /><strong>'
                 .'Failed to generate audio file, content has already been '
@@ -1461,6 +1478,68 @@ class Securimage
         restore_error_handler();
 
         if (!$this->no_exit) exit;
+    }
+
+    /**
+     * Output audio data with http range support.  Typically this shouldn't be
+     * called directly unless being used with a custom implentation.  Use
+     * Securimage::outputAudioFile instead.
+     *
+     * @param string $audio Raw wav or mp3 audio file content
+     */
+    public function rangeDownload($audio)
+    {
+        /* Congratulations Firefox Android/Linux/Windows for being the most
+         * sensible browser of all when streaming HTML5 audio!
+         *
+         * Chrome on Android and iOS on iPad/iPhone both make extra HTTP requests
+         * for the audio whether on WiFi or the mobile network resulting in
+         * multiple downloads of the audio file and wasted bandwidth.
+         *
+         * If I'm doing something wrong in this code or anyone knows why, I'd
+         * love to hear from you.
+         */
+        $audioLength = $size = strlen($audio);
+
+        if (isset($_SERVER['HTTP_RANGE'])) {
+            list( , $range) = explode('=', $_SERVER['HTTP_RANGE']); // bytes=byte-range-set
+            $range = trim($range);
+
+            if (strpos($range, ',') !== false) {
+                // eventually, we should handle requests with multiple ranges
+                // most likely these types of requests will never be sent
+                header('HTTP/1.1 416 Range Not Satisfiable');
+                echo "<h1>Range Not Satisfiable</h1>";
+                exit;
+            } else if (preg_match('/(\d+)-(\d+)/', $range, $match)) {
+                // bytes n - m
+                $range = array(intval($match[1]), intval($match[2]));
+            } else if (preg_match('/(\d+)-$/', $range, $match)) {
+                // bytes n - last byte of file
+                $range = array(intval($match[1]), null);
+            } else if (preg_match('/-(\d+)/', $range, $match)) {
+                // final n bytes of file
+                $range = array($size - intval($match[1]), $size - 1);
+            }
+
+            if ($range[1] === null) $range[1] = $size - 1;
+            $length = $range[1] - $range[0] + 1;
+            $audio = substr($audio, $range[0], $length);
+            $audioLength = strlen($audio);
+
+            header('HTTP/1.1 206 Partial Content');
+            header("Content-Range: bytes {$range[0]}-{$range[1]}/{$size}");
+
+            if ($range[0] < 0 ||$range[1] >= $size || $range[0] >= $size || $range[0] > $range[1]) {
+                header('HTTP/1.1 416 Range Not Satisfiable');
+                echo "<h1>Range Not Satisfiable</h1>";
+                exit;
+            }
+        }
+
+        header('Content-Length: ' . $audioLength);
+
+        echo $audio;
     }
 
     /**
@@ -2170,6 +2249,7 @@ class Securimage
                     $_SESSION['securimage_code_disp'] [$this->namespace] = '';
                     $_SESSION['securimage_code_value'][$this->namespace] = '';
                     $_SESSION['securimage_code_ctime'][$this->namespace] = '';
+                    $_SESSION['securimage_code_audio'][$this->namespace] = '';
                 }
                 $this->clearCodeFromDatabase();
             }
@@ -2191,11 +2271,53 @@ class Securimage
             $_SESSION['securimage_code_disp'] [$this->namespace] = $this->code_display;
             $_SESSION['securimage_code_value'][$this->namespace] = $this->code;
             $_SESSION['securimage_code_ctime'][$this->namespace] = time();
+            $_SESSION['securimage_code_audio'][$this->namespace] = null; // clear previous audio, if set
         }
 
         if ($this->use_database) {
             $this->saveCodeToDatabase();
         }
+    }
+
+    /**
+     * Save audio data to session and/or the configured database
+     *
+     * @param string $data The CAPTCHA audio data
+     */
+    protected function saveAudioData($data)
+    {
+        if ($this->no_session != true) {
+            $_SESSION['securimage_code_audio'][$this->namespace] = $data;
+        }
+
+        if ($this->use_database) {
+            $this->saveAudioToDatabase($data);
+        }
+    }
+
+    /**
+     * Gets audio file contents from the session or database
+     *
+     * @return string|boolean Audio contents on success, or false if no audio found in session or DB
+     */
+    protected function getAudioData()
+    {
+        if ($this->no_session != true) {
+            if (isset($_SESSION['securimage_code_audio'][$this->namespace])) {
+                return $_SESSION['securimage_code_audio'][$this->namespace];
+            }
+        }
+
+        if ($this->use_database) {
+            $this->openDatabase();
+            $code = $this->getCodeFromDatabase();
+
+            if (!empty($code['audio_data'])) {
+                return $code['audio_data'];
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -2219,6 +2341,8 @@ class Securimage
             $code_disp = $this->code_display;
 
             // This is somewhat expensive in PDO Sqlite3 (when there is something to delete)
+            // Clears previous captcha for this client from database so we can do a straight insert
+            // without having to do INSERT ... ON DUPLICATE KEY or a find/update
             $this->clearCodeFromDatabase();
 
             $query = "INSERT INTO {$this->database_table} ("
@@ -2240,6 +2364,35 @@ class Securimage
 
                 trigger_error($error, E_USER_WARNING);
             }
+        }
+
+        return $success !== false;
+    }
+
+    /**
+     * Saves CAPTCHA audio to the configured database
+     *
+     * @param string $data Audio data
+     * @return boolean true on success, false on failure
+     */
+    protected function saveAudioToDatabase($data)
+    {
+        $success = false;
+        $this->openDatabase();
+
+        if ($this->use_database && $this->pdo_conn) {
+            $id = $this->getCaptchaId(false);
+            $ip = $_SERVER['REMOTE_ADDR'];
+
+            if (empty($id)) {
+                $id = $ip;
+            }
+
+            $query = "UPDATE {$this->database_table} SET audio_data = :audioData WHERE id = :id";
+            $stmt  = $this->pdo_conn->prepare($query);
+            $stmt->bindParam(':audioData', $data, PDO::PARAM_LOB);
+            $stmt->bindParam(':id', $id);
+            $success = $stmt->execute();
         }
 
         return $success !== false;
@@ -2415,6 +2568,7 @@ class Securimage
                                 code VARCHAR(32) NOT NULL,
                                 code_display VARCHAR(32) NOT NULL,
                                 created INTEGER NOT NULL,
+                                audio_data BLOB NULL,
                                 PRIMARY KEY(id, namespace)
                               )";
 
@@ -2428,6 +2582,7 @@ class Securimage
                                 `code` VARCHAR(32) NOT NULL,
                                 `code_display` VARCHAR(32) NOT NULL,
                                 `created` INT NOT NULL,
+                                `audio_data` MEDIUMBLOB NULL,
                                 PRIMARY KEY(id, namespace),
                                 INDEX(created)
                               )";
@@ -2440,6 +2595,7 @@ class Securimage
                                 code character varying(32) NOT NULL,
                                 code_display character varying(32) NOT NULL,
                                 created integer NOT NULL,
+                                audio_data bytea NULL,
                                 CONSTRAINT pkey_id_namespace PRIMARY KEY (id, namespace)
                               )";
 
@@ -2498,10 +2654,19 @@ class Securimage
             } else {
                 if ( ($row = $stmt->fetch()) !== false ) {
                     if (false == $this->isCodeExpired($row['created'])) {
+                        if ($this->database_driver == self::SI_DRIVER_PGSQL && is_resource($row['audio_data'])) {
+                            // pg bytea data returned as stream resource
+                            $data = '';
+                            while (!feof($row['audio_data'])) {
+                                $data .= fgets($row['audio_data']);
+                            }
+                            $row['audio_data'] = $data;
+                        }
                         $code = array(
                             'code'      => $row['code'],
                             'code_disp' => $row['code_display'],
                             'time'      => $row['created'],
+                            'audio_data' => $row['audio_data'],
                         );
                     }
                 }
