@@ -52,6 +52,7 @@
 
  3.6.2
  - Support HTTP range requests with audio playback (iOS requirement)
+ - Add optional config.inc.php for storing global configuration settings
 
  3.6.1
  - Fix copyElement bug in securimage.js for IE Flash fallback
@@ -906,6 +907,24 @@ class Securimage
     public function __construct($options = array())
     {
         $this->securimage_path = dirname(__FILE__);
+
+        if (!is_array($options)) {
+            trigger_error(
+                    '$options passed to Securimage::__construct() must be an array.  ' .
+                    gettype($options) . ' given',
+                    E_USER_WARNING
+            );
+            $options = array();
+        }
+
+        // check for and load settings from custom config file
+        if (file_exists(dirname(__FILE__) . '/config.inc.php')) {
+            $settings = include dirname(__FILE__) . '/config.inc.php';
+
+            if (is_array($settings)) {
+                $options = array_merge($settings, $options);
+            }
+        }
 
         if (is_array($options) && sizeof($options) > 0) {
             foreach($options as $prop => $val) {
