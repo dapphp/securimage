@@ -226,5 +226,24 @@ SecurimageAudio.prototype.audioStopped = function() {
 }
 
 SecurimageAudio.prototype.audioError = function(err) {
-    alert('Audio playback error: ' + err.message);
+    var msg = null;
+    switch(err.target.error.code) {
+        case err.target.error.MEDIA_ERR_ABORTED:
+            break;
+        case err.target.error.MEDIA_ERR_NETWORK:
+            msg = 'A network error caused the audio download to fail.';
+            break;
+        case err.target.error.MEDIA_ERR_DECODE:
+            alert('An error occurred while decoding the audio');
+            break;
+        case err.target.error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+            alert('The audio format is not supported by your browser.');
+            break;
+        default:
+            alert('An unknown error occurred trying to play the audio.');
+            break;
+    }
+    if (msg) {
+        alert('Audio playback error: ' + msg);
+    }
 }
