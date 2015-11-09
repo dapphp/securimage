@@ -1136,257 +1136,448 @@ class Securimage
         return $this->correct_code;
     }
 
-    /**
-     * Returns HTML code for displaying the captcha image, audio button, and form text input.
-     *
-     * Options can be specified to modify the output of the HTML.  Accepted options:
-     *
-     *     'securimage_path':
-     *         Optional: The URI to where securimage is installed (e.g. /securimage)
-     *     'show_image_url':
-     *         Path to the securimage_show.php script (useful when integrating with a framework or moving outside the securimage directory)
-     *         This will be passed as a urlencoded string to the <img> tag for outputting the captcha image
-     *     'audio_play_url':
-     *         Same as show_image_url, except this indicates the URL of the audio playback script
-     *     'image_id':
-     *          A string that sets the "id" attribute of the captcha image (default: captcha_image)
-     *     'image_alt_text':
-     *         The alt text of the captcha image (default: CAPTCHA Image)
-     *     'show_audio_button':
-     *         true/false  Whether or not to show the audio button (default: true)
-     *     'disable_flash_fallback':)
-     *         Allow only HTML5 audio and disable Flash fallback
-     *     'show_refresh_button':
-     *         true/false  Whether or not to show a button to refresh the image (default: true)
-     *     'audio_icon_url':
-     *         URL to the image used for showing the HTML5 audio icon
-     *     'icon_size':
-     *         Size (for both height & width) in pixels of the audio and refresh buttons
-     *     'show_text_input':
-     *         true/false  Whether or not to show the text input for the captcha (default: true)
-     *     'refresh_alt_text':
-     *         Alt text for the refresh image (default: Refresh Image)
-     *     'refresh_title_text':
-     *         Title text for the refresh image link (default: Refresh Image)
-     *     'input_id':
-     *         A string that sets the "id" attribute of the captcha text input (default: captcha_code)
-     *     'input_name':
-     *         A string that sets the "name" attribute of the captcha text input (default: same as input_id)
-     *     'input_text':
-     *         A string that sets the text of the label for the captcha text input (default: Type the text:)
-     *     'input_attributes':
-     *         An array of additional HTML tag attributes to pass to the text input tag (default: empty)
-     *     'image_attributes':
-     *         An array of additional HTML tag attributes to pass to the captcha image tag (default: empty)
-     *     'error_html':
-     *         Optional HTML markup to be shown above the text input field
-     *     'namespace':
-     *         The optional captcha namespace to use for showing the image and playing back the audio. Namespaces are for using multiple captchas on the same page.
-     *
-     * @param array $options Array of options for modifying the HTML code.
-     *
-     * @return string  The generated HTML code for displaying the captcha
-     */
-    public static function getCaptchaHtml($options = array())
-    {
-        static $javascript_init = false;
+/**
+	 * @var array containing all instances of this class. The indexes are the namespaces;
+	 */
+	private static $instances	= array();
 
-        if (!isset($options['securimage_path'])) {
-            $docroot = (isset($_SERVER['DOCUMENT_ROOT'])) ? $_SERVER['DOCUMENT_ROOT'] : substr($_SERVER['SCRIPT_FILENAME'], 0, -strlen($_SERVER['SCRIPT_NAME']));
-            $docroot = realpath($docroot);
-            $sipath  = dirname(__FILE__);
-            $securimage_path = str_replace($docroot, '', $sipath);
-        } else {
-            $securimage_path = $options['securimage_path'];
-        }
+	/**
+	 * Returns the an object for the selected namespace, only creating it if it doesn't already exist.
+	 * @param string $namespace
+	 * @param string $options
+	 * @throws RuntimeException
+	 * @return Securimage Object
+	 */
+	public static function getInstance($namespace='default', $options=null)
+	{
 
-        $show_image_url    = (isset($options['show_image_url'])) ? $options['show_image_url'] : null;
-        $image_id          = (isset($options['image_id'])) ? $options['image_id'] : 'captcha_image';
-        $image_alt         = (isset($options['image_alt_text'])) ? $options['image_alt_text'] : 'CAPTCHA Image';
-        $show_audio_btn    = (isset($options['show_audio_button'])) ? (bool)$options['show_audio_button'] : true;
-        $disable_flash_fbk = (isset($options['disable_flash_fallback'])) ? (bool)$options['disable_flash_fallback'] : false;
-        $show_refresh_btn  = (isset($options['show_refresh_button'])) ? (bool)$options['show_refresh_button'] : true;
-        $refresh_icon_url  = (isset($options['refresh_icon_url'])) ? $options['refresh_icon_url'] : null;
-        $audio_but_bg_col  = (isset($options['audio_button_bgcol'])) ? $options['audio_button_bgcol'] : '#ffffff';
-        $audio_icon_url    = (isset($options['audio_icon_url'])) ? $options['audio_icon_url'] : null;
-        $loading_icon_url  = (isset($options['loading_icon_url'])) ? $options['loading_icon_url'] : null;
-        $icon_size         = (isset($options['icon_size'])) ? $options['icon_size'] : 32;
-        $audio_play_url    = (isset($options['audio_play_url'])) ? $options['audio_play_url'] : null;
-        $audio_swf_url     = (isset($options['audio_swf_url'])) ? $options['audio_swf_url'] : null;
-        $show_input        = (isset($options['show_text_input'])) ? (bool)$options['show_text_input'] : true;
-        $refresh_alt       = (isset($options['refresh_alt_text'])) ? $options['refresh_alt_text'] : 'Refresh Image';
-        $refresh_title     = (isset($options['refresh_title_text'])) ? $options['refresh_title_text'] : 'Refresh Image';
-        $input_text        = (isset($options['input_text'])) ? $options['input_text'] : 'Type the text:';
-        $input_id          = (isset($options['input_id'])) ? $options['input_id'] : 'captcha_code';
-        $input_name        = (isset($options['input_name'])) ? $options['input_name'] :  $input_id;
-        $input_attrs       = (isset($options['input_attributes'])) ? $options['input_attributes'] : array();
-        $image_attrs       = (isset($options['image_attributes'])) ? $options['image_attributes'] : array();
-        $error_html        = (isset($options['error_html'])) ? $options['error_html'] : null;
-        $namespace         = (isset($options['namespace'])) ? $options['namespace'] : '';
+		if (empty(static::$instances[$namespace]))
+		{
+			static::$instances[$namespace] = new Securimage();
+			static::$instances[$namespace]->namespace	= $namespace;
+		}
+	
+		return static::$instances[$namespace];
+	}
+	
+	public function getCaptchaHtmlCode($options = array())
+	{
+		foreach ($options as $key => $value) {
+			$this->set($key, $value);
+		}
+		
+		static $javascript_init = false;
+		
+		$securimage_path	= $this->get('securimage_path');
+		if (empty($securimage_path)) {
+			$docroot = (isset($_SERVER['DOCUMENT_ROOT'])) ? $_SERVER['DOCUMENT_ROOT'] : substr($_SERVER['SCRIPT_FILENAME'], 0, -strlen($_SERVER['SCRIPT_NAME']));
+			$docroot = realpath($docroot);
+			$sipath  = dirname(__FILE__);
+			$securimage_path = str_replace($docroot, '', $sipath);
+		}
+		
+		$securimage_path   = rtrim($securimage_path, '/\\');
+		$securimage_path   = str_replace('\\', '/', $securimage_path);
 
-        $rand              = md5(uniqid($_SERVER['REMOTE_PORT'], true));
-        $securimage_path   = rtrim($securimage_path, '/\\');
-        $securimage_path   = str_replace('\\', '/', $securimage_path);
+		// update setting, so we can access it from other methods
+		$this->set('securimage_path',$securimage_path);
+		
+		// Get default show_path is show_image_url is null
+		$show_path			= $this->get('show_image_url',$securimage_path . '/securimage_show.php');
+		if (parse_url($show_path, PHP_URL_QUERY))
+		{
+			$show_path	.= "&";
+		}
+		else
+		{
+			$show_path	.= "?";
+		}
+		
+		if (!empty($this->namespace))
+		{
+			$show_path	.= sprintf('namespace=%s&amp;', $this->namespace);
+		}
+		$show_path	.= md5(uniqid($_SERVER['REMOTE_PORT'], true));
+		
+		// set the show_image_url with the $show_path with $namespace to be used by the getReloadButton() and getCaptchaImage() methods
+		$this->set('show_image_url',$show_path);
+		
+		$captcha_image	= $this->getCaptchaImage();
+		$play_button	= $this->getPlayButton();
+		$reload_button	= $this->getReloadButton();
+		$captcha_textbox= $this->getCaptchaTextBox();
+		$javascript		= $this->getJavascript();
+		
+		$html	= '';
+		
+		$html	.= $captcha_image;
+		$html	.= $play_button;
+		$html	.= $reload_button;
+		
+		$html	.= $captcha_textbox;
+		
+		$html	.= $javascript;
+		
+		$html = '<div class="captcha-container">'
+				.$html
+				.'</div>';
+		$html .= '<div style="clear:both"></div>';
+		return $html;
+		
+	}
+	/**
+	 * Making backwords compatible with older versions
+	 * @param array $options
+	 */
+	public static function getCaptchaHtml($options = array())
+	{
+		$namespace	= (empty($options['namespace'])	?	'default' : $options['namespace']);
+		$securimage	= self::getInstance($namespace, $options);
+		return $securimage->getCaptchaHtmlCode($options);
+	}
+	
 
-        $image_attr = '';
-        if (!is_array($image_attrs)) $image_attrs = array();
-        if (!isset($image_attrs['style'])) $image_attrs['style'] = 'float: left; padding-right: 5px';
-        $image_attrs['id']  = $image_id;
+	/**
+	 * Creates HTML5 audio tag OR flash fallback object based on parameters provided by the  getCaptchaHtmlCode() method
+	 * @return string image HTML tag
+	 */
+	public function getPlayButton()
+	{
+		$audio_obj	= null;
+		$html		= '';
+		
+		if ($this->get('show_audio_button',true))
+		{
+			$securimage_path= $this->get('securimage_path');
+			$swf_path		= $this->get('audio_swf_url',	$securimage_path . '/securimage_play.swf');
+			$play_path		= $this->get('audio_play_url',	$securimage_path . '/securimage_play.php');
+			$icon_path		= $this->get('audio_icon_url',	$securimage_path . '/images/audio_icon.png');
+			$load_path		= $this->get('loading_icon_url',$securimage_path . '/images/loading.png');
+			$image_id		= $this->get('image_id','captcha_image');
+			$audio_obj		= $image_id . '_audioObj';
+			$icon_size		= $this->get('icon_size','32');
+			$audio_but_bg_col	= $this->get('audio_button_bgcol','#ffffff');
+			$disable_flash_fbk	= (bool) $this->get('disable_flash_fallback',false);
+		
 
-        $show_path = $securimage_path . '/securimage_show.php?';
-        if ($show_image_url) {
-            if (parse_url($show_image_url, PHP_URL_QUERY)) {
-                $show_path = "{$show_image_url}&";
-            } else {
-                $show_path = "{$show_image_url}?";
-            }
-        }
-        if (!empty($namespace)) {
-            $show_path .= sprintf('namespace=%s&amp;', $namespace);
-        }
-        $image_attrs['src'] = $show_path . $rand;
+			if (parse_url($play_path, PHP_URL_QUERY))
+			{
+				$play_path	.= "&";
+			}
+			else
+			{
+				$play_path	.= "?";
+			}
 
-        $image_attrs['alt'] = $image_alt;
+			if (!empty($this->namespace))
+			{
+				$play_path	.= sprintf('namespace=%s&amp;', $this->namespace);
+			}		
+		
+			// html5 audio
+			$html .= sprintf('<div id="%s_audio_div">', $image_id) . "\n" .
+				sprintf('<audio id="%s_audio" preload="none" style="display: none">', $image_id) . "\n";
+		
+			// check for existence and executability of LAME binary
+			// prefer mp3 over wav by sourcing it first, if available
+			if (is_executable(Securimage::$lame_binary_path)) {
+				$html .= sprintf('<source id="%s_source_mp3" src="%sid=%s&amp;format=mp3" type="audio/mpeg">', $image_id, $play_path, uniqid()) . "\n";
+			}
+		
+			// output wav source
+			$html .= sprintf('<source id="%s_source_wav" src="%sid=%s" type="audio/wav">', $image_id, $play_path, uniqid()) . "\n";
+		
+			// flash audio button
+			if (!$disable_flash_fbk) {
+				$html .= sprintf('<object type="application/x-shockwave-flash" data="%s?bgcol=%s&amp;icon_file=%s&amp;audio_file=%s" height="%d" width="%d">',
+					htmlspecialchars($swf_path),
+					urlencode($audio_but_bg_col),
+					urlencode($icon_path),
+					urlencode(html_entity_decode($play_path)),
+					$icon_size, $icon_size
+				);
+		
+				$html .= sprintf('<param name="movie" value="%s?bgcol=%s&amp;icon_file=%s&amp;audio_file=%s" />',
+					htmlspecialchars($swf_path),
+					urlencode($audio_but_bg_col),
+					urlencode($icon_path),
+					urlencode(html_entity_decode($play_path))
+				);
+		
+				$html .= '</object><br />';
+			}
+		
+			// html5 audio close
+			$html .= "</audio>\n</div>\n";
+		
+			// html5 audio controls
+			$html .= sprintf('<div id="%s_audio_controls" style="'.($this->get('textbox_position','bottom') == 'bottom' ? '' : 'float:left;padding-right:9px').'">', $image_id) . "\n" .
+				sprintf('<a tabindex="-1" class="captcha_play_button" href="%sid=%s" onclick="return false">',
+					$play_path, uniqid()
+				) . "\n" .
+				sprintf('<img class="captcha_play_image" height="%d" width="%d" src="%s" alt="Play CAPTCHA Audio" style="border: 0px">', $icon_size, $icon_size, htmlspecialchars($icon_path)) . "\n" .
+				sprintf('<img class="captcha_loading_image rotating" height="%d" width="%d" src="%s" alt="Loading audio" style="display: none">', $icon_size, $icon_size, htmlspecialchars($load_path)) . "\n" .
+				"</a>\n<noscript>Enable Javascript for audio controls</noscript>\n" .
+				"</div>\n";
+		}
+		
+		return $html;
+	}
 
-        foreach($image_attrs as $name => $val) {
-            $image_attr .= sprintf('%s="%s" ', $name, htmlspecialchars($val));
-        }
+	/**
+	 * Creates reload image tag based on parameters provided by the  getCaptchaHtmlCode() method
+	 * @return string reload image HTML tag
+	 */
+	public function getReloadButton()
+	{
+		$html	= '';
+		if ($this->get('show_refresh_button',true))
+		{
+			$securimage_path= $this->get('securimage_path');
+			$image_id		= $this->get('image_id','captcha_image');
+			$icon_path		= $this->get('refresh_icon_url',	$securimage_path . '/images/refresh.png');
+			$icon_size		= $this->get('icon_size','32');
+			$refresh_alt	= $this->get('refresh_alt_text','Refresh Image');
+			$refresh_title	= $this->get('refresh_title_text',$refresh_alt);
+			$input_id		=  $this->get('input_id',	'captcha_code');
+			
+			// Get default show_path is show_image_url is null
+			$show_path		= $this->get('show_image_url',$securimage_path . '/securimage_show.php');
+			
+			if ($this->get('show_audio_button',true))
+			{
+				$audio_obj		= $image_id . '_audioObj';
+			}
+			
+			$img_tag = sprintf('<img height="%d" width="%d" src="%s" alt="%s" onclick="this.blur()" style="border: 0px; vertical-align: bottom" />',
+				$icon_size, $icon_size, htmlspecialchars($icon_path), htmlspecialchars($refresh_alt));
+			
+			$html .= sprintf('<a tabindex="-1" style="border: 0" href="%s#captcha" title="%s" 
+					onclick="updateSICatpcha(%s); this.blur(); return false">%s</a><br />',
+				$this->getCurrentURL(), // added current URL in order to avoid incompatibilities and/or javascript issues
+				htmlspecialchars($refresh_title),
+				"'{$image_id}'",
+				$img_tag
+			);
+		}
+		return $html;
+	}
+	/**
+	 * Injects javascript into code
+	 * @return string HTML with javascript tags
+	 */
+	public function getJavascript()
+	{
+		static $javascript_init = false;
+		
+		$html	= '';
+		if ($this->get('show_audio_button',true))
+		{
+			$securimage_path= $this->get('securimage_path');
+			$image_id		= $this->get('image_id','captcha_image');
+			$audio_obj		= $image_id . '_audioObj';
+			// html5 javascript
+			if (!$javascript_init) {
+				$js_path		= $this->get('javascrpt_url',	$securimage_path . '/securimage.js');
+				$html .= sprintf('<script type="text/javascript" src="%s"></script>', $js_path) . "\n";
+				$javascript_init = true;
+			}
+			$html .= '<script type="text/javascript">' .
+				"$audio_obj = new SecurimageAudio({ audioElement: '{$image_id}_audio', controlsElement: '{$image_id}_audio_controls' });" .
+				"</script>\n";
+		}
+		return $html;
+	}
+	
+	/**
+	 * Creates image tag based on parameters provided by the  getCaptchaHtmlCode() method
+	 * @return string image HTML tag
+	 */
+	public function getCaptchaImage()
+	{
+		$securimage_path	= $this->get('securimage_path');
+		$image_attrs		= $this->get('image_attributes', array());
+		
+		if (empty($image_attrs['style']))
+		{
+			$image_attrs['style'] = 'float:left;padding-right:5px';
+		}
+		// Set's the default image_id if none
+		$image_attrs['id']  = $this->get('image_id','captcha_image');
+		
+		// Get default show_path is show_image_url is null
+		$show_path			= $this->get('show_image_url',$securimage_path . '/securimage_show.php');
+		
+		$image_attrs['src'] 	= $show_path . md5(uniqid($_SERVER['REMOTE_PORT'], true));
+		$image_attrs['data-url']= $show_path;
+		$image_attrs['data-text-input'] = $this->get('input_id',	'captcha_code');
+		
+		if ($this->get('show_audio_button',true))
+		{
+			$image_attrs['data-audioObj'] = $image_attrs['id'].'_audioObj';
+		}
+		
+		$image_attrs['alt'] = $this->get('image_alt_text','CAPTCHA Image');
+		
+		$image_attr			= '';
+		foreach($image_attrs as $name => $val)
+		{
+			$image_attr	.= sprintf('%s="%s" ', $name, htmlspecialchars($val));
+		}
+		
+		return sprintf('<img %s />', $image_attr);
+	}
+	
+	/**
+	 * Creates text box and label tags based on parameters provided by the  getCaptchaHtmlCode() method
+	 * @return string HTML for the text box and respective label
+	 */
+	public function getCaptchaTextBox()
+	{
+	
+		$html		= '';
+		$input_id	=  $this->get('input_id',	'captcha_code');
+		$input_text	=  $this->get('input_text',	'Type the text:');
+		$input_name	=  $this->get('input_name',	$input_id);
+		
+		$input_attr = '';
+		$input_attrs		= $this->get('input_attributes', array());
+		$input_attrs['type']= 'text';
+		$input_attrs['name']= $input_name;
+		$input_attrs['id']	= $input_id;
+		$input_attrs['autocomplete'] = 'off';
+		
+		if($this->get('show_input_label',true))
+		{
+			$html .= sprintf('<label for="%s">%s</label> ',
+				htmlspecialchars($input_id),
+				htmlspecialchars($input_text));
+		}
+		else
+		{
+			$input_attrs['placeholder']	= $input_text;
+		}
+		
+		$error_html	= $this->get('error_html');
+		if (!empty($error_html))
+		{
+			$html .= $error_html;
+		}
+		
+		
+		foreach($input_attrs as $name => $val)
+		{
+			$input_attr .= sprintf('%s="%s" ', $name, htmlspecialchars($val));
+		}
+		
+		$html .= sprintf('<input %s/>', $input_attr);
+		
+		$html = '<div class="captcha-textbox-container" style="'.($this->get('textbox_position','bottom') == 'bottom' ? 'clear:both' : 'float:left').'">'
+					.$html
+				.'</div>';
+		
+		return $html;
+	}
+	/**
+	 * Sets a default value if not already assigned
+	 *
+	 * @param   string  $property  The name of the property.
+	 * @param   mixed   $default   The default value.
+	 *
+	 * @return  mixed
+	 */
+	public function def($property, $default = null)
+	{
+		$value = $this->get($property, $default);
 
-        $audio_obj = null;
+		return $this->set($property, $value);
+	}
 
-        $html = sprintf('<img %s/>', $image_attr);
+	/**
+	 * Returns a property of the object or the default value if the property is not set.
+	 *
+	 * @param   string  $property  The name of the property.
+	 * @param   mixed   $default   The default value.
+	 *
+	 * @return  mixed    The value of the property.
+	 */
+	public function get($property, $default = null)
+	{
+		if (isset($this->$property))
+		{
+			return $this->$property;
+		}
 
-        if ($show_audio_btn) {
-            $swf_path  = $securimage_path . '/securimage_play.swf';
-            $play_path = $securimage_path . '/securimage_play.php?';
-            $icon_path = $securimage_path . '/images/audio_icon.png';
-            $load_path = $securimage_path . '/images/loading.png';
-            $js_path   = $securimage_path . '/securimage.js';
-            $audio_obj = $image_id . '_audioObj';
+		return $default;
+	}
 
-            if (!empty($audio_icon_url)) {
-                $icon_path = $audio_icon_url;
-            }
+	/**
+	 * Modifies a property of the object, creating it if it does not already exist.
+	 *
+	 * @param   string  $property  The name of the property.
+	 * @param   mixed   $value     The value of the property to set.
+	 *
+	 * @return  mixed  Previous value of the property.
+	 */
+	public function set($property, $value = null)
+	{
+		$previous = isset($this->$property) ? $this->$property : null;
+		$this->$property = $value;
 
-            if (!empty($loading_icon_url)) {
-                $load_path = $loading_icon_url;
-            }
-
-            if (!empty($audio_play_url)) {
-                if (parse_url($audio_play_url, PHP_URL_QUERY)) {
-                    $play_path = "{$audio_play_url}&";
-                } else {
-                    $play_path = "{$audio_play_url}?";
-                }
-            }
-
-            if (!empty($namespace)) {
-                $play_path .= sprintf('namespace=%s&amp;', $namespace);
-            }
-
-            if (!empty($audio_swf_url)) {
-                $swf_path = $audio_swf_url;
-            }
-
-            // html5 audio
-            $html .= sprintf('<div id="%s_audio_div">', $image_id) . "\n" .
-                     sprintf('<audio id="%s_audio" preload="none" style="display: none">', $image_id) . "\n";
-
-            // check for existence and executability of LAME binary
-            // prefer mp3 over wav by sourcing it first, if available
-            if (is_executable(Securimage::$lame_binary_path)) {
-                $html .= sprintf('<source id="%s_source_mp3" src="%sid=%s&amp;format=mp3" type="audio/mpeg">', $image_id, $play_path, uniqid()) . "\n";
-            }
-
-            // output wav source
-            $html .= sprintf('<source id="%s_source_wav" src="%sid=%s" type="audio/wav">', $image_id, $play_path, uniqid()) . "\n";
-
-            // flash audio button
-            if (!$disable_flash_fbk) {
-                $html .= sprintf('<object type="application/x-shockwave-flash" data="%s?bgcol=%s&amp;icon_file=%s&amp;audio_file=%s" height="%d" width="%d">',
-                        htmlspecialchars($swf_path),
-                        urlencode($audio_but_bg_col),
-                        urlencode($icon_path),
-                        urlencode(html_entity_decode($play_path)),
-                        $icon_size, $icon_size
-                );
-
-                $html .= sprintf('<param name="movie" value="%s?bgcol=%s&amp;icon_file=%s&amp;audio_file=%s" />',
-                        htmlspecialchars($swf_path),
-                        urlencode($audio_but_bg_col),
-                        urlencode($icon_path),
-                        urlencode(html_entity_decode($play_path))
-                );
-
-                $html .= '</object><br />';
-            }
-
-            // html5 audio close
-            $html .= "</audio>\n</div>\n";
-
-            // html5 audio controls
-            $html .= sprintf('<div id="%s_audio_controls">', $image_id) . "\n" .
-                     sprintf('<a tabindex="-1" class="captcha_play_button" href="%sid=%s" onclick="return false">',
-                             $play_path, uniqid()
-                     ) . "\n" .
-                     sprintf('<img class="captcha_play_image" height="%d" width="%d" src="%s" alt="Play CAPTCHA Audio" style="border: 0px">', $icon_size, $icon_size, htmlspecialchars($icon_path)) . "\n" .
-                     sprintf('<img class="captcha_loading_image rotating" height="%d" width="%d" src="%s" alt="Loading audio" style="display: none">', $icon_size, $icon_size, htmlspecialchars($load_path)) . "\n" .
-                     "</a>\n<noscript>Enable Javascript for audio controls</noscript>\n" .
-                     "</div>\n";
-        }
-
-        if ($show_refresh_btn) {
-            $icon_path = $securimage_path . '/images/refresh.png';
-            if ($refresh_icon_url) {
-                $icon_path = $refresh_icon_url;
-            }
-            $img_tag = sprintf('<img height="%d" width="%d" src="%s" alt="%s" onclick="this.blur()" style="border: 0px; vertical-align: bottom" />',
-                               $icon_size, $icon_size, htmlspecialchars($icon_path), htmlspecialchars($refresh_alt));
-
-            $html .= sprintf('<a tabindex="-1" style="border: 0" href="#" title="%s" onclick="%sdocument.getElementById(\'%s\').src = \'%s\' + Math.random(); this.blur(); return false">%s</a><br />',
-                    htmlspecialchars($refresh_title),
-                    ($audio_obj) ? "{$audio_obj}.refresh(); " : '',
-                    $image_id,
-                    $show_path,
-                    $img_tag
-            );
-        }
-
-        if ($show_audio_btn) {
-            // html5 javascript
-            if (!$javascript_init) {
-                $html .= sprintf('<script type="text/javascript" src="%s"></script>', $js_path) . "\n";
-                $javascript_init = true;
-            }
-            $html .= '<script type="text/javascript">' .
-                     "$audio_obj = new SecurimageAudio({ audioElement: '{$image_id}_audio', controlsElement: '{$image_id}_audio_controls' });" .
-                     "</script>\n";
-        }
-
-        $html .= '<div style="clear: both"></div>';
-
-        $html .= sprintf('<label for="%s">%s</label> ',
-                htmlspecialchars($input_id),
-                htmlspecialchars($input_text));
-
-        if (!empty($error_html)) {
-            $html .= $error_html;
-        }
-
-        $input_attr = '';
-        if (!is_array($input_attrs)) $input_attrs = array();
-        $input_attrs['type'] = 'text';
-        $input_attrs['name'] = $input_name;
-        $input_attrs['id']   = $input_id;
-
-        foreach($input_attrs as $name => $val) {
-            $input_attr .= sprintf('%s="%s" ', $name, htmlspecialchars($val));
-        }
-
-        $html .= sprintf('<input %s/>', $input_attr);
-
-        return $html;
-    }
+		return $previous;
+	}
+	
+	/**
+	 * 
+	 * @return string the current URL
+	 *
+	 */
+	public function getCurrentURL() {
+		// Determine if the request was over SSL (HTTPS).
+		if (isset($_SERVER['HTTPS']) && !empty($_SERVER['HTTPS']) && (strtolower($_SERVER['HTTPS']) != 'off'))
+		{
+			$https = 's://';
+		}
+		else
+		{
+			$https = '://';
+		}
+		
+		/*
+		 * Since we are assigning the URI from the server variables, we first need
+		* to determine if we are running on apache or IIS.  If PHP_SELF and REQUEST_URI
+		* are present, we will assume we are running on apache.
+		*/
+		
+		if (!empty($_SERVER['PHP_SELF']) && !empty($_SERVER['REQUEST_URI']))
+		{
+			// To build the entire URI we need to prepend the protocol, and the http host
+			// to the URI string.
+			$theURI = 'http' . $https . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+		}
+		else
+		{
+			/*
+			 * Since we do not have REQUEST_URI to work with, we will assume we are
+			* running on IIS and will therefore need to work some magic with the SCRIPT_NAME and
+			* QUERY_STRING environment variables.
+			*
+			* IIS uses the SCRIPT_NAME variable instead of a REQUEST_URI variable... thanks, MS
+			*/
+			$theURI = 'http' . $https . $_SERVER['HTTP_HOST'] . $_SERVER['SCRIPT_NAME'];
+		
+			// If the query string exists append it to the URI string
+			if (isset($_SERVER['QUERY_STRING']) && !empty($_SERVER['QUERY_STRING']))
+			{
+				$theURI .= '?' . $_SERVER['QUERY_STRING'];
+			}
+		}
+		
+		// Extra cleanup to remove invalid chars in the URL to prevent injections through the Host header
+		$theURI = str_replace(array("'", '"', '<', '>'), array("%27", "%22", "%3C", "%3E"), $theURI);
+		
+		return $theURI;
+	}
 
     /**
      * Get the time in seconds that it took to solve the captcha.
