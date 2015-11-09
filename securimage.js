@@ -247,3 +247,20 @@ SecurimageAudio.prototype.audioError = function(err) {
         alert('Audio playback error: ' + msg);
     }
 }
+
+function updateSICatpcha(captchaImage) {
+	if (captchaImage) {
+		var captchaImage = document.getElementById(captchaImage);
+		captchaImage.src = captchaImage.getAttribute('data-url')+'&amp;'+Math.random();
+		
+		var captchaText = document.getElementById(captchaImage.getAttribute('data-text-input'));
+		if (captchaText) {
+			captchaText.value = '';
+			captchaText.focus();
+	    }
+		var captchaAudio = captchaImage.getAttribute('data-audioObj');
+		if (captchaAudio && typeof window[captchaAudio] !== 'undefined') {
+			window[captchaAudio].refresh();
+	    }
+    }
+};
