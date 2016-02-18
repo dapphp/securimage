@@ -29,6 +29,15 @@ return array(
     'line_color'       => '#707070', // hex color for lines over text
     'num_lines'        => 5,         // # of lines to draw over text
 
+    'wordlist_file'    => 'words/words.txt', // text file for word captcha
+    'use_wordlist'     => false,             // true to use word list
+    'wordlist_file_encoding' => null,        // character encoding of word file if other than ASCII (e.g. UTF-8, GB2312)
+
+    // example UTF-8 charset (TTF file must support symbols being used
+    // 'charset'          => "абвгдeжзийклмнопрстуфхцчшщъьюяАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЬЮЯ",
+
+    'ttf_file'         => './AHGBold.ttf',   // TTF file for captcha text
+
     /**** Code Storage & Database Options ****/
 
     // true if you *DO NOT* want to use PHP sessions at all, false to use PHP sessions
