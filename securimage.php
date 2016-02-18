@@ -49,6 +49,11 @@
 /**
 
  ChangeLog
+ 3.6.3
+ - Add support for multibyte wordlist files
+ - Fix code generation issues with UTF-8 charsets
+ - Add parameter to getCaptchaHtml() method to control display components of captcha HTML
+ - Fix database audio storage issue with multiple namespaces
 
  3.6.2
  - Support HTTP range requests with audio playback (iOS requirement)
@@ -268,6 +273,48 @@ class Securimage
      * @var string
      */
     const SI_DRIVER_SQLITE3 = 'sqlite';
+
+    /**
+     * getCaptchaHtml() display constant for HTML Captcha Image
+     *
+     * @var integer
+     */
+    const HTML_IMG   = 1;
+
+    /**
+     * getCaptchaHtml() display constant for HTML5 Audio code
+     *
+     * @var integer
+     */
+    const HTML_AUDIO = 2;
+
+    /**
+     * getCaptchaHtml() display constant for Captcha Input text box
+     *
+     * @var integer
+     */
+    const HTML_INPUT = 4;
+
+    /**
+     * getCaptchaHtml() display constant for Captcha Text HTML label
+     *
+     * @var integer
+     */
+    const HTML_INPUT_LABEL = 8;
+
+    /**
+     * getCaptchaHtml() display constant for HTML Refresh button
+     *
+     * @var integer
+     */
+    const HTML_ICON_REFRESH = 16;
+
+    /**
+     * getCaptchaHtml() display constant for all HTML elements (default)
+     *
+     * @var integer
+     */
+    const HTML_ALL = 0xffffffff;
 
     /*%*********************************************************************%*/
     // Properties
@@ -1195,10 +1242,11 @@ class Securimage
      *         The optional captcha namespace to use for showing the image and playing back the audio. Namespaces are for using multiple captchas on the same page.
      *
      * @param array $options Array of options for modifying the HTML code.
+     * @param int   $parts Securiage::HTML_* constant controlling what component of the captcha HTML to display
      *
      * @return string  The generated HTML code for displaying the captcha
      */
-    public static function getCaptchaHtml($options = array())
+    public static function getCaptchaHtml($options = array(), $parts = Securimage::HTML_ALL)
     {
         static $javascript_init = false;
 
@@ -1263,42 +1311,44 @@ class Securimage
             $image_attr .= sprintf('%s="%s" ', $name, htmlspecialchars($val));
         }
 
-        $audio_obj = null;
+        $swf_path  = $securimage_path . '/securimage_play.swf';
+        $play_path = $securimage_path . '/securimage_play.php?';
+        $icon_path = $securimage_path . '/images/audio_icon.png';
+        $load_path = $securimage_path . '/images/loading.png';
+        $js_path   = $securimage_path . '/securimage.js';
 
-        $html = sprintf('<img %s/>', $image_attr);
+        if (!empty($audio_icon_url)) {
+            $icon_path = $audio_icon_url;
+        }
 
-        if ($show_audio_btn) {
-            $swf_path  = $securimage_path . '/securimage_play.swf';
-            $play_path = $securimage_path . '/securimage_play.php?';
-            $icon_path = $securimage_path . '/images/audio_icon.png';
-            $load_path = $securimage_path . '/images/loading.png';
-            $js_path   = $securimage_path . '/securimage.js';
-            $audio_obj = $image_id . '_audioObj';
+        if (!empty($loading_icon_url)) {
+            $load_path = $loading_icon_url;
+        }
 
-            if (!empty($audio_icon_url)) {
-                $icon_path = $audio_icon_url;
+        if (!empty($audio_play_url)) {
+            if (parse_url($audio_play_url, PHP_URL_QUERY)) {
+                $play_path = "{$audio_play_url}&";
+            } else {
+                $play_path = "{$audio_play_url}?";
             }
+        }
 
-            if (!empty($loading_icon_url)) {
-                $load_path = $loading_icon_url;
-            }
+        if (!empty($namespace)) {
+            $play_path .= sprintf('namespace=%s&amp;', $namespace);
+        }
 
-            if (!empty($audio_play_url)) {
-                if (parse_url($audio_play_url, PHP_URL_QUERY)) {
-                    $play_path = "{$audio_play_url}&";
-                } else {
-                    $play_path = "{$audio_play_url}?";
-                }
-            }
+        if (!empty($audio_swf_url)) {
+            $swf_path = $audio_swf_url;
+        }
 
-            if (!empty($namespace)) {
-                $play_path .= sprintf('namespace=%s&amp;', $namespace);
-            }
+        $audio_obj = $image_id . '_audioObj';
+        $html      = '';
 
-            if (!empty($audio_swf_url)) {
-                $swf_path = $audio_swf_url;
-            }
+        if ( ($parts & Securimage::HTML_IMG) > 0) {
+            $html .= sprintf('<img %s/>', $image_attr);
+        }
 
+        if ( ($parts & Securimage::HTML_AUDIO) > 0 && $show_audio_btn) {
             // html5 audio
             $html .= sprintf('<div id="%s_audio_div">', $image_id) . "\n" .
                      sprintf('<audio id="%s_audio" preload="none" style="display: none">', $image_id) . "\n";
@@ -1344,26 +1394,7 @@ class Securimage
                      sprintf('<img class="captcha_loading_image rotating" height="%d" width="%d" src="%s" alt="Loading audio" style="display: none">', $icon_size, $icon_size, htmlspecialchars($load_path)) . "\n" .
                      "</a>\n<noscript>Enable Javascript for audio controls</noscript>\n" .
                      "</div>\n";
-        }
 
-        if ($show_refresh_btn) {
-            $icon_path = $securimage_path . '/images/refresh.png';
-            if ($refresh_icon_url) {
-                $icon_path = $refresh_icon_url;
-            }
-            $img_tag = sprintf('<img height="%d" width="%d" src="%s" alt="%s" onclick="this.blur()" style="border: 0px; vertical-align: bottom" />',
-                               $icon_size, $icon_size, htmlspecialchars($icon_path), htmlspecialchars($refresh_alt));
-
-            $html .= sprintf('<a tabindex="-1" style="border: 0" href="#" title="%s" onclick="%sdocument.getElementById(\'%s\').src = \'%s\' + Math.random(); this.blur(); return false">%s</a><br />',
-                    htmlspecialchars($refresh_title),
-                    ($audio_obj) ? "{$audio_obj}.refresh(); " : '',
-                    $image_id,
-                    $show_path,
-                    $img_tag
-            );
-        }
-
-        if ($show_audio_btn) {
             // html5 javascript
             if (!$javascript_init) {
                 $html .= sprintf('<script type="text/javascript" src="%s"></script>', $js_path) . "\n";
@@ -1374,27 +1405,50 @@ class Securimage
                      "</script>\n";
         }
 
-        $html .= '<div style="clear: both"></div>';
+        if ( ($parts & Securimage::HTML_ICON_REFRESH) > 0 && $show_refresh_btn) {
+            $icon_path = $securimage_path . '/images/refresh.png';
+            if ($refresh_icon_url) {
+                $icon_path = $refresh_icon_url;
+            }
+            $img_tag = sprintf('<img height="%d" width="%d" src="%s" alt="%s" onclick="this.blur()" style="border: 0px; vertical-align: bottom" />',
+                               $icon_size, $icon_size, htmlspecialchars($icon_path), htmlspecialchars($refresh_alt));
 
-        $html .= sprintf('<label for="%s">%s</label> ',
-                htmlspecialchars($input_id),
-                htmlspecialchars($input_text));
-
-        if (!empty($error_html)) {
-            $html .= $error_html;
+            $html .= sprintf('<a tabindex="-1" style="border: 0" href="#" title="%s" onclick="%sdocument.getElementById(\'%s\').src = \'%s\' + Math.random(); this.blur(); return false">%s</a><br />',
+                    htmlspecialchars($refresh_title),
+                    ($audio_obj) ? "if (typeof window.{$audio_obj} !== 'undefined') {$audio_obj}.refresh(); " : '',
+                    $image_id,
+                    $show_path,
+                    $img_tag
+            );
         }
 
-        $input_attr = '';
-        if (!is_array($input_attrs)) $input_attrs = array();
-        $input_attrs['type'] = 'text';
-        $input_attrs['name'] = $input_name;
-        $input_attrs['id']   = $input_id;
-
-        foreach($input_attrs as $name => $val) {
-            $input_attr .= sprintf('%s="%s" ', $name, htmlspecialchars($val));
+        if ($parts == Securimage::HTML_ALL) {
+            $html .= '<div style="clear: both"></div>';
         }
 
-        $html .= sprintf('<input %s/>', $input_attr);
+        if ( ($parts & Securimage::HTML_INPUT_LABEL) > 0 && $show_input) {
+            $html .= sprintf('<label for="%s">%s</label> ',
+                    htmlspecialchars($input_id),
+                    htmlspecialchars($input_text));
+
+            if (!empty($error_html)) {
+                $html .= $error_html;
+            }
+        }
+
+        if ( ($parts & Securimage::HTML_INPUT) > 0 && $show_input) {
+            $input_attr = '';
+            if (!is_array($input_attrs)) $input_attrs = array();
+            $input_attrs['type'] = 'text';
+            $input_attrs['name'] = $input_name;
+            $input_attrs['id']   = $input_id;
+
+            foreach($input_attrs as $name => $val) {
+                $input_attr .= sprintf('%s="%s" ', $name, htmlspecialchars($val));
+            }
+
+            $html .= sprintf('<input %s/>', $input_attr);
+        }
 
         return $html;
     }
@@ -2449,15 +2503,17 @@ class Securimage
         if ($this->use_database && $this->pdo_conn) {
             $id = $this->getCaptchaId(false);
             $ip = $_SERVER['REMOTE_ADDR'];
+            $ns = $this->namespace;
 
             if (empty($id)) {
                 $id = $ip;
             }
 
-            $query = "UPDATE {$this->database_table} SET audio_data = :audioData WHERE id = :id";
+            $query = "UPDATE {$this->database_table} SET audio_data = :audioData WHERE id = :id AND namespace = :namespace";
             $stmt  = $this->pdo_conn->prepare($query);
             $stmt->bindParam(':audioData', $data, PDO::PARAM_LOB);
             $stmt->bindParam(':id', $id);
+            $stmt->bindParam(':namespace', $ns);
             $success = $stmt->execute();
         }
 
