@@ -592,6 +592,17 @@ class Securimage
     public $wordlist_file;
 
     /**
+     * Character encoding of the wordlist file.
+     * Requires PHP Multibyte String (mbstring) support.
+     * Allows word list to contain characters other than US-ASCII (requires compatible TTF font).
+     *
+     * @var string The character encoding (e.g. UTF-8, UTF-7, EUC-JP, GB2312)
+     * @see http://php.net/manual/en/mbstring.supported-encodings.php
+     * @since 3.6.3
+     */
+    public $wordlist_file_encoding = null;
+
+    /**
      * The directory to scan for background images, if set a random background
      * will be chosen from this folder
      *
@@ -2152,6 +2163,31 @@ class Securimage
      */
     protected function readCodeFromFile($numWords = 1)
     {
+        $strpos_func     = 'strpos';
+        $strlen_func     = 'strlen';
+        $substr_func     = 'substr';
+        $strtolower_func = 'strtolower';
+        $mb_support      = false;
+
+        if (!empty($this->wordlist_file_encoding)) {
+            if (!extension_loaded('mbstring')) {
+                trigger_error("wordlist_file_encoding option set, but PHP does not have mbstring support", E_USER_WARNING);
+                return false;
+            }
+
+            // emits PHP warning if not supported
+            $mb_support = mb_internal_encoding($this->wordlist_file_encoding);
+
+            if (!$mb_support) {
+                return false;
+            }
+
+            $strpos_func     = 'mb_strpos';
+            $strlen_func     = 'mb_strlen';
+            $substr_func     = 'mb_substr';
+            $strtolower_func = 'mb_strtolower';
+        }
+
         $fp = fopen($this->wordlist_file, 'rb');
         if (!$fp) return false;
 
@@ -2163,21 +2199,32 @@ class Securimage
         $words = array();
         $i = 0;
         do {
-            fseek($fp, mt_rand(0, $fsize - 64), SEEK_SET); // seek to a random position of file from 0 to filesize-64
-            $data = fread($fp, 64); // read a chunk from our random position
-            $data = preg_replace("/\r?\n/", "\n", $data);
+            fseek($fp, mt_rand(0, $fsize - 128), SEEK_SET); // seek to a random position of file from 0 to filesize-128
+            $data = fread($fp, 128); // read a chunk from our random position
 
-            $start = @strpos($data, "\n", mt_rand(0, 56)) + 1; // random start position
-            $end   = @strpos($data, "\n", $start);          // find end of word
+            if ($mb_support !== false) {
+                $data = mb_ereg_replace("\r?\n", "\n", $data);
+            } else {
+                $data = preg_replace("/\r?\n/", "\n", $data);
+            }
+
+            $start = @$strpos_func($data, "\n", mt_rand(0, 56)) + 1; // random start position
+            $end   = @$strpos_func($data, "\n", $start);          // find end of word
 
             if ($start === false) {
                 // picked start position at end of file
                 continue;
             } else if ($end === false) {
-                $end = strlen($data);
+                $end = $strlen_func($data);
             }
 
-            $word = strtolower(substr($data, $start, $end - $start)); // return a line of the file
+            $word = $strtolower_func($substr_func($data, $start, $end - $start)); // return a line of the file
+
+            if ($mb_support) {
+                // convert to UTF-8 for imagettftext
+                $word = mb_convert_encoding($word, 'UTF-8', $this->wordlist_file_encoding);
+            }
+
             $words[] = $word;
         } while (++$i < $numWords);
 
@@ -2201,12 +2248,12 @@ class Securimage
         $code = '';
 
         if (function_exists('mb_strlen')) {
-            for($i = 1, $cslen = mb_strlen($this->charset); $i <= $this->code_length; ++$i) {
+            for($i = 1, $cslen = mb_strlen($this->charset, 'UTF-8'); $i <= $this->code_length; ++$i) {
                 $code .= mb_substr($this->charset, mt_rand(0, $cslen - 1), 1, 'UTF-8');
             }
         } else {
             for($i = 1, $cslen = strlen($this->charset); $i <= $this->code_length; ++$i) {
-                $code .= substr($this->charset, mt_rand(0, $cslen - 1), 1);
+                $code .= substr($this->charset, mt_rand(0, $cslen - 1), 1, 'UTF-8');
             }
         }
 
