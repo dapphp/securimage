@@ -92,7 +92,29 @@ if (isset($_SESSION['ctform']['error']) &&  $_SESSION['ctform']['error'] == true
         $options['error_html'] = $_SESSION['ctform']['captcha_error'];
       }
 
+      echo "<div id='captcha_container_1'>\n";
       echo Securimage::getCaptchaHtml($options);
+      echo "\n</div>\n";
+
+      /*
+      // To render some or all captcha components individually
+      $options['input_name'] = 'ct_captcha_2';
+      $options['image_id']   = 'ct_captcha_2';
+      $options['input_id']   = 'ct_captcha_2';
+      $options['namespace']  = 'captcha2';
+
+      echo "<br>\n<div id='captcha_container_2'>\n";
+      echo Securimage::getCaptchaHtml($options, Securimage::HTML_IMG);
+
+      echo Securimage::getCaptchaHtml($options, Securimage::HTML_ICON_REFRESH);
+      echo Securimage::getCaptchaHtml($options, Securimage::HTML_AUDIO);
+
+      echo '<div style="clear: both"></div>';
+
+      echo Securimage::getCaptchaHtml($options, Securimage::HTML_INPUT_LABEL);
+      echo Securimage::getCaptchaHtml($options, Securimage::HTML_INPUT);
+      echo "\n</div>";
+      */
     ?>
   </div>
 
