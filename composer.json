@@ -1,6 +1,7 @@
 {
     "name": "dapphp/securimage",
     "type": "library",
+    "vesion": "3.6.3",
     "description": "PHP CAPTCHA Library",
     "keywords": ["captcha","security"],
     "homepage": "https://www.phpcaptcha.org",
@@ -14,6 +15,11 @@
     "require": {
         "php": ">=5.2.0",
         "ext-gd": "*"
+    },
+    "suggest": {
+        "ext-pdo": "For database storage support",
+        "ext-pdo_mysql": "For MySQL database support",
+        "ext-pdo_sqlite": "For SQLite3 database support"
     },
     "autoload": {
         "classmap": ["securimage.php"]
