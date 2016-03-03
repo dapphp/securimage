@@ -6,7 +6,7 @@
  * Project:  Securimage: A PHP class dealing with CAPTCHA images, audio, and validation
  * File:     securimage.php
  *
- * Copyright (c) 2015, Drew Phillips
+ * Copyright (c) 2016, Drew Phillips
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -39,9 +39,9 @@
  * @link http://www.phpcaptcha.org Securimage PHP CAPTCHA
  * @link http://www.phpcaptcha.org/latest.zip Download Latest Version
  * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
- * @copyright 2015 Drew Phillips
+ * @copyright 2016 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
- * @version 3.6.2 (Oct 13, 2015)
+ * @version 3.6.4 (Mar 3, 2016)
  * @package Securimage
  *
  */
@@ -49,6 +49,10 @@
 /**
 
  ChangeLog
+ 3.6.4
+ - Fix XSS vulnerability in example_form.ajax.php (Discovered by RedTeam. advisory rt-sa-2016-002)
+ - Update example_form.ajax.php to use Securimage::getCaptchaHtml()
+
  3.6.3
  - Add support for multibyte wordlist files
  - Fix code generation issues with UTF-8 charsets

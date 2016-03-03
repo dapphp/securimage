@@ -4,7 +4,7 @@ NAME:
 
 VERSION:
 
-    3.6.3
+    3.6.4
 
 AUTHOR:
 
@@ -71,6 +71,10 @@ DESCRIPTION:
     It also creates audible codes which are played for visually impared users.
 
 UPGRADE NOTICE:
+    3.6.3 and below:
+    Securimage 3.6.4 fixed a XSS vulnerability in example_form.ajax.php.  It is
+    recommended to upgrade to the latest version or delete example_form.ajax.php
+    from the securimage directory on your website.
 
     3.6.2 and above:
     If you are upgrading to 3.6.2 or greater AND are using database storage,
@@ -86,7 +90,7 @@ UPGRADE NOTICE:
 
 COPYRIGHT:
 
-    Copyright (c) 2015 Drew Phillips
+    Copyright (c) 2016 Drew Phillips
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
