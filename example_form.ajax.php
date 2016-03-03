@@ -93,7 +93,7 @@ process_si_contact_form();
     function processForm()
     {
 		jQuery.ajax({
-			url: '<?php echo $_SERVER['PHP_SELF'] ?>',
+			url: '<?php echo htmlspecialchars($_SERVER['PHP_SELF'], ENT_QUOTES) ?>',
 			type: 'POST',
 			data: jQuery('#contact_form').serialize(),
 			dataType: 'json',
