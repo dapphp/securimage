@@ -2311,7 +2311,7 @@ class Securimage
             }
         } else {
             for($i = 1, $cslen = strlen($this->charset); $i <= $this->code_length; ++$i) {
-                $code .= substr($this->charset, mt_rand(0, $cslen - 1), 1, 'UTF-8');
+                $code .= substr($this->charset, mt_rand(0, $cslen - 1), 1);
             }
         }
 
