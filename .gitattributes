@@ -1,0 +1,5 @@
+/examples/ export-ignore
+/captcha.html export-ignore
+/config.inc.php.SAMPLE export-ignore
+/example_form.ajax.php export-ignore
+/example_form.php export-ignore
