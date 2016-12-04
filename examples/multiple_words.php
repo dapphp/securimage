@@ -2,8 +2,7 @@
 
 /**
  * Multiple words captcha example
- * 2014-02-15
- * @version 3.5.2 (Feb 2014)
+ * 2014-02-15 
  *
  * This example shows how to use the wordlist to generate captchas containing 2 words in one image.
  * It also scales the font down so longer text strings fit in the image bounds.

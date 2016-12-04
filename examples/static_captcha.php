@@ -2,8 +2,7 @@
 
 /**
  * Static Captcha Example Script
- * 2012-04-18
- * @version 3.2RC2 (April 2012)
+ * 2012-04-18 
  *
  * The static captcha exposes an easy to use interface that applications can
  * use to generate captcha challenges and validate them by a unique ID.  A
