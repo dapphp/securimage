@@ -2,8 +2,8 @@
 
 /**
  * Display Value Captcha Example
- * 2012-04-18
-*
+ * 2016-12-04
+ *
  * This example shows how to use the "display_value" option in Securimage which
  * allows the application to define the code that will be displayed on the
  * captcha image.
@@ -19,7 +19,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 // Defines Securimage class
-require_once '../securimage.php';
+require_once __DIR__ . '/../securimage.php';
 
 // Create an array of options to give to Securimage
 // This example sets the captcha text to the current time
@@ -34,12 +34,12 @@ require_once '../securimage.php';
 // to the browser
 
 $options = array('display_value' => date('h:i:s a'),
-                 'captchaId'     => sha1(uniqid($_SERVER['REMOTE_ADDR'] . $_SERVER['REMOTE_PORT'])),
                  'image_width'   => 270,
                  'image_height'  => 80,
                  'no_session'    => true,
                  'no_exit'       => true,
                  'use_database'  => false,
+                 'use_memcached' => false,
                  'send_headers'  => false);
 
 // construct new Securimage object with the given options
@@ -54,11 +54,7 @@ $img = new Securimage($options);
 
 ob_start();   // start the output buffer
 $img->show(); // output the image so it is captured by the buffer
-$imgBinary = ob_get_contents(); // get contents of the buffer
-ob_end_clean(); // turn off buffering and clear the buffer
 
 header('Content-Type: image/png');
-header('Content-Length: ' . strlen($imgBinary));
 
-echo $imgBinary;
-
+ob_end_flush(); // end output buffering and flush the image out

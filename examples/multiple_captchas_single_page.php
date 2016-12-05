@@ -1,17 +1,16 @@
 <?php
 
 /**
- * Quick and dirty example of multiple captchas on one page using namespaces.
+ * Quick and dirty example of multiple captchas on one page.
  *
  * -- Synopsis --
  * In order to add a captcha to multiple forms on a page, each image needs to
  * have unique ID's for each <img> tag for the refresh button to work; they
  * also need distinct names so the audio generation works properly.
  *
- * Most importantly, they must be assigned a namespace so the value of one
- * image doesn't overwrite the other.  With namespaces, the captcha values
- * stored in the session or database are separated from eachother allowing
- * multiple to exist on one page and be displayed simultaneously.
+ * Since version 4.0 - namespaces are no longer used or required.  Each captcha
+ * is now identified by a unique ID which is automatically generated when using
+ * getCaptchaHtml().
  *
  */
 
@@ -21,7 +20,7 @@
 require_once __DIR__ . '/../securimage.php';
 ?>
 <!doctype html>
-<title>Captcha Namespaces - Multiple captchas on one page</title>
+<title>Securimage :: Multiple captchas on one page</title>
 <style>
   body { text-align: center; padding: 150px; }
   h3 { font-size: 20px; }
@@ -34,26 +33,26 @@ require_once __DIR__ . '/../securimage.php';
   em.invalid { color: #f00; font-weight: bold; }
 </style>
 
-<h3>Multiple Captchas on one page using 'namespaces'</h3>
-
 <article>
+    <h3>Multiple Captchas on one page using 'namespaces'</h3>
+
     <fieldset>
         <legend>"Contact Form" captcha...</legend>
-        <form method="POST" action="">
+        <form method="POST" action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']) ?>">
         <input type="hidden" name="action" value="contact_form">
         <?php
 
-        $error_html1 = null;
+        $error_html1 = null; // no error
 
         if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'contact_form') {
             // submitted "contact" form
 
             // create new securimage object, indicating the namespace of the
             // code we want to check based on what form was submitted.
-            $securimage = new Securimage(array('namespace' => 'contact'));
+            $securimage = new Securimage();
 
             // validate user input
-            $valid = $securimage->check(@$_POST['captcha_code']);
+            $valid = $securimage->check(@$_POST['captcha_code'], $_POST['captcha_id']);
 
             if ($valid) {
                 // code was correct, tell them so
@@ -66,10 +65,9 @@ require_once __DIR__ . '/../securimage.php';
 
         // options controlling output of getCaptchaHtml()
         $options1 = array(
-            'input_id'   => 'contact_captcha',     // ID of the text input field
+            'input_id'   => 'contact_captcha',     // ID of the text input field (must be unique on the page!)
             'input_name' => 'captcha_code',        // name of the captcha text field for POST
-            'image_id'   => 'contact_captcha_img', // ID of the captcha image
-            'namespace'  => 'contact',             // namespace for storing and validating
+            'image_id'   => 'contact_captcha_img', // ID of the captcha image (must be unique on the page!)
             'error_html' => $error_html1,          // error (or success) to display to the user above text input
         );
 
@@ -86,7 +84,7 @@ require_once __DIR__ . '/../securimage.php';
 
     <fieldset>
         <legend>"Comments form" captcha...</legend>
-        <form method="POST" action="">
+        <form method="POST" action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']) ?>">
         <input type="hidden" name="action" value="comment">
         <?php
 
@@ -95,8 +93,8 @@ require_once __DIR__ . '/../securimage.php';
         if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'comment') {
             // submitted "contact" form
 
-            $securimage = new Securimage(array('namespace' => 'comments'));
-            $valid = $securimage->check($_POST['captcha_code']);
+            $securimage = new Securimage();
+            $valid = $securimage->check($_POST['captcha_code'], $_POST['captcha_id']);
 
             if ($valid) {
                 $error_html2 = "<em class='valid'>Code entered correctly!</em><br>";
@@ -109,7 +107,6 @@ require_once __DIR__ . '/../securimage.php';
             'input_id'   => 'comments_captcha',
             'input_name' => 'captcha_code',
             'image_id'   => 'comments_captcha_img',
-            'namespace'  => 'comments',
             'error_html' => $error_html2,
         );
 
@@ -120,3 +117,4 @@ require_once __DIR__ . '/../securimage.php';
         </form>
     </fieldset>
 </article>
+</html>
