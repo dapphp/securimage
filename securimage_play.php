@@ -34,18 +34,16 @@
  *
  */
 
-require_once dirname(__FILE__) . '/securimage.php';
+require_once __DIR__ . '/securimage.php';
 
-// if using database, adjust these options as necessary and change $img = new Securimage(); to $img = new Securimage($options);
-// see test.mysql.php or test.sqlite.php for examples
-$options = array(
-    'use_database'    => true,
-    'database_name'   => '',
-    'database_user'   => '',
-    'database_driver' => Securimage::SI_DRIVER_MYSQL
-);
+$options = array();
 
-$img = new Securimage();
+// set id if supplied to script via HTTP GET
+if (!empty($_GET['id'])) {
+    $options['captchaId'] = $_GET['id'];
+}
+
+$img = new Securimage($options);
 
 // Other audio settings
 //$img->audio_use_sox   = true;
@@ -59,10 +57,6 @@ $img = new Securimage();
 
 // If you have more than one captcha on a page, one must use a custom namespace
 // $img->namespace = 'form2';
-
-// set namespace if supplied to script via HTTP GET
-if (!empty($_GET['namespace'])) $img->setNamespace($_GET['namespace']);
-
 
 // mp3 or wav format
 $format = (isset($_GET['format']) && strtolower($_GET['format']) == 'mp3') ? 'mp3' : null;
