@@ -17,7 +17,7 @@ process_si_contact_form();
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
-    <title>Securimage Example Form</title>
+    <title>Securimage Example Ajax Form</title>
     <style type="text/css">
     <!--
         #success_message { border: 1px solid #000; width: 550px; text-align: left; padding: 10px 7px; background: #33ff33; color: #000; font-weight: bold; font-size: 1.2em; border-radius: 4px; -moz-border-radius: 4px; -webkit-border-radius: 4px; }
@@ -25,13 +25,14 @@ process_si_contact_form();
         legend { font-size: 24px; }
         .note { font-size: 18px; }
         form label { display: block; font-weight: bold; }
+        #captcha_error { font-weight: bold; color: #f00; margin-top: 10px; }
     -->
     </style>
     </head>
 <body>
 
 <fieldset>
-<legend>Example Form</legend>
+<legend>Example Ajax Form</legend>
 
 <p class="note">
   This is an example PHP form that processes user information, checks for errors, and validates the captcha code.<br />
@@ -64,7 +65,12 @@ process_si_contact_form();
   </p>
 
   <p>
-    <?php require_once 'securimage.php'; echo Securimage::getCaptchaHtml(array('input_name' => 'ct_captcha')); ?>
+    <?php
+    require_once 'securimage.php';
+    echo Securimage::getCaptchaHtml(array('input_name' => 'ct_captcha'));
+    ?>
+    <br>
+    <div id="captcha_error" style="display: none">The code entered was incorrect.  Please try again.</div>
   </p>
 
   <p>
@@ -75,14 +81,13 @@ process_si_contact_form();
 </form>
 </fieldset>
 
-<script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+<script
+    src="https://code.jquery.com/jquery-3.1.1.min.js"
+    integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
+    crossorigin="anonymous"></script>
+
 <script type="text/javascript">
     $.noConflict();
-
-    function reloadCaptcha()
-    {
-        jQuery('#siimage').prop('src', './securimage_show.php?sid=' + Math.random());
-    }
 
     function processForm()
     {
@@ -95,13 +100,18 @@ process_si_contact_form();
             if (data.error === 0) {
                 jQuery('#success_message').show();
                 jQuery('#contact_form')[0].reset();
-                reloadCaptcha();
-                setTimeout("jQuery('#success_message').fadeOut()", 12000);
+                jQuery('#captcha_error').hide();
+                securimageRefreshCaptcha('captcha_image', 'captcha_image_audioObj'); // defined in securimage.js
+                setTimeout(function() {
+                    jQuery('#success_message').fadeOut();
+                }, 12000);
             } else {
-                alert("There was an error with your submission.\n\n" + data.message);
-
                 if (data.message.indexOf('Incorrect security code') >= 0) {
                     jQuery('#captcha_code').val('');
+                    jQuery('#captcha_error').show();
+                    setTimeout(function() {
+                        jQuery('#captcha_error').fadeOut();
+                    }, 10000);
                 }
             }
         });

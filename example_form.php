@@ -3,6 +3,8 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+require_once __DIR__ . '/securimage.php';
+
 session_start(); // this MUST be called prior to any output including whitespaces and line breaks!
 
 $GLOBALS['DEBUG_MODE'] = 1;
@@ -152,6 +154,7 @@ function process_si_contact_form()
     $URL     = @$_POST['ct_URL'];     // url from the form
     $message = @$_POST['ct_message']; // the message from the form
     $captcha = @$_POST['ct_captcha']; // the user's entry for the captcha code
+    $capId   = @$_POST['captcha_id']; // the captcha ID to check
     $name    = substr($name, 0, 64);  // limit name to 64 characters
 
     $errors = array();  // initialize empty error array
@@ -181,10 +184,9 @@ function process_si_contact_form()
     // Only try to validate the captcha if the form has no errors
     // This is especially important for ajax calls
     if (sizeof($errors) == 0) {
-      require_once dirname(__FILE__) . '/securimage.php';
       $securimage = new Securimage();
 
-      if ($securimage->check($captcha) == false) {
+      if ($securimage->check($captcha, $capId) == false) {
         $errors['captcha_error'] = 'Incorrect security code entered<br />';
       }
     }
