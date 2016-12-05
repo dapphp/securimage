@@ -7,6 +7,23 @@
  * See https://github.com/dapphp/securimage/blob/master/README.md
  */
 
+function securimageRefreshCaptcha(captcha_image, captcha_audio)
+{
+    var captchaId = '';
+    var chars     = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+    for (var i = 0; i < 40; ++i) {
+        captchaId += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    document.getElementById(captcha_image + '_captcha_id').value = captchaId;
+    document.getElementById(captcha_image).src = document.getElementById(captcha_image).src.replace(/([?|&])id=[a-zA-Z0-9]+/, '$1id=' + captchaId);
+
+    if (captcha_audio != '' && typeof window[captcha_audio] == 'object') {
+        window[captcha_audio].refresh(captchaId);
+    }
+}
+
 var SecurimageAudio = function(options) {
     this.html5Support    = true;
     this.flashFallback   = false;
@@ -18,14 +35,14 @@ var SecurimageAudio = function(options) {
     this.playButton      = null;
     this.playButtonImage = null;
     this.loadingImage    = null;
-    
+
     if (options.audioElement) {
         this.audioElement = document.getElementById(options.audioElement);
     }
     if (options.controlsElement) {
         this.controlsElement = document.getElementById(options.controlsElement);
     }
-    
+
     this.init();
 }
 
