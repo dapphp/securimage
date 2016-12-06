@@ -201,6 +201,7 @@ require_once __DIR__ . '/StorageAdapter/AdapterInterface.php';
 require_once __DIR__ . '/StorageAdapter/Session.php';
 require_once __DIR__ . '/StorageAdapter/PDO.php';
 require_once __DIR__ . '/StorageAdapter/Memcached.php';
+require_once __DIR__ . '/StorageAdapter/Redis.php';
 
 /**
  * Securimage CAPTCHA Class.
@@ -982,6 +983,18 @@ class Securimage
             $mcAdapter = new Securimage\StorageAdapter\Memcached($mcopts);
 
             $this->addStorageAdapter($mcAdapter);
+        }
+
+        if (isset($options['use_redis']) && $options['use_redis']) {
+            $redisOpts = array(
+                'redis_server'  => $options['redis_server'],
+                'expiration'    => $this->expiry_time,
+                'redis_dbindex' => @$options['redis_dbindex'],
+            );
+
+            $redisAdapter = new Securimage\StorageAdapter\Redis($redisOpts);
+
+            $this->addStorageAdapter($redisAdapter);
         }
 
         if (Securimage::$_captchaId) {
