@@ -1141,8 +1141,6 @@ class Securimage
      *         The alt text of the captcha image (default: CAPTCHA Image)
      *     'show_audio_button':
      *         true/false  Whether or not to show the audio button (default: true)
-     *     'disable_flash_fallback':)
-     *         Allow only HTML5 audio and disable Flash fallback
      *     'show_refresh_button':
      *         true/false  Whether or not to show a button to refresh the image (default: true)
      *     'audio_icon_url':
@@ -1192,7 +1190,6 @@ class Securimage
         $image_id          = (isset($options['image_id'])) ? $options['image_id'] : 'captcha_image';
         $image_alt         = (isset($options['image_alt_text'])) ? $options['image_alt_text'] : 'CAPTCHA Image';
         $show_audio_btn    = (isset($options['show_audio_button'])) ? (bool)$options['show_audio_button'] : true;
-        $disable_flash_fbk = (isset($options['disable_flash_fallback'])) ? (bool)$options['disable_flash_fallback'] : false;
         $show_refresh_btn  = (isset($options['show_refresh_button'])) ? (bool)$options['show_refresh_button'] : true;
         $refresh_icon_url  = (isset($options['refresh_icon_url'])) ? $options['refresh_icon_url'] : null;
         $audio_but_bg_col  = (isset($options['audio_button_bgcol'])) ? $options['audio_button_bgcol'] : '#ffffff';
@@ -1285,26 +1282,6 @@ class Securimage
 
             // output wav source
             $html .= sprintf('<source id="%s_source_wav" src="%s" type="audio/wav">', $image_id, $play_path) . "\n";
-
-            // flash audio button
-            if (!$disable_flash_fbk) {
-                $html .= sprintf('<object type="application/x-shockwave-flash" data="%s?bgcol=%s&amp;icon_file=%s&amp;audio_file=%s" height="%d" width="%d">',
-                        htmlspecialchars($swf_path),
-                        urlencode($audio_but_bg_col),
-                        urlencode($icon_path),
-                        urlencode(html_entity_decode($play_path)),
-                        $icon_size, $icon_size
-                );
-
-                $html .= sprintf('<param name="movie" value="%s?bgcol=%s&amp;icon_file=%s&amp;audio_file=%s" />',
-                        htmlspecialchars($swf_path),
-                        urlencode($audio_but_bg_col),
-                        urlencode($icon_path),
-                        urlencode(html_entity_decode($play_path))
-                );
-
-                $html .= '</object><br />';
-            }
 
             // html5 audio close
             $html .= "</audio>\n</div>\n";

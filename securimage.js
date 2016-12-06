@@ -26,7 +26,6 @@ function securimageRefreshCaptcha(captcha_image, captcha_audio)
 
 var SecurimageAudio = function(options) {
     this.html5Support    = true;
-    this.flashFallback   = false;
     this.captchaId       = null;
     this.playing         = false;
     this.reload          = false;
@@ -50,14 +49,8 @@ SecurimageAudio.prototype.init = function() {
     var ua    = navigator.userAgent.toLowerCase();
     var ieVer = (ua.indexOf('msie') != -1) ? parseInt(ua.split('msie')[1]) : false;
     // ie 11+ detection
-    if (!ieVer && null != (ieVer = ua.match(/trident\/.*rv:(\d+\.\d+)/)))
+    if (!ieVer && null != (ieVer = ua.match(/trident\/.*rv:(\d+\.\d+)/))) {
         ieVer = parseInt(ieVer[1]);
-
-    var objAu = this.audioElement.getElementsByTagName('object');
-    if (objAu.length > 0) {
-        objAu = objAu[0];
-    } else {
-        objAu = null;
     }
 
     if (ieVer) {
@@ -71,10 +64,6 @@ SecurimageAudio.prototype.init = function() {
             var sources    = this.audioElement.getElementsByTagName('source');
             var mp3support = false;
             var type;
-            
-            if (objAu) {
-                this.flashFallback = true;
-            }
 
             for (var i = 0; i < sources.length; ++i) {
                 type = sources[i].attributes["type"].value;
@@ -85,22 +74,8 @@ SecurimageAudio.prototype.init = function() {
             }
 
             if (false == mp3support) {
-                // browser supports <audio> but does not support WAV audio and no flash audio available
+                // browser supports <audio> but does not support WAV audio
                 this.html5Support = false;
-                
-                if (this.flashFallback) {
-                    // ie9+? bug - flash object does not display when moved from within audio tag to other dom node
-                    var newObjAu = document.createElement('object');
-                    var newParams = document.createElement('param');
-                    var oldParams = objAu.getElementsByTagName('param');
-                    this.copyElementAttributes(newObjAu, objAu);
-                    if (oldParams.length > 0) {
-                        this.copyElementAttributes(newParams, oldParams[0]);
-                        newObjAu.appendChild(newParams);
-                    }
-                    objAu.parentNode.removeChild(objAu);
-                    this.audioElement.parentNode.appendChild(newObjAu);
-                }
 
                 this.audioElement.parentNode.removeChild(this.audioElement);
                 this.controlsElement.parentNode.removeChild(this.controlsElement);
@@ -127,11 +102,6 @@ SecurimageAudio.prototype.init = function() {
                 this.loadingImage = el;
             }
         }
-    }
-
-    if (objAu) {
-        // remove flash object from DOM
-        objAu.parentNode.removeChild(objAu);
     }
 }
 
@@ -218,7 +188,7 @@ SecurimageAudio.prototype.replaceElements = function() {
         if (this.audioElement.children[c].tagName.toLowerCase() != 'source') continue;
         var sourceEl = document.createElement('source');
         this.copyElementAttributes(sourceEl, this.audioElement.children[c]);
-        var cid = (null !== this.captchaId) ? this.captchaId : (Math.random() + '').replace('0.', '');
+        var cid = this.captchaId;
         sourceEl.src = sourceEl.src.replace(/([?|&])id=[a-zA-Z0-9]+/, '$1id=' + cid);
         newAudioEl.appendChild(sourceEl);
     }
