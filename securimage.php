@@ -909,6 +909,9 @@ class Securimage
      *
      * @param string $code      The captcha code to check
      * @param string $captchaId The ID of the captcha being checked
+     * @param bool   $alwaysDelete True to delete captcha data after a failed guess.
+     *   Useful if the form post results in a full page reload and the old captcha
+     *   ID is never used again. Not so useful on Ajax forms.  (default false)
      *
      * <code>
      *     $code = $_POST['code'];
@@ -922,7 +925,7 @@ class Securimage
      *
      * @return bool true if the given code was correct, false if not.
      */
-    public function check($code, $captchaId = null)
+    public function check($code, $captchaId = null, $alwaysDelete = false)
     {
         $this->code_entered = $code;
         $this->correct_code = false;
@@ -960,6 +963,12 @@ class Securimage
                 'Captcha code cannot be validated',
                 E_USER_WARNING
             );
+        }
+
+        if ($this->correct_code === false && $alwaysDelete) {
+            // clear code from storage after use
+            // if correct_code === true, it has already been deleted
+            $this->deleteData($captchaId);
         }
 
         return $this->correct_code;
@@ -2076,9 +2085,7 @@ class Securimage
             if ($code && false == $this->isCodeExpired($code->creationTime)) {
                 $code = null;
 
-                foreach($this->storage_adapters as $adapter) {
-                    $adapter->delete($captchaId);
-                }
+                $this->deleteData($captchaId);
             }
         } else {
             $code = $this->code;
@@ -2114,9 +2121,7 @@ class Securimage
             if ((string)$code === (string)$code_entered) {
                 $this->correct_code = true;
 
-                foreach($this->storage_adapters as $adapter) {
-                    $adapter->delete($captchaId);
-                }
+                $this->deleteData($captchaId);
             }
         }
     }
@@ -2155,6 +2160,18 @@ class Securimage
             $this->saveCodeToDatabase();
         }
         */
+    }
+
+    /**
+     * Delete a saved captcha from all configured storage adapters
+     *
+     * @param string $captchaId  The captcha ID to delete from storage
+     */
+    protected function deleteData($captchaId)
+    {
+        foreach($this->storage_adapters as $adapter) {
+            $adapter->delete($captchaId);
+        }
     }
 
     /**

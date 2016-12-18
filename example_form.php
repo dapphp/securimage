@@ -184,7 +184,17 @@ function process_si_contact_form()
     if (sizeof($errors) == 0) {
       $securimage = new Securimage();
 
-      if ($securimage->check($captcha, $capId) == false) {
+      /**
+       * Validate the user input ($captcha) against the submitted captcha ID ($capId).
+       * The third parameter (true) tells Securimage to delete the data for this
+       * captcha ID even if the guess was incorrect.  Since the form POSTs to itself
+       * and reloads the page, the old ID is never used again and no longer needed.
+       *
+       * $securimage->check() returns TRUE if the code is correct, or FALSE if it was
+       * incorrect.  Only let the form pass if check() returns TRUE.
+       *
+       */
+      if ($securimage->check($captcha, $capId, true) == false) {
         $errors['captcha_error'] = 'Incorrect security code entered<br />';
       }
     }
