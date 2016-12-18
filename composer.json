@@ -23,7 +23,7 @@
     "autoload": {
         "classmap": ["securimage.php"],
         "psr-4" : {
-            "Securimage\\" : "src/"
+            "Securimage\\" : "./"
         }
     }
 }

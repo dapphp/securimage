@@ -34,7 +34,9 @@
  *
  */
 
-require_once __DIR__ . '/securimage.php';
+if (!class_exists('Securimage')) {
+    require_once __DIR__ . '/securimage.php';
+}
 
 $options = array();
 
@@ -46,17 +48,12 @@ if (!empty($_GET['id'])) {
 $img = new Securimage($options);
 
 // Other audio settings
-//$img->audio_use_sox   = true;
 //$img->audio_use_noise = true;
 //$img->degrade_audio   = false;
-//$img->sox_binary_path = 'sox';
 //Securimage::$lame_binary_path = '/usr/bin/lame'; // for mp3 audio support
 
 // To use an alternate language, uncomment the following and download the files from phpcaptcha.org
 // $img->audio_path = $img->securimage_path . '/audio/es/';
-
-// If you have more than one captcha on a page, one must use a custom namespace
-// $img->namespace = 'form2';
 
 // mp3 or wav format
 $format = (isset($_GET['format']) && strtolower($_GET['format']) == 'mp3') ? 'mp3' : null;

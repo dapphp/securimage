@@ -48,14 +48,6 @@
  *
  */
 
-// TODO: REMOVE
-require_once __DIR__ . '/CaptchaObject.php';
-require_once __DIR__ . '/StorageAdapter/AdapterInterface.php';
-require_once __DIR__ . '/StorageAdapter/Session.php';
-require_once __DIR__ . '/StorageAdapter/PDO.php';
-require_once __DIR__ . '/StorageAdapter/Memcached.php';
-require_once __DIR__ . '/StorageAdapter/Redis.php';
-
 /**
  * Securimage CAPTCHA Class.
  *
@@ -686,6 +678,12 @@ class Securimage
             }
         }
 
+        if (!class_exists('Securimage\CaptchaObject')) {
+            // not using Composer autoloader
+            require_once __DIR__ . '/CaptchaObject.php';
+            require_once __DIR__ . '/StorageAdapter/AdapterInterface.php';
+        }
+
         if (is_array($options) && sizeof($options) > 0) {
             foreach($options as $prop => $val) {
                 if ($prop == 'captchaId') {
@@ -760,13 +758,17 @@ class Securimage
 
         // PHP Session storage adapter
         if (sizeof($this->storage_adapters) < 1 && $this->no_session != true) {
+            if (!class_exists('Securimage\StorageAdapter\Session')) {
+                require_once __DIR__ . '/StorageAdapter/Session.php';
+            }
+
             $sessionOpts = array(
                 'session_name' => (isset($options['session_name']) ?
                                    $options['session_name'] :
                                    null),
             );
 
-            $defaultAdapter = new Securimage\StorageAdapter\Session($sessionOpts);
+            $defaultAdapter = new \Securimage\StorageAdapter\Session($sessionOpts);
 
             $this->addStorageAdapter($defaultAdapter);
         }
@@ -786,6 +788,10 @@ class Securimage
                 );
             }
 
+            if (!class_exists('Securimage\StorageAdapter\PDO')) {
+                require_once __DIR__ . '/StorageAdapter/PDO.php';
+            }
+
             $dbOpts = array(
                 'database_driver'  => $options['database_driver'],
                 'database_table'   => $options['database_table'],
@@ -803,7 +809,7 @@ class Securimage
                 $dbOpts['database_pass'] = @$options['database_pass'];
             }
 
-            $dbAdapter = new Securimage\StorageAdapter\PDO($dbOpts);
+            $dbAdapter = new \Securimage\StorageAdapter\PDO($dbOpts);
 
             $this->addStorageAdapter($dbAdapter);
         }
@@ -815,7 +821,11 @@ class Securimage
                 'expiration'        => $this->expiry_time,
             );
 
-            $mcAdapter = new Securimage\StorageAdapter\Memcached($mcopts);
+            if (!class_exists('Securimage\StorageAdapter\Memcached')) {
+                require_once __DIR__ . '/StorageAdapter/Memcached.php';
+            }
+
+            $mcAdapter = new \Securimage\StorageAdapter\Memcached($mcopts);
 
             $this->addStorageAdapter($mcAdapter);
         }
@@ -827,7 +837,11 @@ class Securimage
                 'redis_dbindex' => @$options['redis_dbindex'],
             );
 
-            $redisAdapter = new Securimage\StorageAdapter\Redis($redisOpts);
+            if (!class_exists('Securimage\StorageAdapter\Redis')) {
+                require_once __DIR__ . '/StorageAdapter/Redis.php';
+            }
+
+            $redisAdapter = new \Securimage\StorageAdapter\Redis($redisOpts);
 
             $this->addStorageAdapter($redisAdapter);
         }
