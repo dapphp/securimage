@@ -7,6 +7,7 @@ CHANGES
 - REMOVE database options from class (options are now defined in config.inc.php)
 - REMOVE Flash audio playback and Flash fallback
 - REMOVE "static captcha" functionality (getCaptchaId and checkByCaptchaId)
+- REMOVE SoX audio manipulation from PHP via shell_exec
 - Implement StorageAdapter interface
 - Move session and database storage into StorageAdapters
 - Add memcached StorageAdapter (requires PHP extension memcached)
