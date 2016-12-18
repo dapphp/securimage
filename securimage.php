@@ -955,6 +955,13 @@ class Securimage
         }
 
         if (!empty($captchaId)) {
+            if (sizeof($this->storage_adapters) < 1) {
+                trigger_error(
+                    "No storage adapters are enabled, captcha will not validate",
+                    E_USER_WARNING
+                );
+            }
+
             foreach($this->storage_adapters as $adapter) {
                 $info = $adapter->get($captchaId);
 
