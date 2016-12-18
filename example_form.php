@@ -84,10 +84,8 @@ if (isset($_SESSION['ctform']['error']) &&  $_SESSION['ctform']['error'] == true
   <div>
     <?php
       // show captcha HTML using Securimage::getCaptchaHtml()
-      require_once 'securimage.php';
       $options = array();
-      $options['input_name']             = 'ct_captcha'; // change name of input element for form post
-      $options['disable_flash_fallback'] = false; // allow flash fallback
+      $options['input_name'] = 'ct_captcha'; // change name of input element for form post
 
       if (!empty($_SESSION['ctform']['captcha_error'])) {
         // error html to show in captcha output
