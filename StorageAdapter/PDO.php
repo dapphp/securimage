@@ -15,6 +15,7 @@ class PDO implements AdapterInterface
     protected $database_file;
     protected $skip_table_check;
     protected $pdo_conn;
+    protected $expiry_time;
 
     public function __construct($options = null)
     {
@@ -64,7 +65,12 @@ class PDO implements AdapterInterface
 
     protected function bootstrap()
     {
-        $this->openDatabase();
+        if ($this->openDatabase()) {
+            if (mt_rand(0, 1000) % 100 === 0) {
+                // approximately once per 100 connections
+                $this->purgeOldCodesFromDatabase();
+            }
+        }
     }
 
     /**
@@ -165,11 +171,7 @@ class PDO implements AdapterInterface
             return false;
         }
 
-        if (mt_rand(0, 100) / 100.0 == 1.0) {
-            $this->purgeOldCodesFromDatabase();
-        }
-
-        return $this->pdo_conn;
+        return true;
     }
 
     /**
@@ -209,7 +211,7 @@ class PDO implements AdapterInterface
                 return false;
             }
 
-            throw new Exception("Failed to check tables: {$err[0]} - {$err[1]}: {$err[2]}");
+            throw new \Exception("Failed to check tables: {$err[0]} - {$err[1]}: {$err[2]}");
         } else if ($this->database_driver == \Securimage::SI_DRIVER_SQLITE3) {
             // successful here regardless of row count for sqlite
             return true;
@@ -242,7 +244,7 @@ class PDO implements AdapterInterface
                    code_display VARCHAR(32) NOT NULL,
                    created INTEGER NOT NULL,
                    audio_data BLOB NULL,
-                   PRIMARY KEY(id, namespace)
+                   PRIMARY KEY(id)
                 )";
 
                 $queries[] = "CREATE INDEX ndx_created ON {$this->database_table} (created)";
@@ -257,7 +259,7 @@ class PDO implements AdapterInterface
                   `code_display` VARCHAR(32) NOT NULL,
                   `created` INT NOT NULL,
                   `audio_data` MEDIUMBLOB NULL,
-                  PRIMARY KEY(id, namespace),
+                  PRIMARY KEY(id),
                   INDEX(created)
                 )";
 
@@ -272,7 +274,7 @@ class PDO implements AdapterInterface
                   code_display character varying(32) NOT NULL,
                   created integer NOT NULL,
                   audio_data bytea NULL,
-                  CONSTRAINT pkey_id_namespace PRIMARY KEY (id, namespace)
+                  CONSTRAINT pkey_id PRIMARY KEY (id)
                 )";
 
                 $queries[] = "CREATE INDEX ndx_created ON {$this->database_table} (created);";
