@@ -2237,8 +2237,8 @@ class Securimage
     {
         foreach($this->storage_adapters as $adapter) {
             $info = $adapter->get($captchaId);
-            if ($info && !empty($info->captchaAudioData)) {
-                return $info->captchaAudioData;
+            if ($info && !empty($info->captchaImageAudio)) {
+                return $info->captchaImageAudio;
             }
         }
 
