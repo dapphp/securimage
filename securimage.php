@@ -796,6 +796,7 @@ class Securimage
                 'database_driver'  => $options['database_driver'],
                 'database_table'   => $options['database_table'],
                 'skip_table_check' => @$options['skip_table_check'],
+                'expiry_time'      => $this->expiry_time,
             );
 
             if ($options['database_driver'] == self::SI_DRIVER_SQLITE3) {
@@ -812,6 +813,27 @@ class Securimage
             $dbAdapter = new \Securimage\StorageAdapter\PDO($dbOpts);
 
             $this->addStorageAdapter($dbAdapter);
+        }
+
+        if (isset($options['use_mysqli']) && $options['use_mysqli']) {
+            if (!class_exists('Securimage\StorageAdapter\Mysqli')) {
+                require_once __DIR__ . '/StorageAdapter/Mysqli.php';
+            }
+
+            $mysqliOpts = array(
+                'database_host'    => $options['database_host'],
+                'database_name'    => $options['database_name'],
+                'database_user'    => $options['database_user'],
+                'database_pass'    => $options['database_pass'],
+                'expiry_time'      => $this->expiry_time,
+                'database_table'   => $options['database_table'],
+                'skip_table_check' => @$options['skip_table_check'],
+                'mysqli_conn'      => @$options['mysqli_conn'],
+            );
+
+            $mysqliAdapter = new \Securimage\StorageAdapter\Mysqli($mysqliOpts);
+
+            $this->addStorageAdapter($mysqliAdapter);
         }
 
         if (isset($options['use_memcached']) && $options['use_memcached']) {
