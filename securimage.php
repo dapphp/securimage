@@ -2369,10 +2369,10 @@ class Securimage
             if ((string)$code === (string)$code_entered) {
                 $this->correct_code = true;
                 if ($this->no_session != true) {
-                    $_SESSION['securimage_code_disp'] [$this->namespace] = '';
-                    $_SESSION['securimage_code_value'][$this->namespace] = '';
-                    $_SESSION['securimage_code_ctime'][$this->namespace] = '';
-                    $_SESSION['securimage_code_audio'][$this->namespace] = '';
+                    $_SESSION['securimage_code_disp']  = array($this->namespace => '');
+                    $_SESSION['securimage_code_value'] = array($this->namespace => '');
+                    $_SESSION['securimage_code_ctime'] = array($this->namespace => '');
+                    $_SESSION['securimage_code_audio'] = array($this->namespace => '');
                 }
                 $this->clearCodeFromDatabase();
             }
@@ -2391,10 +2391,10 @@ class Securimage
                 unset($_SESSION['securimage_code_ctime']);
             }
 
-            $_SESSION['securimage_code_disp'] [$this->namespace] = $this->code_display;
-            $_SESSION['securimage_code_value'][$this->namespace] = $this->code;
-            $_SESSION['securimage_code_ctime'][$this->namespace] = time();
-            $_SESSION['securimage_code_audio'][$this->namespace] = null; // clear previous audio, if set
+            $_SESSION['securimage_code_disp']  = array($this->namespace => $this->code_display);
+            $_SESSION['securimage_code_value'] = array($this->namespace => $this->code);
+            $_SESSION['securimage_code_ctime'] = array($this->namespace => time());
+            $_SESSION['securimage_code_audio'] = array($this->namespace => null); // clear previous audio, if set
         }
 
         if ($this->use_database) {
@@ -2410,7 +2410,7 @@ class Securimage
     protected function saveAudioData($data)
     {
         if ($this->no_session != true) {
-            $_SESSION['securimage_code_audio'][$this->namespace] = $data;
+            $_SESSION['securimage_code_audio'] = array($this->namespace => $data);
         }
 
         if ($this->use_database) {

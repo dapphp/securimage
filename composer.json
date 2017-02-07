@@ -16,6 +16,9 @@
         "php": ">=5.2.0",
         "ext-gd": "*"
     },
+    "require-dev": {
+        "phpunit/phpunit": "4.8.*"
+    },
     "suggest": {
         "ext-pdo": "For database storage support",
         "ext-pdo_mysql": "For MySQL database support",
