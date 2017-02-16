@@ -2369,10 +2369,10 @@ class Securimage
             if ((string)$code === (string)$code_entered) {
                 $this->correct_code = true;
                 if ($this->no_session != true) {
-                    $_SESSION['securimage_code_disp']  = array($this->namespace => '');
-                    $_SESSION['securimage_code_value'] = array($this->namespace => '');
-                    $_SESSION['securimage_code_ctime'] = array($this->namespace => '');
-                    $_SESSION['securimage_code_audio'] = array($this->namespace => '');
+                    $this->setSession('securimage_code_disp', '');
+                    $this->setSession('securimage_code_value', '');
+                    $this->setSession('securimage_code_ctime', '');
+                    $this->setSession('securimage_code_audio', '');
                 }
                 $this->clearCodeFromDatabase();
             }
@@ -2391,15 +2391,28 @@ class Securimage
                 unset($_SESSION['securimage_code_ctime']);
             }
 
-            $_SESSION['securimage_code_disp']  = array($this->namespace => $this->code_display);
-            $_SESSION['securimage_code_value'] = array($this->namespace => $this->code);
-            $_SESSION['securimage_code_ctime'] = array($this->namespace => time());
-            $_SESSION['securimage_code_audio'] = array($this->namespace => null); // clear previous audio, if set
+            $this->setSession('securimage_code_disp', $this->code_display);
+            $this->setSession('securimage_code_value', $this->code);
+            $this->setSession('securimage_code_ctime', time());
+            $this->setSession('securimage_code_audio', null); // clear previous audio, if set
         }
 
         if ($this->use_database) {
             $this->saveCodeToDatabase();
         }
+    }
+
+    /**
+     * Set given value under right key and namespace in $_SESSION
+     *
+     * @param string $key   a key
+     * @param mixed $value a value
+     */
+    protected function setSession($key, $value)
+    {
+        $array = isset($_SESSION[$key]) && is_array($_SESSION[$key]) ? $_SESSION[$key] : [];
+        $array[$this->namespace] = $value;
+        $_SESSION[$key] = $array;
     }
 
     /**
