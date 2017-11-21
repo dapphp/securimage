@@ -192,7 +192,7 @@ function process_si_contact_form()
                      . "<pre>$message</pre>"
                      . "<br /><br />IP Address: {$_SERVER['REMOTE_ADDR']}<br />"
                      . "Time: $time<br />"
-                     . "Browser: {$_SERVER['HTTP_USER_AGENT']}<br />";
+                     . "Browser: " . htmlspecialchars($_SERVER['HTTP_USER_AGENT']) . "<br />";
 
             if (isset($GLOBALS['DEBUG_MODE']) && $GLOBALS['DEBUG_MODE'] == false) {
                 // send the message with mail()
