@@ -197,7 +197,7 @@ class Mysqli implements AdapterInterface
                 $errno = $stmt->errno;
                 $error = $stmt->error;
 
-                trigger_error("Failed to insert code into database.  Error {$errno}: {$errstr}", E_USER_WARNING);
+                trigger_error("Failed to insert code into database.  Error {$errno}: {$error}", E_USER_WARNING);
             }
         }
 
