@@ -827,6 +827,10 @@ class Securimage
             $options = array();
         }
 
+        if (function_exists('mb_internal_encoding')) {
+            mb_internal_encoding('UTF-8');
+        }
+
         // check for and load settings from custom config file
         $config_file = null;
 
@@ -2115,9 +2119,11 @@ class Securimage
     {
         $letters = array();
         $code    = $this->getCode(null, true);
+        $strlen  = (function_exists('mb_strlen') ? 'mb_strlen' : 'strlen');
+        $substr  = ($strlen == 'mb_strlen') ? 'mb_substr' : 'substr';
 
         if (empty($code) || empty($code->code)) {
-            if (strlen($this->display_value) > 0) {
+            if ($strlen($this->display_value) > 0) {
                 $code = new \Securimage\CaptchaObject;
                 $code->code         = $this->display_value;
                 $code->code_display = $this->display_value;
@@ -2144,10 +2150,10 @@ class Securimage
         } else {
             $math = false;
 
-            $length = strlen($code->code_display);
+            $length = $strlen($code->code_display);
 
             for($i = 0; $i < $length; ++$i) {
-                $letter    = $code->code_display{$i};
+                $letter    = $substr($code->code_display, $i, 1);
                 $letters[] = $letter;
             }
         }
@@ -2253,14 +2259,11 @@ class Securimage
     {
         $code = '';
 
-        if (function_exists('mb_strlen')) {
-            for($i = 1, $cslen = mb_strlen($this->charset, 'UTF-8'); $i <= $this->code_length; ++$i) {
-                $code .= mb_substr($this->charset, mt_rand(0, $cslen - 1), 1, 'UTF-8');
-            }
-        } else {
-            for($i = 1, $cslen = strlen($this->charset); $i <= $this->code_length; ++$i) {
-                $code .= substr($this->charset, mt_rand(0, $cslen - 1), 1);
-            }
+        $strlen = (function_exists('mb_strlen')) ? 'mb_strlen' : 'strlen';
+        $substr = ($strlen == 'mb_strlen') ? 'mb_substr' : 'substr';
+
+        for($i = 1, $cslen = $strlen($this->charset); $i <= $this->code_length; ++$i) {
+            $code .= $substr($this->charset, mt_rand(0, $cslen - 1), 1);
         }
 
         return $code;
