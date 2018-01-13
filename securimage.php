@@ -1663,11 +1663,16 @@ class Securimage
             $imagecreate = 'imagecreate';
         }
 
-        $this->im     = $imagecreate($this->image_width, $this->image_height);
-        $this->tmpimg = $imagecreate($this->image_width * $this->iscale, $this->image_height * $this->iscale);
+        $this->im = $imagecreate($this->image_width, $this->image_height);
 
         $this->allocateColors();
-        imagepalettecopy($this->tmpimg, $this->im);
+
+        if ($this->perturbation > 0) {
+            $this->tmpimg = $imagecreate($this->image_width * $this->iscale, $this->image_height * $this->iscale);
+            imagepalettecopy($this->tmpimg, $this->im);
+        } else {
+            $this->iscale = 1;
+        }
 
         $this->setBackground();
 
@@ -1691,7 +1696,7 @@ class Securimage
 
         $this->drawWord();
 
-        if ($this->perturbation > 0 && is_readable($this->ttf_file)) {
+        if ($this->perturbation > 0) {
             $this->distortedCopy();
         }
 
@@ -1766,9 +1771,12 @@ class Securimage
         imagefilledrectangle($this->im, 0, 0,
                              $this->image_width, $this->image_height,
                              $this->gdbgcolor);
-        imagefilledrectangle($this->tmpimg, 0, 0,
-                             $this->image_width * $this->iscale, $this->image_height * $this->iscale,
-                             $this->gdbgcolor);
+
+        if ($this->perturbation > 0) {
+            imagefilledrectangle($this->tmpimg, 0, 0,
+                                 $this->image_width * $this->iscale, $this->image_height * $this->iscale,
+                                 $this->gdbgcolor);
+        }
 
         if ($this->bgimg == '') {
             if ($this->background_directory != null &&
@@ -1887,35 +1895,73 @@ class Securimage
      */
     protected function drawWord()
     {
-        $width2  = $this->image_width * $this->iscale;
-        $height2 = $this->image_height * $this->iscale;
-        $ratio   = ($this->font_ratio) ? $this->font_ratio : 0.4;
+        $ratio = ($this->font_ratio) ? $this->font_ratio : 0.4;
 
         if ((float)$ratio < 0.1 || (float)$ratio >= 1) {
             $ratio = 0.4;
         }
 
         if (!is_readable($this->ttf_file)) {
+            $this->perturbation = 0;
             imagestring($this->im, 4, 10, ($this->image_height / 2) - 5, 'Failed to load TTF font file!', $this->gdtextcolor);
+
+            return ;
+        }
+
+        if ($this->perturbation > 0) {
+            $width     = $this->image_width * $this->iscale;
+            $height    = $this->image_height * $this->iscale;
+            $font_size = $height * $ratio;
+            $im        = $this->tmpimg;
         } else {
-            if ($this->perturbation > 0) {
-                $font_size = $height2 * $ratio;
-                $bb = imageftbbox($font_size, 0, $this->ttf_file, $this->code_display);
-                $tx = $bb[4] - $bb[0];
-                $ty = $bb[5] - $bb[1];
-                $x  = floor($width2 / 2 - $tx / 2 - $bb[0]);
-                $y  = round($height2 / 2 - $ty / 2 - $bb[1]);
+            $height    = $this->image_height;
+            $width     = $this->image_width;
+            $font_size = $this->image_height * $ratio;
+            $im        = $this->im;
+        }
 
-                imagettftext($this->tmpimg, $font_size, 0, (int)$x, (int)$y, $this->gdtextcolor, $this->ttf_file, $this->code_display);
-            } else {
-                $font_size = $this->image_height * $ratio;
-                $bb = imageftbbox($font_size, 0, $this->ttf_file, $this->code_display);
-                $tx = $bb[4] - $bb[0];
-                $ty = $bb[5] - $bb[1];
-                $x  = floor($this->image_width / 2 - $tx / 2 - $bb[0]);
-                $y  = round($this->image_height / 2 - $ty / 2 - $bb[1]);
+        // Calculate the approximate center for the entire text on the image
 
-                imagettftext($this->im, $font_size, 0, (int)$x, (int)$y, $this->gdtextcolor, $this->ttf_file, $this->code_display);
+        $bb = imageftbbox($font_size, 0, $this->ttf_file, $this->code_display);
+        $tx = $bb[4] - $bb[0];
+        $ty = $bb[5] - $bb[1];
+        $x  = floor($width / 2 - $tx / 2 - $bb[0]);
+        $y  = round($height / 2 - $ty / 2 - $bb[1]);
+
+        // Character positioning and angle
+
+        $strlen = (function_exists('mb_strlen')) ? 'mb_strlen' : 'strlen';
+        $substr = ($strlen == 'mb_strlen') ? 'mb_substr' : 'substr';
+
+        $angle0 = mt_rand(-15, 15);
+        $angleN = mt_rand(-15, 15);
+        $step   = abs($angle0 - $angleN) / $strlen($this->code_display);
+        $step   = (abs($angle0) > 8) ? $step : -$step;
+        $angle  = $angle0;
+
+        for ($c = 0; $c < $strlen($this->code_display); ++$c) {
+            $char = $substr($this->code_display, $c, 1);
+            $dims = $this->getCharacterDimensions($char, $font_size, $angle);
+            $yOff = ceil(M_E * sin($angle + $c));
+
+            imagettftext(
+                $im,
+                $font_size,
+                $angle,
+                (int)$x,
+                (int)($y + $yOff),
+                $this->gdtextcolor,
+                $this->ttf_file,
+                $char
+            );
+
+            $x += $dims[0] - ($this->iscale * (mt_rand(0, $dims[0] * 0.03))) + ($this->iscale * mt_rand(0, 2));
+
+            $angle += $step;
+            if ($angle > 15) {
+                $angle = 15;
+            } elseif ($angle < -15) {
+                $angle = -15;
             }
         }
 
@@ -1923,6 +1969,22 @@ class Securimage
         //$this->im = $this->tmpimg;
         //$this->output();
 
+    }
+
+    /**
+     * Get the width and height (in points) of a character for a given font,
+     * angle, and size.
+     *
+     * @param string $char The character to get dimensions for
+     * @param number $size The font size, in points
+     * @param number $angle The angle of the text
+     * @return number[] A 2-element array representing the width and height of the text
+     */
+    protected function getCharacterDimensions($char, $size, $angle)
+    {
+        $box = imageftbbox($size, $angle, $this->ttf_file, $char);
+
+        return array($box[2] - $box[0], $box[7] - $box[1]);
     }
 
     /**
