@@ -1,11 +1,10 @@
 {
     "name": "dapphp/securimage",
     "type": "library",
-    "vesion": "3.6.3",
     "description": "PHP CAPTCHA Library",
     "keywords": ["captcha","security"],
     "homepage": "https://www.phpcaptcha.org",
-    "license": "BSD",
+    "license": "BSD-3-Clause",
     "authors": [
         {
             "name": "Drew Phillips",
