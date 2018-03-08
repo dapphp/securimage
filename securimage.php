@@ -674,7 +674,7 @@ class Securimage
      *
      * @var int
      */
-    protected $iscale = 5;
+    protected $iscale = 2;
 
     /**
      * Absolute path to securimage directory.
@@ -2069,29 +2069,28 @@ class Securimage
         }
 
         $t0 = microtime(true);
+        $noise_level *= M_LOG2E;
 
-        $noise_level *= 125; // an arbitrary number that works well on a 1-10 scale
+        for ($x = 1; $x < $this->image_width; $x += 20) {
+            for ($y = 1; $y < $this->image_height; $y += 20) {
+                for ($i = 0; $i < $noise_level; ++$i) {
+                    $x1 = mt_rand($x, $x + 20);
+                    $y1 = mt_rand($y, $y + 20);
+                    $size = mt_rand(1, 3);
 
-        $points = $this->image_width * $this->image_height * $this->iscale;
-        $height = $this->image_height * $this->iscale;
-        $width  = $this->image_width * $this->iscale;
-        for ($i = 0; $i < $noise_level; ++$i) {
-            $x = mt_rand(10, $width);
-            $y = mt_rand(10, $height);
-            $size = mt_rand(7, 10);
-            if ($x - $size <= 0 && $y - $size <= 0) continue; // dont cover 0,0 since it is used by imagedistortedcopy
-            imagefilledarc($this->tmpimg, $x, $y, $size, $size, 0, 360, $this->gdnoisecolor, IMG_ARC_PIE);
+                    if ($x1 - $size <= 0 && $y1 - $size <= 0) continue; // dont cover 0,0 since it is used by imagedistortedcopy
+                    imagefilledarc($this->im, $x1, $y1, $size, $size, 0, mt_rand(180,360), $this->gdlinecolor, IMG_ARC_PIE);
+                }
+            }
         }
 
-        $t1 = microtime(true);
-
-        $t = $t1 - $t0;
+        $t = microtime(true) - $t0;
 
         /*
         // DEBUG
-        imagestring($this->tmpimg, 5, 25, 30, "$t", $this->gdnoisecolor);
+        imagestring($this->im, 5, 25, 30, "$t", $this->gdnoisecolor);
         header('content-type: image/png');
-        imagepng($this->tmpimg);
+        imagepng($this->im);
         exit;
         */
     }
