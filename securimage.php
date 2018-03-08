@@ -2183,11 +2183,9 @@ class Securimage
     {
         $letters = array();
         $code    = $this->getCode(null, true);
-        $strlen  = (function_exists('mb_strlen') ? 'mb_strlen' : 'strlen');
-        $substr  = ($strlen == 'mb_strlen') ? 'mb_substr' : 'substr';
 
         if (empty($code) || empty($code->code)) {
-            if ($strlen($this->display_value) > 0) {
+            if ($this->strlen($this->display_value) > 0) {
                 $code = new \Securimage\CaptchaObject;
                 $code->code         = $this->display_value;
                 $code->code_display = $this->display_value;
@@ -2214,10 +2212,10 @@ class Securimage
         } else {
             $math = false;
 
-            $length = $strlen($code->code_display);
+            $length = $this->strlen($code->code_display);
 
             for($i = 0; $i < $length; ++$i) {
-                $letter    = $substr($code->code_display, $i, 1);
+                $letter    = $this->substr($code->code_display, $i, 1);
                 $letters[] = $letter;
             }
         }
@@ -2240,8 +2238,6 @@ class Securimage
     protected function readCodeFromFile($numWords = 1)
     {
         $strpos_func     = 'strpos';
-        $strlen_func     = 'strlen';
-        $substr_func     = 'substr';
         $strtolower_func = 'strtolower';
         $mb_support      = false;
 
@@ -2259,8 +2255,6 @@ class Securimage
             }
 
             $strpos_func     = 'mb_strpos';
-            $strlen_func     = 'mb_strlen';
-            $substr_func     = 'mb_substr';
             $strtolower_func = 'mb_strtolower';
         }
 
@@ -2291,10 +2285,10 @@ class Securimage
                 // picked start position at end of file
                 continue;
             } else if ($end === false) {
-                $end = $strlen_func($data);
+                $end = $this->strlen($data);
             }
 
-            $word = $strtolower_func($substr_func($data, $start, $end - $start)); // return a line of the file
+            $word = $strtolower_func($this->substr($data, $start, $end - $start)); // return a line of the file
 
             if ($mb_support) {
                 // convert to UTF-8 for imagettftext
@@ -2323,11 +2317,8 @@ class Securimage
     {
         $code = '';
 
-        $strlen = (function_exists('mb_strlen')) ? 'mb_strlen' : 'strlen';
-        $substr = ($strlen == 'mb_strlen') ? 'mb_substr' : 'substr';
-
-        for($i = 1, $cslen = $strlen($this->charset); $i <= $this->code_length; ++$i) {
-            $code .= $substr($this->charset, mt_rand(0, $cslen - 1), 1);
+        for($i = 1, $cslen = $this->strlen($this->charset); $i <= $this->code_length; ++$i) {
+            $code .= $this->substr($this->charset, mt_rand(0, $cslen - 1), 1);
         }
 
         return $code;
@@ -2744,6 +2735,43 @@ class Securimage
     function frand()
     {
         return 0.0001 * mt_rand(0,9999);
+    }
+
+    protected function strlen($string)
+    {
+        $strlen= 'strlen';
+
+        if (function_exists('mb_strlen')) {
+            $strlen= 'mb_strlen';
+        }
+
+        return $strlen($string);
+    }
+
+    protected function substr($string, $start, $length = null)
+    {
+        $substr= 'substr';
+
+        if (function_exists('mb_substr')) {
+            $substr = 'mb_substr';
+        }
+
+        if ($length === null) {
+            return $substr($string, $start);
+        } else {
+            return $substr($string, $start, $length);
+        }
+    }
+
+    protected function strpos($haystack, $needle, $offset = 0)
+    {
+        $strpos = 'strpos';
+
+        if (function_exists('mb_strpos')) {
+            $strpos = 'mb_strpos';
+        }
+
+        return $strpos($haystack, $needle, $offset);
     }
 
     /**
