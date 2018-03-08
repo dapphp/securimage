@@ -1682,8 +1682,8 @@ class Securimage
 
         if (is_string($this->display_value) && strlen($this->display_value)) {
             $code = $this->code_display = $this->display_value;
-        } else if (($info = $this->getCode())) {
-            $code = $this->code_display = $info->code;
+        } elseif (($info = $this->getCode())) {
+            $code = $this->code_display = $info->code_display;
         }
 
         if ($code == '') {
