@@ -1974,20 +1974,33 @@ class Securimage
      */
     protected function distortedCopy()
     {
-        $numpoles = 3; // distortion factor
+        $numpoles = 3;       // distortion factor
+        $px       = array(); // x coordinates of poles
+        $py       = array(); // y coordinates of poles
+        $rad      = array(); // radius of distortion from pole
+        $amp      = array(); // amplitude
+        $x        = ($this->image_width / 4); // lowest x coordinate of a pole
+        $maxX     = $this->image_width - $x;  // maximum x coordinate of a pole
+        $dx       = mt_rand($x / 10, $x);     // horizontal distance between poles
+        $y        = mt_rand(20, $this->image_height - 20);  // random y coord
+        $dy       = mt_rand(20, $this->image_height * 0.7); // y distance
+        $minY     = 20;                                     // minimum y coordinate
+        $maxY     = $this->image_height - 20;               // maximum y cooddinate
+
         // make array of poles AKA attractor points
         for ($i = 0; $i < $numpoles; ++ $i) {
-            $px[$i]  = mt_rand($this->image_width  * 0.2, $this->image_width  * 0.8);
-            $py[$i]  = mt_rand($this->image_height * 0.2, $this->image_height * 0.8);
-            $rad[$i] = mt_rand($this->image_height * 0.2, $this->image_height * 0.8);
+            $px[$i]  = ($x + ($dx * $i)) % $maxX;
+            $py[$i]  = ($y + ($dy * $i)) % $maxY + $minY;
+            $rad[$i] = mt_rand($this->image_height * 0.4, $this->image_height * 0.8);
             $tmp     = ((- $this->frand()) * 0.15) - .15;
             $amp[$i] = $this->perturbation * $tmp;
         }
 
-        $bgCol = imagecolorat($this->tmpimg, 0, 0);
-        $width2 = $this->iscale * $this->image_width;
+        $bgCol   = imagecolorat($this->tmpimg, 0, 0);
+        $width2  = $this->iscale * $this->image_width;
         $height2 = $this->iscale * $this->image_height;
         imagepalettecopy($this->im, $this->tmpimg); // copy palette to final image so text colors come across
+
         // loop over $img pixels, take pixels from $tmpimg with distortion field
         for ($ix = 0; $ix < $this->image_width; ++ $ix) {
             for ($iy = 0; $iy < $this->image_height; ++ $iy) {
@@ -2030,7 +2043,7 @@ class Securimage
             $x += (0.5 - $this->frand()) * $this->image_width / $this->num_lines;
             $y = mt_rand($this->image_height * 0.1, $this->image_height * 0.9);
 
-            $theta = ($this->frand() - 0.5) * M_PI * 0.7;
+            $theta = ($this->frand() - 0.5) * M_PI * 0.33;
             $w = $this->image_width;
             $len = mt_rand($w * 0.4, $w * 0.7);
             $lwid = mt_rand(0, 2);
@@ -2711,7 +2724,7 @@ class Securimage
      *
      * @return float Random float between 0 and 0.9999
      */
-    function frand()
+    protected function frand()
     {
         return 0.0001 * mt_rand(0,9999);
     }
