@@ -392,22 +392,24 @@ class Securimage
     public $noise_color    = '#707070';
 
     /**
-     * How transparent to make the text.
+     * Deprecated. How transparent to make the text.
      *
      * 0 = completely opaque, 100 = invisible
      *
      * @var int
+     * @deprecated 4.0.0
      */
-    public $text_transparency_percentage = 20;
+    public $text_transparency_percentage = 0;
 
     /**
-     * Whether or not to draw the text transparently.
+     * Deprecated. Whether or not to draw the text transparently.
      *
      * true = use transparency, false = no transparency
      *
      * @var bool
+     * @deprecated 4.0.0
      */
-    public $use_transparent_text         = true;
+    public $use_transparent_text         = false;
 
     /**
      * The length of the captcha code
@@ -1104,7 +1106,7 @@ class Securimage
     {
         set_error_handler(array(&$this, 'errorHandler'));
 
-        if($background_image != '' && is_readable($background_image)) {
+        if(!empty($background_image) && is_readable($background_image)) {
             $this->bgimg = $background_image;
         }
 
@@ -1657,7 +1659,7 @@ class Securimage
      */
     protected function doImage()
     {
-        if( ($this->use_transparent_text == true || $this->bgimg != '') && function_exists('imagecreatetruecolor')) {
+        if($this->bgimg != '' || function_exists('imagecreatetruecolor')) {
             $imagecreate = 'imagecreatetruecolor';
         } else {
             $imagecreate = 'imagecreate';

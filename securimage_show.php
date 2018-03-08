@@ -81,5 +81,3 @@ $img = new Securimage($options);
 
 
 $img->show();  // outputs the image and content headers to the browser
-// alternate use:
-// $img->show('/path/to/background_image.jpg');
