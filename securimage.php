@@ -1724,38 +1724,18 @@ class Securimage
                                               $this->image_bg_color->g,
                                               $this->image_bg_color->b);
 
-        $alpha = intval($this->text_transparency_percentage / 100 * 127);
-
-        if ($this->use_transparent_text == true) {
-            $this->gdtextcolor = imagecolorallocatealpha($this->im,
-                                                         $this->text_color->r,
-                                                         $this->text_color->g,
-                                                         $this->text_color->b,
-                                                         $alpha);
-            $this->gdlinecolor = imagecolorallocatealpha($this->im,
-                                                         $this->line_color->r,
-                                                         $this->line_color->g,
-                                                         $this->line_color->b,
-                                                         $alpha);
-            $this->gdnoisecolor = imagecolorallocatealpha($this->im,
-                                                          $this->noise_color->r,
-                                                          $this->noise_color->g,
-                                                          $this->noise_color->b,
-                                                          $alpha);
-        } else {
-            $this->gdtextcolor = imagecolorallocate($this->im,
-                                                    $this->text_color->r,
-                                                    $this->text_color->g,
-                                                    $this->text_color->b);
-            $this->gdlinecolor = imagecolorallocate($this->im,
-                                                    $this->line_color->r,
-                                                    $this->line_color->g,
-                                                    $this->line_color->b);
-            $this->gdnoisecolor = imagecolorallocate($this->im,
-                                                          $this->noise_color->r,
-                                                          $this->noise_color->g,
-                                                          $this->noise_color->b);
-        }
+        $this->gdtextcolor = imagecolorallocate($this->im,
+                                                $this->text_color->r,
+                                                $this->text_color->g,
+                                                $this->text_color->b);
+        $this->gdlinecolor = imagecolorallocate($this->im,
+                                                $this->line_color->r,
+                                                $this->line_color->g,
+                                                $this->line_color->b);
+        $this->gdnoisecolor = imagecolorallocate($this->im,
+                                                 $this->noise_color->r,
+                                                 $this->noise_color->g,
+                                                 $this->noise_color->b);
 
         $this->gdsignaturecolor = imagecolorallocate($this->im,
                                                      $this->signature_color->r,
@@ -2902,6 +2882,20 @@ class Securimage_Color
               'Securimage_Color constructor expects 0, 1 or 3 arguments; ' . sizeof($args) . ' given'
             );
         }
+    }
+
+    public function toLongColor()
+    {
+        return ($this->r << 16) + ($this->g << 8) + $this->b;
+    }
+
+    public function fromLongColor($color)
+    {
+        $this->r = ($color >> 16) & 0xff;
+        $this->g = ($color >>  8) & 0xff;
+        $this->b =  $color        & 0xff;
+
+        return $this;
     }
 
     /**
