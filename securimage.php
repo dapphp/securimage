@@ -1016,9 +1016,22 @@ class Securimage
             $options = array();
         }
 
+        if (function_exists('mb_internal_encoding')) {
+            mb_internal_encoding('UTF-8');
+        }
+
         // check for and load settings from custom config file
+        $config_file = null;
+
         if (file_exists(dirname(__FILE__) . '/config.inc.php')) {
-            $settings = include dirname(__FILE__) . '/config.inc.php';
+            $config_file = dirname(__FILE__) . '/config.inc.php';
+        }
+        if (isset($options['config_file']) && file_exists($options['config_file'])) {
+            $config_file = $options['config_file'];
+        }
+
+        if ($config_file) {
+            $settings = include $config_file;
 
             if (is_array($settings)) {
                 $options = array_merge($settings, $options);
