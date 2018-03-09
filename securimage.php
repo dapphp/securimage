@@ -1274,6 +1274,11 @@ class Securimage
      */
     public function check($code)
     {
+        if (!is_string($code)) {
+            trigger_error("The \$code parameter passed to Securimage::check() must be a string, " . gettype($code) . " given", E_USER_NOTICE);
+            $code = '';
+        }
+
         $this->code_entered = $code;
         $this->validate();
         return $this->correct_code;
