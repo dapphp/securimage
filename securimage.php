@@ -212,7 +212,7 @@
  * The class contains many options regarding appearance, security, storage of
  * captcha data and image/audio generation options.
  *
-* @package    Securimage
+ * @package    Securimage
  * @subpackage classes
  * @author     Drew Phillips <drew@drew-phillips.com>
  *
@@ -1426,7 +1426,7 @@ class Securimage
                         $icon_size, $icon_size
                 );
 
-                $html .= sprintf('<param name="movie" value="%s?bgcol=%s&amp;icon_file=%s&amp;audio_file=%s" />',
+                $html .= sprintf('<param name="movie" value="%s?bgcol=%s&amp;icon_file=%s&amp;audio_file=%s">',
                         htmlspecialchars($swf_path),
                         urlencode($audio_but_bg_col),
                         urlencode($icon_path),
@@ -1464,10 +1464,10 @@ class Securimage
             if ($refresh_icon_url) {
                 $icon_path = $refresh_icon_url;
             }
-            $img_tag = sprintf('<img height="%d" width="%d" src="%s" alt="%s" onclick="this.blur()" style="border: 0px; vertical-align: bottom" />',
+            $img_tag = sprintf('<img height="%d" width="%d" src="%s" alt="%s" onclick="this.blur()" style="border: 0px; vertical-align: bottom">',
                                $icon_size, $icon_size, htmlspecialchars($icon_path), htmlspecialchars($refresh_alt));
 
-            $html .= sprintf('<a tabindex="-1" style="border: 0" href="#" title="%s" onclick="%sdocument.getElementById(\'%s\').src = \'%s\' + Math.random(); this.blur(); return false">%s</a><br />',
+            $html .= sprintf('<a tabindex="-1" style="border: 0" href="#" title="%s" onclick="%sdocument.getElementById(\'%s\').src = \'%s\' + Math.random(); this.blur(); return false">%s</a><br>',
                     htmlspecialchars($refresh_title),
                     ($audio_obj) ? "if (typeof window.{$audio_obj} !== 'undefined') {$audio_obj}.refresh(); " : '',
                     $image_id,
@@ -1496,12 +1496,13 @@ class Securimage
             $input_attrs['type'] = 'text';
             $input_attrs['name'] = $input_name;
             $input_attrs['id']   = $input_id;
+            $input_attrs['autocomplete'] = 'off';
 
             foreach($input_attrs as $name => $val) {
                 $input_attr .= sprintf('%s="%s" ', $name, htmlspecialchars($val));
             }
 
-            $html .= sprintf('<input %s/>', $input_attr);
+            $html .= sprintf('<input %s>', $input_attr);
         }
 
         return $html;
@@ -1775,7 +1776,7 @@ class Securimage
                                        $this->display_value   :
                                        strtolower($this->display_value);
                 $code = $this->code;
-            } else if ($this->openDatabase()) {
+            } elseif ($this->openDatabase()) {
                 // no display_value, check the database for existing captchaId
                 $code = $this->getCodeFromDatabase();
 
@@ -2390,7 +2391,7 @@ class Securimage
         $letters = array();
         $code    = $this->getCode(true, true);
 
-        if (empty($code) || $code['code'] == '') {
+        if (empty($code) || empty($code['code'])) {
             if (strlen($this->display_value) > 0) {
                 $code = array('code' => $this->display_value, 'display' => $this->display_value);
             } else {
@@ -2402,7 +2403,7 @@ class Securimage
         if (empty($code)) {
             $error = 'Failed to get audible code (are database settings correct?).  Check the error log for details';
             trigger_error($error, E_USER_WARNING);
-            throw new Exception($error);
+            throw new \Exception($error);
         }
 
         if (preg_match('/(\d+) (\+|-|x) (\d+)/i', $code['display'], $eq)) {
@@ -3670,6 +3671,20 @@ class Securimage_Color
               'Securimage_Color constructor expects 0, 1 or 3 arguments; ' . sizeof($args) . ' given'
             );
         }
+    }
+
+    public function toLongColor()
+    {
+        return ($this->r << 16) + ($this->g << 8) + $this->b;
+    }
+
+    public function fromLongColor($color)
+    {
+        $this->r = ($color >> 16) & 0xff;
+        $this->g = ($color >>  8) & 0xff;
+        $this->b =  $color        & 0xff;
+
+        return $this;
     }
 
     /**
