@@ -861,7 +861,7 @@ class Securimage
      *
      * @var int
      */
-    protected $iscale = 5;
+    protected $iscale = 2;
 
     /**
      * Absolute path to securimage directory.
@@ -1727,17 +1727,26 @@ class Securimage
      */
     protected function doImage()
     {
-        if( ($this->use_transparent_text == true || $this->bgimg != '') && function_exists('imagecreatetruecolor')) {
+        if($this->use_transparent_text == true || $this->bgimg != '' || function_exists('imagecreatetruecolor')) {
             $imagecreate = 'imagecreatetruecolor';
         } else {
             $imagecreate = 'imagecreate';
         }
 
-        $this->im     = $imagecreate($this->image_width, $this->image_height);
-        $this->tmpimg = $imagecreate($this->image_width * $this->iscale, $this->image_height * $this->iscale);
+        $this->im = $imagecreate($this->image_width, $this->image_height);
+
+        if (function_exists('imageantialias')) {
+            imageantialias($this->im, true);
+        }
 
         $this->allocateColors();
-        imagepalettecopy($this->tmpimg, $this->im);
+
+        if ($this->perturbation > 0) {
+            $this->tmpimg = $imagecreate($this->image_width * $this->iscale, $this->image_height * $this->iscale);
+            imagepalettecopy($this->tmpimg, $this->im);
+        } else {
+            $this->iscale = 1;
+        }
 
         $this->setBackground();
 
@@ -1853,9 +1862,12 @@ class Securimage
         imagefilledrectangle($this->im, 0, 0,
                              $this->image_width, $this->image_height,
                              $this->gdbgcolor);
-        imagefilledrectangle($this->tmpimg, 0, 0,
-                             $this->image_width * $this->iscale, $this->image_height * $this->iscale,
-                             $this->gdbgcolor);
+
+        if ($this->perturbation > 0) {
+            imagefilledrectangle($this->tmpimg, 0, 0,
+                                 $this->image_width * $this->iscale, $this->image_height * $this->iscale,
+                                 $this->gdbgcolor);
+        }
 
         if ($this->bgimg == '') {
             if ($this->background_directory != null &&
