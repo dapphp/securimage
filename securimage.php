@@ -840,6 +840,20 @@ class Securimage
     public $audio_gap_max = 3000;
 
     /**
+     * The file path for logging errors from audio (default __DIR__)
+     *
+     * @var string|null
+     */
+    public $log_path = null;
+
+    /**
+     * The name of the log file for logging audio errors
+     *
+     * @var string|null (defualt si_error.log)
+     */
+    public $log_file = null;
+
+    /**
      * Captcha ID if using static captcha
      * @var string Unique captcha id
      */
@@ -1118,6 +1132,14 @@ class Securimage
 
         if (is_null($this->send_headers)) {
             $this->send_headers = true;
+        }
+
+        if (is_null($this->log_path)) {
+            $this->log_path = __DIR__;
+        }
+
+        if (is_null($this->log_file)) {
+            $this->log_file = 'securimage.error_log';
         }
 
         if ($this->no_session != true) {
@@ -1583,7 +1605,9 @@ class Securimage
                 $this->saveAudioData($audio);
             }
         } catch (Exception $ex) {
-            if (($fp = @fopen(dirname(__FILE__) . '/si.error_log', 'a+')) !== false) {
+            $log_file = rtrim($this->log_path, '/\\ ') . DIRECTORY_SEPARATOR . $this->log_file;
+
+            if (($fp = fopen($log_file, 'a+')) !== false) {
                 fwrite($fp, date('Y-m-d H:i:s') . ': Securimage audio error "' . $ex->getMessage() . '"' . "\n");
                 fclose($fp);
             }
