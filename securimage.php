@@ -6,7 +6,7 @@
  * Project:  Securimage: A PHP class dealing with CAPTCHA images, audio, and validation
  * File:     securimage.php
  *
- * Copyright (c) 2017, Drew Phillips
+ * Copyright (c) 2018, Drew Phillips
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -33,15 +33,13 @@
  * Any modifications to the library should be indicated clearly in the source code
  * to inform users that the changes are not a part of the original software.
  *
- * If you found this script useful, please take a quick moment to rate it.
- * http://www.hotscripts.com/rate/49400.html  Thanks.
- *
- * @link http://www.phpcaptcha.org Securimage PHP CAPTCHA
- * @link http://www.phpcaptcha.org/latest.zip Download Latest Version
- * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
- * @copyright 2017 Drew Phillips
+ * @link https://www.phpcaptcha.org Securimage Homepage
+ * @link https://www.phpcaptcha.org/latest.zip Download Latest Version
+ * @link https://github.com/dapphp/securimage GitHub page
+ * @link https://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
+ * @copyright 2018 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
- * @version 3.6.6 (Nov 20 2017)
+ * @version 3.6.7 (March 2018)
  * @package Securimage
  *
  */
@@ -49,6 +47,17 @@
 /**
 
  ChangeLog
+ 3.6.7
+ - Merge changes from 4.0.1-nextgen
+ - Increase captcha difficulty
+ - Add setting "use_text_angles". Enable to select a random angle and step value and draw each character at an angle in a step like fashion
+ - Add setting "use_random_spaces". Enable to insert 1-3 spaces between a random group of letters some of the time
+ - Add setting "use_random_baseline". Enable to draw letters at a random height instead of centered.  Each character's baseline is a step up or down from the previous (not totally random)
+ - Add setting "use_random_boxes". Enable to draw a bounding box around one or more characters at random
+ - Improve performance of captcha generation when using distortion (perturbation) and noise (noise_level)
+ - Enable image anti-aliasing
+ - Make all text functions multibyte safe when using UTF-8 or other encodings for charsets and wordlists (using mbstring)
+
  3.6.6
  - Not critical: Fix potential HTML injection in example form via HTTP_USER_AGENT (CVE-2017-14077)
 
