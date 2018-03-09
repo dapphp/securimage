@@ -2391,17 +2391,17 @@ class Securimage
         } else {
             $math = false;
 
-            $length = strlen($code['display']);
+            $length = $this->strlen($code['display']);
 
             for($i = 0; $i < $length; ++$i) {
-                $letter    = $code['display']{$i};
+                $letter    = $this->substr($code['display'], $i, 1);
                 $letters[] = $letter;
             }
         }
 
         try {
             return $this->generateWAV($letters);
-        } catch(Exception $ex) {
+        } catch(\Exception $ex) {
             throw $ex;
         }
     }
@@ -2416,9 +2416,6 @@ class Securimage
      */
     protected function readCodeFromFile($numWords = 1)
     {
-        $strpos_func     = 'strpos';
-        $strlen_func     = 'strlen';
-        $substr_func     = 'substr';
         $strtolower_func = 'strtolower';
         $mb_support      = false;
 
@@ -2435,9 +2432,6 @@ class Securimage
                 return false;
             }
 
-            $strpos_func     = 'mb_strpos';
-            $strlen_func     = 'mb_strlen';
-            $substr_func     = 'mb_substr';
             $strtolower_func = 'mb_strtolower';
         }
 
@@ -2461,17 +2455,17 @@ class Securimage
                 $data = preg_replace("/\r?\n/", "\n", $data);
             }
 
-            $start = @$strpos_func($data, "\n", mt_rand(0, 56)) + 1; // random start position
-            $end   = @$strpos_func($data, "\n", $start);          // find end of word
+            $start = @$this->strpos($data, "\n", mt_rand(0, 56)) + 1; // random start position
+            $end   = @$this->strpos($data, "\n", $start);          // find end of word
 
             if ($start === false) {
                 // picked start position at end of file
                 continue;
             } else if ($end === false) {
-                $end = $strlen_func($data);
+                $end = $this->strlen($data);
             }
 
-            $word = $strtolower_func($substr_func($data, $start, $end - $start)); // return a line of the file
+            $word = $strtolower_func($this->substr($data, $start, $end - $start)); // return a line of the file
 
             if ($mb_support) {
                 // convert to UTF-8 for imagettftext
@@ -2500,14 +2494,8 @@ class Securimage
     {
         $code = '';
 
-        if (function_exists('mb_strlen')) {
-            for($i = 1, $cslen = mb_strlen($this->charset, 'UTF-8'); $i <= $this->code_length; ++$i) {
-                $code .= mb_substr($this->charset, mt_rand(0, $cslen - 1), 1, 'UTF-8');
-            }
-        } else {
-            for($i = 1, $cslen = strlen($this->charset); $i <= $this->code_length; ++$i) {
-                $code .= substr($this->charset, mt_rand(0, $cslen - 1), 1);
-            }
+        for($i = 1, $cslen = $this->strlen($this->charset); $i <= $this->code_length; ++$i) {
+            $code .= $this->substr($this->charset, mt_rand(0, $cslen - 1), 1);
         }
 
         return $code;
