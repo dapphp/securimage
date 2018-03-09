@@ -414,6 +414,36 @@ class Securimage
     public $code_length    = 6;
 
     /**
+     * Display random spaces in the captcha text on the image
+     *
+     * @var bool true to insert random spacing between groups of letters
+     */
+    public $use_random_spaces  = false;
+
+    /**
+     * Draw each character at an angle with random starting angle and increase/decrease per character
+     * @var bool true to use random angles, false to draw each character normally
+     */
+    public $use_text_angles = false;
+
+    /**
+     * Instead of centering text vertically in the image, the baseline of each character is
+     * randomized in such a way that the next character is drawn slightly higher or lower than
+     * the previous in a step-like fashion.
+     *
+     * @var bool true to use random baselines, false to center text in image
+     */
+    public $use_random_baseline = false;
+
+    /**
+     * Draw a bounding box around some characters at random.  20% of the time, random boxes
+     * may be drawn around 0 or more characters on the image.
+     *
+     * @var bool  true to randomly draw boxes around letters, false not to
+     */
+    public $use_random_boxes = false;
+
+    /**
      * Whether the captcha should be case sensitive or not.
      *
      * Not recommended, use only for maximum protection.
@@ -426,7 +456,7 @@ class Securimage
      * The character set to use for generating the captcha code
      * @var string
      */
-    public $charset        = 'ABCDEFGHKLMNPRSTUVWYZabcdefghklmnprstuvwyz23456789';
+    public $charset        = 'abcdefghijkmnopqrstuvwxzyABCDEFGHJKLMNPQRSTUVWXZY0123456789';
 
     /**
      * How long in seconds a captcha remains valid, after this time it will be
@@ -1944,42 +1974,188 @@ class Securimage
      */
     protected function drawWord()
     {
-        $width2  = $this->image_width * $this->iscale;
-        $height2 = $this->image_height * $this->iscale;
-        $ratio   = ($this->font_ratio) ? $this->font_ratio : 0.4;
+        $ratio = ($this->font_ratio) ? $this->font_ratio : 0.4;
 
         if ((float)$ratio < 0.1 || (float)$ratio >= 1) {
             $ratio = 0.4;
         }
 
-        if (!is_readable($this->ttf_file)) {
+        if (!is_readable($this->ttfFile())) {
+            // this will not catch missing fonts after the first!
+            $this->perturbation = 0;
             imagestring($this->im, 4, 10, ($this->image_height / 2) - 5, 'Failed to load TTF font file!', $this->gdtextcolor);
+
+            return ;
+        }
+
+        if ($this->perturbation > 0) {
+            $width     = $this->image_width * $this->iscale;
+            $height    = $this->image_height * $this->iscale;
+            $font_size = $height * $ratio;
+            $im        = &$this->tmpimg;
+            $scale     = $this->iscale;
         } else {
-            if ($this->perturbation > 0) {
-                $font_size = $height2 * $ratio;
-                $bb = imageftbbox($font_size, 0, $this->ttf_file, $this->code_display);
-                $tx = $bb[4] - $bb[0];
-                $ty = $bb[5] - $bb[1];
-                $x  = floor($width2 / 2 - $tx / 2 - $bb[0]);
-                $y  = round($height2 / 2 - $ty / 2 - $bb[1]);
+            $height    = $this->image_height;
+            $width     = $this->image_width;
+            $font_size = $this->image_height * $ratio;
+            $im        = &$this->im;
+            $scale     = 1;
+        }
 
-                imagettftext($this->tmpimg, $font_size, 0, (int)$x, (int)$y, $this->gdtextcolor, $this->ttf_file, $this->code_display);
+        $captcha_text = $this->code_display;
+
+        if ($this->use_random_spaces && $this->strpos($captcha_text, ' ') === false) {
+            if (mt_rand(1, 100) % 5 > 0) { // ~20% chance no spacing added
+                $index  = mt_rand(1, $this->strlen($captcha_text) -1);
+                $spaces = mt_rand(1, 3);
+
+                // in general, we want all characters drawn close together to
+                // prevent easy segmentation by solvers, but this adds random
+                // spacing between two groups to make character positioning
+                // less normalized.
+
+                $captcha_text = sprintf(
+                    '%s%s%s',
+                    $this->substr($captcha_text, 0, $index),
+                    str_repeat(' ', $spaces),
+                    $this->substr($captcha_text, $index)
+                );
+            }
+        }
+
+        $fonts    = array();  // list of fonts corresponding to each char $i
+        $angles   = array();  // angles corresponding to each char $i
+        $distance = array();  // distance from current char $i to previous char
+        $dims     = array();  // dimensions of each individual char $i
+        $txtWid   = 0;        // width of the entire text string, including spaces and distances
+
+        // Character positioning and angle
+
+        $angle0 = mt_rand(10, 20);
+        $angleN = mt_rand(-20, 10);
+
+        if ($this->use_text_angles == false) {
+            $angle0 = $angleN = $step = 0;
+        }
+
+        if (mt_rand(0, 99) % 2 == 0) {
+            $angle0 = -$angle0;
+        }
+        if (mt_rand(0, 99) % 2 == 1) {
+            $angleN = -$angleN;
+        }
+
+        $step   = abs($angle0 - $angleN) / ($this->strlen($captcha_text) - 1);
+        $step   = ($angle0 > $angleN) ? -$step : $step;
+        $angle  = $angle0;
+
+        for ($c = 0; $c < $this->strlen($captcha_text); ++$c) {
+            $font     = $this->ttfFile(); // select random font from list for this character
+            $fonts[]  = $font;
+            $angles[] = $angle;  // the angle of this character
+            $dist     = mt_rand(-2, 0) * $scale; // random distance between this and next character
+            $distance[] = $dist;
+            $char     = $this->substr($captcha_text, $c, 1); // the character to draw for this sequence
+
+            $dim = $this->getCharacterDimensions($char, $font_size, $angle, $font); // calculate dimensions of this character
+
+            $dim[0] += $dist;   // add the distance to the dimension (negative to bring them closer)
+            $txtWid += $dim[0]; // increment width based on character width
+
+            $dims[] = $dim;
+
+            $angle += $step; // next angle
+
+            if ($angle > 20) {
+                $angle = 20;
+                $step  = $step * -1;
+            } elseif ($angle < -20) {
+                $angle = -20;
+                $step  = -1 * $step;
+            }
+        }
+
+        $nextYPos = function($y, $i, $step) use ($height, $scale, $dims) {
+            static $dir = 1;
+
+            if ($y + $step + $dims[$i][2] + (10 * $scale) > $height) {
+                $dir = 0;
+            } elseif ($y - $step - $dims[$i][2] < $dims[$i][1] + $dims[$i][2] + (5 * $scale)) {
+                $dir = 1;
+            }
+
+            if ($dir) {
+                $y += $step;
             } else {
-                $font_size = $this->image_height * $ratio;
-                $bb = imageftbbox($font_size, 0, $this->ttf_file, $this->code_display);
-                $tx = $bb[4] - $bb[0];
-                $ty = $bb[5] - $bb[1];
-                $x  = floor($this->image_width / 2 - $tx / 2 - $bb[0]);
-                $y  = round($this->image_height / 2 - $ty / 2 - $bb[1]);
+                $y -= $step;
+            }
 
-                imagettftext($this->im, $font_size, 0, (int)$x, (int)$y, $this->gdtextcolor, $this->ttf_file, $this->code_display);
+            return $y;
+        };
+
+        $cx = floor($width / 2 - ($txtWid / 2));
+        $x  = mt_rand(5 * $scale, max($cx * 2 - (5 * $scale), 5 * $scale));
+
+        if ($this->use_random_baseline) {
+            $y = mt_rand($dims[0][1], $height - 10);
+        } else {
+            $y = ($height / 2 + $dims[0][1] / 2 - $dims[0][2]);
+        }
+
+        $st = $scale * mt_rand(5, 10);
+
+        for ($c = 0; $c < $this->strlen($captcha_text); ++$c) {
+            $font  = $fonts[$c];
+            $char  = $this->substr($captcha_text, $c, 1);
+            $angle = $angles[$c];
+            $dim   = $dims[$c];
+
+            if ($this->use_random_baseline) {
+                $y = $nextYPos($y, $c, $st);
+            }
+
+            imagettftext(
+                $im,
+                $font_size,
+                $angle,
+                (int)$x,
+                (int)$y,
+                $this->gdtextcolor,
+                $font,
+                $char
+            );
+
+            if ($this->use_random_boxes && strlen(trim($char)) && mt_rand(1,100) % 5 == 0) {
+                imagesetthickness($im, 3);
+                imagerectangle($im, $x, $y - $dim[1] + $dim[2], $x + $dim[0], $y + $dim[2], $this->gdtextcolor);
+            }
+
+            if ($c == ' ') {
+                $x += $dim[0];
+            } else {
+                $x += $dim[0] + $distance[$c];
             }
         }
 
         // DEBUG
-        //$this->im = $this->tmpimg;
+        //$this->im = $im;
         //$this->output();
+    }
 
+    /**
+     * Get the width and height (in points) of a character for a given font,
+     * angle, and size.
+     *
+     * @param string $char The character to get dimensions for
+     * @param number $size The font size, in points
+     * @param number $angle The angle of the text
+     * @return number[] A 3-element array representing the width, height and baseline of the text
+     */
+    protected function getCharacterDimensions($char, $size, $angle, $font)
+    {
+        $box = imagettfbbox($size, $angle, $font, $char);
+
+        return array($box[2] - $box[0], max($box[1] - $box[7], $box[5] - $box[3]), $box[1]);
     }
 
     /**
@@ -1987,20 +2163,33 @@ class Securimage
      */
     protected function distortedCopy()
     {
-        $numpoles = 3; // distortion factor
+        $numpoles = 3;       // distortion factor
+        $px       = array(); // x coordinates of poles
+        $py       = array(); // y coordinates of poles
+        $rad      = array(); // radius of distortion from pole
+        $amp      = array(); // amplitude
+        $x        = ($this->image_width / 4); // lowest x coordinate of a pole
+        $maxX     = $this->image_width - $x;  // maximum x coordinate of a pole
+        $dx       = mt_rand($x / 10, $x);     // horizontal distance between poles
+        $y        = mt_rand(20, $this->image_height - 20);  // random y coord
+        $dy       = mt_rand(20, $this->image_height * 0.7); // y distance
+        $minY     = 20;                                     // minimum y coordinate
+        $maxY     = $this->image_height - 20;               // maximum y cooddinate
+
         // make array of poles AKA attractor points
         for ($i = 0; $i < $numpoles; ++ $i) {
-            $px[$i]  = mt_rand($this->image_width  * 0.2, $this->image_width  * 0.8);
-            $py[$i]  = mt_rand($this->image_height * 0.2, $this->image_height * 0.8);
-            $rad[$i] = mt_rand($this->image_height * 0.2, $this->image_height * 0.8);
+            $px[$i]  = ($x + ($dx * $i)) % $maxX;
+            $py[$i]  = ($y + ($dy * $i)) % $maxY + $minY;
+            $rad[$i] = mt_rand($this->image_height * 0.4, $this->image_height * 0.8);
             $tmp     = ((- $this->frand()) * 0.15) - .15;
             $amp[$i] = $this->perturbation * $tmp;
         }
 
-        $bgCol = imagecolorat($this->tmpimg, 0, 0);
-        $width2 = $this->iscale * $this->image_width;
+        $bgCol   = imagecolorat($this->tmpimg, 0, 0);
+        $width2  = $this->iscale * $this->image_width;
         $height2 = $this->iscale * $this->image_height;
         imagepalettecopy($this->im, $this->tmpimg); // copy palette to final image so text colors come across
+
         // loop over $img pixels, take pixels from $tmpimg with distortion field
         for ($ix = 0; $ix < $this->image_width; ++ $ix) {
             for ($iy = 0; $iy < $this->image_height; ++ $iy) {
@@ -2043,7 +2232,7 @@ class Securimage
             $x += (0.5 - $this->frand()) * $this->image_width / $this->num_lines;
             $y = mt_rand($this->image_height * 0.1, $this->image_height * 0.9);
 
-            $theta = ($this->frand() - 0.5) * M_PI * 0.7;
+            $theta = ($this->frand() - 0.5) * M_PI * 0.33;
             $w = $this->image_width;
             $len = mt_rand($w * 0.4, $w * 0.7);
             $lwid = mt_rand(0, 2);
@@ -2082,29 +2271,28 @@ class Securimage
         }
 
         $t0 = microtime(true);
+        $noise_level *= M_LOG2E;
 
-        $noise_level *= 125; // an arbitrary number that works well on a 1-10 scale
+        for ($x = 1; $x < $this->image_width; $x += 20) {
+            for ($y = 1; $y < $this->image_height; $y += 20) {
+                for ($i = 0; $i < $noise_level; ++$i) {
+                    $x1 = mt_rand($x, $x + 20);
+                    $y1 = mt_rand($y, $y + 20);
+                    $size = mt_rand(1, 3);
 
-        $points = $this->image_width * $this->image_height * $this->iscale;
-        $height = $this->image_height * $this->iscale;
-        $width  = $this->image_width * $this->iscale;
-        for ($i = 0; $i < $noise_level; ++$i) {
-            $x = mt_rand(10, $width);
-            $y = mt_rand(10, $height);
-            $size = mt_rand(7, 10);
-            if ($x - $size <= 0 && $y - $size <= 0) continue; // dont cover 0,0 since it is used by imagedistortedcopy
-            imagefilledarc($this->tmpimg, $x, $y, $size, $size, 0, 360, $this->gdnoisecolor, IMG_ARC_PIE);
+                    if ($x1 - $size <= 0 && $y1 - $size <= 0) continue; // dont cover 0,0 since it is used by imagedistortedcopy
+                    imagefilledarc($this->im, $x1, $y1, $size, $size, 0, mt_rand(180,360), $this->gdlinecolor, IMG_ARC_PIE);
+                }
+            }
         }
 
-        $t1 = microtime(true);
-
-        $t = $t1 - $t0;
+        $t = microtime(true) - $t0;
 
         /*
         // DEBUG
-        imagestring($this->tmpimg, 5, 25, 30, "$t", $this->gdnoisecolor);
+        imagestring($this->im, 5, 25, 30, "$t", $this->gdnoisecolor);
         header('content-type: image/png');
-        imagepng($this->tmpimg);
+        imagepng($this->im);
         exit;
         */
     }
@@ -3288,9 +3476,46 @@ class Securimage
      *
      * @return float Random float between 0 and 0.9999
      */
-    function frand()
+    protected function frand()
     {
         return 0.0001 * mt_rand(0,9999);
+    }
+
+    protected function strlen($string)
+    {
+        $strlen= 'strlen';
+
+        if (function_exists('mb_strlen')) {
+            $strlen= 'mb_strlen';
+        }
+
+        return $strlen($string);
+    }
+
+    protected function substr($string, $start, $length = null)
+    {
+        $substr= 'substr';
+
+        if (function_exists('mb_substr')) {
+            $substr = 'mb_substr';
+        }
+
+        if ($length === null) {
+            return $substr($string, $start);
+        } else {
+            return $substr($string, $start, $length);
+        }
+    }
+
+    protected function strpos($haystack, $needle, $offset = 0)
+    {
+        $strpos = 'strpos';
+
+        if (function_exists('mb_strpos')) {
+            $strpos = 'mb_strpos';
+        }
+
+        return $strpos($haystack, $needle, $offset);
     }
 
     /**
@@ -3312,6 +3537,17 @@ class Securimage
             return new Securimage_Color($color[0], $color[1], $color[2]);
         } else {
             return new Securimage_Color($default);
+        }
+    }
+
+    protected function ttfFile()
+    {
+        if (is_string($this->ttf_file)) {
+            return $this->ttf_file;
+        } elseif (is_array($this->ttf_file)) {
+            return $this->ttf_file[mt_rand(0, sizeof($this->ttf_file)-1)];
+        } else {
+            throw new \Exception('ttf_file is not a string or array');
         }
     }
 
