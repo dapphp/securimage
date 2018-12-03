@@ -1369,6 +1369,7 @@ class Securimage
         $input_id          = (isset($options['input_id'])) ? $options['input_id'] : 'captcha_code';
         $input_name        = (isset($options['input_name'])) ? $options['input_name'] :  $input_id;
         $input_attrs       = (isset($options['input_attributes'])) ? $options['input_attributes'] : array();
+        $input_required    = (isset($options['input_required'])) ? (bool)$options['input_required'] : true;
         $image_attrs       = (isset($options['image_attributes'])) ? $options['image_attributes'] : array();
         $error_html        = (isset($options['error_html'])) ? $options['error_html'] : null;
         $namespace         = (isset($options['namespace'])) ? $options['namespace'] : '';
@@ -1532,6 +1533,7 @@ class Securimage
             $input_attrs['type'] = 'text';
             $input_attrs['name'] = $input_name;
             $input_attrs['id']   = $input_id;
+            if ($input_required) $input_attrs['required'] = $input_required;
             $input_attrs['autocomplete'] = 'off';
 
             foreach($input_attrs as $name => $val) {
