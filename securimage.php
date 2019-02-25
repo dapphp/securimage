@@ -2499,38 +2499,23 @@ class Securimage
             $strtolower_func = 'mb_strtolower';
         }
 
-        $fp = fopen($this->wordlist_file, 'rb');
-        if (!$fp) return false;
-
         $fsize = filesize($this->wordlist_file);
         if ($fsize < 128) return false; // too small of a list to be effective
 
+        $lineArray = file($this->wordlist_file);
+
         if ((int)$numWords < 1 || (int)$numWords > 5) $numWords = 1;
 
-        $words = array();
+        $wordKeys = array_rand($lineArray, $numWords);
+        if ($numWords < 2) {
+            $wordKeys = array($wordKeys);
+        }
+
         $i = 0;
         do {
-            fseek($fp, mt_rand(0, $fsize - 128), SEEK_SET); // seek to a random position of file from 0 to filesize-128
-            $data = fread($fp, 128); // read a chunk from our random position
-
-            if ($mb_support !== false) {
-                $data = mb_ereg_replace("\r?\n", "\n", $data);
-            } else {
-                $data = preg_replace("/\r?\n/", "\n", $data);
-            }
-
-            $start = @$this->strpos($data, "\n", mt_rand(0, 56)) + 1; // random start position
-            $end   = @$this->strpos($data, "\n", $start);          // find end of word
-
-            if ($start === false) {
-                // picked start position at end of file
-                continue;
-            } else if ($end === false) {
-                $end = $this->strlen($data);
-            }
-
-            $word = $strtolower_func($this->substr($data, $start, $end - $start)); // return a line of the file
-
+            // using mt_rand instead of array_rand because the latter does not provide 
+            // a reliable randomness before PHP 7.1
+            $word = trim($lineArray[mt_rand(0, count($lineArray) - 1)]);
             if ($mb_support) {
                 // convert to UTF-8 for imagettftext
                 $word = mb_convert_encoding($word, 'UTF-8', $this->wordlist_file_encoding);
@@ -2538,8 +2523,6 @@ class Securimage
 
             $words[] = $word;
         } while (++$i < $numWords);
-
-        fclose($fp);
 
         if ($numWords < 2) {
             return $words[0];
