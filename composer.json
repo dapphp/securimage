@@ -13,7 +13,8 @@
     ],
     "require": {
         "php": ">=5.4",
-        "ext-gd": "*"
+        "ext-gd": "*",
+        "ext-pdo": "*"
     },
     "suggest": {
         "ext-pdo": "For database storage support",
