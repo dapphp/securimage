@@ -2118,7 +2118,7 @@ class Securimage
             $angleN = -$angleN;
         }
 
-        $step   = abs($angle0 - $angleN) / ($this->strlen($captcha_text) - 1);
+        $step   = abs($angle0 - $angleN) / (max(1, $this->strlen($captcha_text) - 1));
         $step   = ($angle0 > $angleN) ? -$step : $step;
         $angle  = $angle0;
 
