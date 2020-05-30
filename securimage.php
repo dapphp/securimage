@@ -52,7 +52,8 @@
  - Fix division by zero if captcha length is 1 (#88)
  - Add options to getCaptchaHtml input_required (#82) and js_url (#95)
  - PHP 7.3/7.4 compat fixes (#101)
- - Project status:
+ - Project status: https://github.com/dapphp/securimage/issues/99
+ - Improve handling of multi-byte wordlists (#87)
 
  3.6.7
  - Merge changes from 4.0.1-nextgen
