@@ -2519,33 +2519,43 @@ class Securimage
         if (!$fp) return false;
 
         $fsize = filesize($this->wordlist_file);
-        if ($fsize < 128) return false; // too small of a list to be effective
+        if ($fsize < 512) return false; // too small of a list to be effective
 
         if ((int)$numWords < 1 || (int)$numWords > 5) $numWords = 1;
 
         $words = array();
-        $i = 0;
+        $w     = 0;
+        $tries = 0;
         do {
-            fseek($fp, mt_rand(0, $fsize - 128), SEEK_SET); // seek to a random position of file from 0 to filesize-128
-            $data = fread($fp, 128); // read a chunk from our random position
+            fseek($fp, mt_rand(0, $fsize - 512), SEEK_SET); // seek to a random position of file from 0 to filesize - 512 bytes
+            $data = fread($fp, 512); // read a chunk from our random position
 
-            if ($mb_support !== false) {
-                $data = mb_ereg_replace("\r?\n", "\n", $data);
-            } else {
-                $data = preg_replace("/\r?\n/", "\n", $data);
+            if ( ($p = $this->strpos($data, "\n")) !== false) {
+                $data = $this->substr($data, $p + 1);
             }
 
-            $start = @$this->strpos($data, "\n", mt_rand(0, 56)) + 1; // random start position
-            $end   = @$this->strpos($data, "\n", $start);          // find end of word
-
-            if ($start === false) {
-                // picked start position at end of file
+            if ( ($start = @$this->strpos($data, "\n", mt_rand(0, $this->strlen($data) / 2))) === false) {
                 continue;
-            } else if ($end === false) {
-                $end = $this->strlen($data);
             }
 
-            $word = $strtolower_func($this->substr($data, $start, $end - $start)); // return a line of the file
+            $data = $this->substr($data,$start + 1);
+            $word = '';
+
+            for ($i = 0; $i < $this->strlen($data); ++$i) {
+                $c = $this->substr($data, $i, 1);
+                if ($c == "\r") continue;
+                if ($c == "\n") break;
+
+                $word .= $c;
+            }
+
+            $word = trim($word);
+
+            if (empty($word)) {
+                continue;
+            }
+
+            $word = $strtolower_func($word);
 
             if ($mb_support) {
                 // convert to UTF-8 for imagettftext
@@ -2553,11 +2563,15 @@ class Securimage
             }
 
             $words[] = $word;
-        } while (++$i < $numWords);
+        } while (++$w < $numWords && $tries++ < $numWords * 2);
 
         fclose($fp);
 
-        if ($numWords < 2) {
+        if (count($words) < $numWords) {
+            return false;
+        }
+
+        if ($numWords == 1) {
             return $words[0];
         } else {
             return $words;
