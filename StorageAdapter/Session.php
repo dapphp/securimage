@@ -2,8 +2,6 @@
 
 namespace Securimage\StorageAdapter;
 
-use Securimage\StorageAdapter\AdapterInterface;
-
 class Session implements AdapterInterface
 {
     protected $session_name;

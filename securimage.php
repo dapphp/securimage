@@ -736,7 +736,7 @@ class Securimage
             }
         }
 
-        if (!class_exists('Securimage\CaptchaObject')) {
+        if (!class_exists(\Securimage\CaptchaObject::class)) {
             // not using Composer autoloader
             require_once __DIR__ . '/CaptchaObject.php';
             require_once __DIR__ . '/StorageAdapter/AdapterInterface.php';

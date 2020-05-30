@@ -5,6 +5,10 @@ ini_set('display_errors', 1);
 
 require_once __DIR__ . '/securimage.php';
 
+// if not using Composer, must require these before using session
+require_once __DIR__ . '/CaptchaObject.php';
+require_once __DIR__ . '/StorageAdapter/AdapterInterface.php';
+
 session_start(); // this MUST be called prior to any output including whitespaces and line breaks!
 
 $GLOBALS['DEBUG_MODE'] = 1;
