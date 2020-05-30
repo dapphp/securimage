@@ -1566,7 +1566,7 @@ class WavFile
         } else {
             // replace
             for ($i = 0; $i < $sampleBytes; ++$i) {
-                $this->_samples{$offset + $i} = $sampleBinary{$i};
+                $this->_samples[$offset + $i] = $sampleBinary[$i];
             }
         }
 
