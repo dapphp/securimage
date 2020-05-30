@@ -1,32 +1,35 @@
-## Name:
+## Name
 
 **Securimage** - A PHP class for creating captcha images and audio with many options.
 
-## Version:
+## Version
 
-**3.6.7**
+**3.6.8**
 
-## Author:
+## Project Status
 
-Drew Phillips <drew@drew-phillips.com>
+See the [Project Status](https://github.com/dapphp/securimage/issues/99) issue on GitHub.
 
-## Download:
+## Download
 
-The latest version can always be found at [phpcaptcha.org](https://www.phpcaptcha.org)
+Download and browse the code at https://github.com/dapphp/securimage.
+Beta code is available at https://github.com/dapphp/securimage/tree/nextgen.
 
-## Documentation:
+Other information is available at [phpcaptcha.org](https://www.phpcaptcha.org)
+
+## Documentation
 
 Online documentation of the class, methods, and variables can be found 
 at http://www.phpcaptcha.org/Securimage_Docs/
 
-## Requirements:
+## Requirements
 
 * PHP 5.4 or greater
 * GD  2.0
 * FreeType (Required, for TTF fonts)
 * PDO (if using Sqlite, MySQL, or PostgreSQL)
 
-## Synopsis:
+## Synopsis
     
 **Within your HTML form**
     
@@ -55,7 +58,7 @@ at http://www.phpcaptcha.org/Securimage_Docs/
       echo "Sorry, wrong code.";
     }
 
-## Description:
+## Description
 
 What is **Securimage**?
 
@@ -71,7 +74,7 @@ the image.
     
 It also creates audible codes which are played for visually impared users.
 
-## UPGRADE NOTICE:
+## UPGRADE NOTICE
 
 **3.6.3 and below:**
 Securimage 3.6.4 fixed a XSS vulnerability in example_form.ajax.php.  It is
@@ -91,7 +94,7 @@ with the one from this release.
 
 *If you are not using database tables for storage, ignore this notice.*
 
-## Copyright:
+## Copyright
 Script
     Copyright (c) 2018 Drew Phillips
     All rights reserved.
@@ -117,7 +120,7 @@ Script
     ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
     POSSIBILITY OF SUCH DAMAGE.
 
-## Licenses:
+## Licenses
 
 **WavFile.php**
 

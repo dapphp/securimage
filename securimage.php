@@ -39,7 +39,7 @@
  * @link https://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
  * @copyright 2018 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
- * @version 3.6.7 (March 2018)
+ * @version 3.6.9 (May 2020)
  * @package Securimage
  *
  */
@@ -47,6 +47,13 @@
 /**
 
  ChangeLog
+ 3.6.8
+ - Ability to fix open_basedir warning by setting Securimage::$lame_binary_path = ''; (#63)
+ - Fix division by zero if captcha length is 1 (#88)
+ - Add options to getCaptchaHtml input_required (#82) and js_url (#95)
+ - PHP 7.3/7.4 compat fixes (#101)
+ - Project status:
+
  3.6.7
  - Merge changes from 4.0.1-nextgen
  - Increase captcha difficulty
