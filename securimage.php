@@ -2226,7 +2226,6 @@ class Securimage
      */
     protected function readCodeFromFile($numWords = 1)
     {
-        $strpos_func     = 'strpos';
         $strtolower_func = 'strtolower';
         $mb_support      = false;
 
@@ -2243,7 +2242,6 @@ class Securimage
                 return false;
             }
 
-            $strpos_func     = 'mb_strpos';
             $strtolower_func = 'mb_strtolower';
         }
 
