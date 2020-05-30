@@ -1,5 +1,8 @@
 CHANGES
 
+4.0.2
+- Merge changes from 3.6.8
+
 4.0.1
 - Increase captcha difficulty
 - Add setting "use_text_angles". Enable to select a random angle and step value and draw each character at an angle in a step like fashion
