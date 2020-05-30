@@ -30,6 +30,7 @@ return array(
     'noise_color'      => '#707070', // color of random noise to draw under text
     'num_lines'        => 3,         // # of lines to draw over text
     'noise_level'      => 4,         // how much random noise to add (0-10)
+    'perturbation'     => 0.7,       // distoration level
 
     'use_random_spaces'   => true,
     'use_random_baseline' => true,

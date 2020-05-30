@@ -515,6 +515,20 @@ class Securimage
     public $audio_gap_max = 3000;
 
     /**
+     * The file path for logging errors from audio (default __DIR__)
+     *
+     * @var string|null
+     */
+    public $log_path = null;
+
+    /**
+     * The name of the log file for logging audio errors
+     *
+     * @var string|null (defualt si_error.log)
+     */
+    public $log_file = null;
+
+    /**
      * Captcha ID if using static captcha
      * @var string Unique captcha id
      */
@@ -1007,6 +1021,11 @@ class Securimage
      */
     public function check($code, $captchaId = null, $alwaysDelete = false)
     {
+        if (!is_string($code)) {
+            trigger_error("The \$code parameter passed to Securimage::check() must be a string, " . gettype($code) . " given", E_USER_NOTICE);
+            $code = '';
+        }
+
         $this->code_entered = $code;
         $this->correct_code = false;
         $this->code         = null;
@@ -1138,6 +1157,7 @@ class Securimage
         $input_text        = (isset($options['input_text'])) ? $options['input_text'] : 'Type the text:';
         $input_id          = (isset($options['input_id'])) ? $options['input_id'] : 'captcha_code';
         $input_name        = (isset($options['input_name'])) ? $options['input_name'] :  $input_id;
+        $input_required    = (isset($options['input_required'])) ? (bool)$options['input_required'] : true;
         $input_attrs       = (isset($options['input_attributes'])) ? $options['input_attributes'] : array();
         $image_attrs       = (isset($options['image_attributes'])) ? $options['image_attributes'] : array();
         $error_html        = (isset($options['error_html'])) ? $options['error_html'] : null;
@@ -1249,7 +1269,7 @@ class Securimage
             if ($refresh_icon_url) {
                 $icon_path = $refresh_icon_url;
             }
-            $img_tag = sprintf('<img height="%d" width="%d" src="%s" alt="%s" onclick="this.blur()" style="border: 0px; vertical-align: bottom" />',
+            $img_tag = sprintf('<img height="%d" width="%d" src="%s" alt="%s" onclick="this.blur()" style="border: 0px; vertical-align: bottom">',
                                $icon_size, $icon_size, htmlspecialchars($icon_path), htmlspecialchars($refresh_alt));
 
             $html .= sprintf('<a tabindex="-1" style="border: 0" href="#" title="%s" onclick="securimageRefreshCaptcha(\'%s\', \'%s\'); this.blur(); return false">%s</a><br />',
@@ -1281,6 +1301,7 @@ class Securimage
             $input_attrs['name'] = $input_name;
             $input_attrs['id']   = $input_id;
             $input_attrs['autocomplete'] = 'off';
+            if ($input_required) $input_attrs['required'] = $input_required;
 
             foreach($input_attrs as $name => $val) {
                 $input_attr .= sprintf('%s="%s" ', $name, htmlspecialchars($val));
@@ -1359,7 +1380,9 @@ class Securimage
                 $this->saveAudioData($audio, Securimage::$_captchaId);
             }
         } catch (Exception $ex) {
-            if (($fp = @fopen(dirname(__FILE__) . '/si.error_log', 'a+')) !== false) {
+            $log_file = rtrim($this->log_path, '/\\ ') . DIRECTORY_SEPARATOR . $this->log_file;
+
+            if (($fp = fopen($log_file, 'a+')) !== false) {
                 fwrite($fp, date('Y-m-d H:i:s') . ': Securimage audio error "' . $ex->getMessage() . '"' . "\n");
                 fclose($fp);
             }
@@ -1476,8 +1499,6 @@ class Securimage
     public function getCode($deprecated = null, $returnExisting = false)
     {
         $code = array();
-        $time = 0;
-        $disp = 'error';
 
         foreach($this->storage_adapters as $adapter) {
             $info = $adapter->get(Securimage::$_captchaId);
@@ -1527,9 +1548,11 @@ class Securimage
 
         if ($array == true) {
             return $code;
-        } else {
+        } elseif (!empty($code['code'])) {
             return $code['code'];
         }
+
+        return '';
     }
 
     /**
@@ -2244,8 +2267,8 @@ class Securimage
                 $data = preg_replace("/\r?\n/", "\n", $data);
             }
 
-            $start = @$strpos_func($data, "\n", mt_rand(0, 56)) + 1; // random start position
-            $end   = @$strpos_func($data, "\n", $start);          // find end of word
+            $start = @$this->strpos($data, "\n", mt_rand(0, 56)) + 1; // random start position
+            $end   = @$this->strpos($data, "\n", $start);          // find end of word
 
             if ($start === false) {
                 // picked start position at end of file
