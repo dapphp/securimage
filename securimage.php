@@ -1308,6 +1308,8 @@ class Securimage
      *         true/false  Whether or not to show a button to refresh the image (default: true)
      *     'audio_icon_url':
      *         URL to the image used for showing the HTML5 audio icon
+     *     'js_url':
+     *         URL to the javascript file
      *     'icon_size':
      *         Size (for both height & width) in pixels of the audio and refresh buttons
      *     'show_text_input':
@@ -1362,6 +1364,7 @@ class Securimage
         $icon_size         = (isset($options['icon_size'])) ? $options['icon_size'] : 32;
         $audio_play_url    = (isset($options['audio_play_url'])) ? $options['audio_play_url'] : null;
         $audio_swf_url     = (isset($options['audio_swf_url'])) ? $options['audio_swf_url'] : null;
+        $js_url            = (isset($options['js_url'])) ? $options['js_url'] : null;
         $show_input        = (isset($options['show_text_input'])) ? (bool)$options['show_text_input'] : true;
         $refresh_alt       = (isset($options['refresh_alt_text'])) ? $options['refresh_alt_text'] : 'Refresh Image';
         $refresh_title     = (isset($options['refresh_title_text'])) ? $options['refresh_title_text'] : 'Refresh Image';
@@ -1429,6 +1432,10 @@ class Securimage
 
         if (!empty($audio_swf_url)) {
             $swf_path = $audio_swf_url;
+        }
+
+        if (!empty($js_url)) {
+            $js_path = $js_url;
         }
 
         $audio_obj = $image_id . '_audioObj';
