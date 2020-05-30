@@ -205,7 +205,7 @@ class PDO implements AdapterInterface
         if (!$result) {
             $err = $this->pdo_conn->errorInfo();
 
-            if ($this->database_driver == self::SI_DRIVER_SQLITE3 &&
+            if ($this->database_driver == \Securimage::SI_DRIVER_SQLITE3 &&
                 $err[1] === 1 && strpos($err[2], 'no such table') !== false)
             {
                 return false;
@@ -444,7 +444,7 @@ class PDO implements AdapterInterface
             $query = sprintf("DELETE FROM %s WHERE %s - created > %s",
                 $this->database_table,
                 $now,
-                $this->pdo_conn->quote("$limit", PDO::PARAM_INT)
+                $this->pdo_conn->quote("$limit", \PDO::PARAM_INT)
             );
 
             $result = $this->pdo_conn->query($query);
