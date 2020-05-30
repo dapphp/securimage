@@ -1738,8 +1738,6 @@ class Securimage
     public function getCode($array = false, $returnExisting = false)
     {
         $code = array();
-        $time = 0;
-        $disp = 'error';
 
         if ($returnExisting && strlen($this->code) > 0) {
             if ($array) {
@@ -1778,9 +1776,11 @@ class Securimage
 
         if ($array == true) {
             return $code;
-        } else {
+        } elseif (!empty($code['code'])) {
             return $code['code'];
         }
+
+        return '';
     }
 
     /**
