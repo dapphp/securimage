@@ -863,6 +863,7 @@ class Securimage
                                            $this->securimage_path . '/database/securimage.sq3');
             } else {
                 $dbOpts['database_host'] = @$options['database_host'];
+                $dbOpts['database_port'] = !empty($options['database_port']) ? $options['database_port'] : null;
                 $dbOpts['database_name'] = @$options['database_name'];
                 $dbOpts['database_user'] = @$options['database_user'];
                 $dbOpts['database_pass'] = @$options['database_pass'];
@@ -880,6 +881,7 @@ class Securimage
 
             $mysqliOpts = array(
                 'database_host'    => $options['database_host'],
+                'database_port'    => !empty($options['database_port']) ? $options['database_port'] : null,
                 'database_name'    => $options['database_name'],
                 'database_user'    => $options['database_user'],
                 'database_pass'    => $options['database_pass'],

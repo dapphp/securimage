@@ -8,6 +8,7 @@ class PDO implements AdapterInterface
 {
     protected $database_driver;
     protected $database_host;
+    protected $database_port;
     protected $database_user;
     protected $database_pass;
     protected $database_name;
@@ -103,9 +104,17 @@ class PDO implements AdapterInterface
                     throw new \Exception('Database adapter "database_user" option cannot be empty');
                 }
 
-                $dsn .= sprintf('host=%s;dbname=%s',
-                                $this->database_host,
-                                $this->database_name);
+                if ($this->database_port) {
+                    $dsn .= sprintf('host=%s;port=%s;dbname=%s',
+                        $this->database_host,
+                        $this->database_port,
+                        $this->database_name);
+                } else {
+                    $dsn .= sprintf('host=%s;dbname=%s',
+                        $this->database_host,
+                        $this->database_name);
+                }
+
                 break;
         }
 
