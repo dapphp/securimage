@@ -7,6 +7,7 @@ use Securimage\StorageAdapter\AdapterInterface;
 class Mysqli implements AdapterInterface
 {
     protected $database_host;
+    protected $database_port;
     protected $database_user;
     protected $database_pass;
     protected $database_name;
@@ -91,7 +92,11 @@ class Mysqli implements AdapterInterface
             return false;
         }
 
-        $this->mysqli_conn = new \mysqli($this->database_host, $this->database_user, $this->database_pass, $this->database_name);
+        if ($this->database_port) {
+            $this->mysqli_conn = new \mysqli($this->database_host, $this->database_user, $this->database_pass, $this->database_name, intval($this->database_port, 10));
+        } else {
+            $this->mysqli_conn = new \mysqli($this->database_host, $this->database_user, $this->database_pass, $this->database_name);
+        }
 
         if (mysqli_connect_error()) {
             trigger_error("Mysqli database connection failed.  Error " . mysqli_connect_errno() . ': ' . mysqli_connect_error(), E_USER_WARNING);
