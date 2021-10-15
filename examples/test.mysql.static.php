@@ -110,11 +110,11 @@ $captchaId = Securimage::getCaptchaId(true, $options);
     <p>&nbsp;</p>
     <div>
         Captcha ID: <span id="span_captchaId"><?php echo $captchaId ?></span><br /><br />
-        <img id="siimage" src="<?php echo $_SERVER['PHP_SELF'] ?>?display=1&amp;id=<?php echo $captchaId ?>" alt="Captcha Image" />
+        <img id="siimage" src="<?php echo htmlspecialchars($_SERVER['PHP_SELF'], ENT_QUOTES) ?>?display=1&amp;id=<?php echo $captchaId ?>" alt="Captcha Image" />
         [ <a href="#" onclick="refreshCaptcha(); return false">Refresh Image</a> ]
         <br />
 
-        <form method="get" action="<?php echo $_SERVER['PHP_SELF'] ?>">
+        <form method="get" action="<?php echo htmlspecialchars($_SERVER['PHP_SELF'], ENT_QUOTES) ?>">
             <input type="hidden" name="validate" value="1" />
             <input id="captchaId" type="hidden" name="id" value="<?php echo $captchaId ?>" />
             Enter Code:
