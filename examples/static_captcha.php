@@ -58,6 +58,8 @@ if (isset($_GET['validate'])) {
 // generate a new captcha ID and challenge
 $captchaId = Securimage::getCaptchaId();
 
+$currentScript = htmlspecialchars($_SERVER['PHP_SELF'], ENT_QUOTES);
+
 // output the captcha ID, and a form to validate it
 // the form submits to itself and is validated above
 echo <<<EOD
@@ -82,9 +84,9 @@ echo <<<EOD
     <p>&nbsp;</p>
     <div>
       Captcha ID: $captchaId<br /><br />
-      <img src="{$_SERVER['PHP_SELF']}?display&amp;id=$captchaId" alt="Captcha Image" /><br />
+      <img src="$currentScript?display&amp;id=$captchaId" alt="Captcha Image" /><br />
 
-      <form method="get" action="{$_SERVER['PHP_SELF']}">
+      <form method="get" action="$currentScript">
         <input type="hidden" name="validate" value="1" />
         <input type="hidden" name="id" value="$captchaId" />
         Enter Code:
