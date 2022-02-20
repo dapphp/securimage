@@ -48,7 +48,11 @@ class Redis implements AdapterInterface
         }
 
         if ($this->redis->hMSet($captchaId, $hash)) {
-            $this->redis->setTimeout($captchaId, $this->expiration);
+            if (method_exists($redis, 'expire')) {
+                $this->redis->expire($captchaId, $this->expiration);
+            } else {
+                $this->redis->setTimeout($captchaId, $this->expiration);
+            }
             return true;
         } else {
             return false;
