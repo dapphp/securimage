@@ -39,7 +39,7 @@
  * @link https://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
  * @copyright 2018 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
- * @version 3.6.8 (May 2020)
+ * @version 3.6.9 (May 2022)
  * @package Securimage
  *
  */
@@ -47,6 +47,9 @@
 /**
 
  ChangeLog
+3.6.9
+ - Compatibility with PHP 8.1
+
  3.6.8
  - Ability to fix open_basedir warning by setting Securimage::$lame_binary_path = ''; (#63)
  - Fix division by zero if captcha length is 1 (#88)
@@ -2249,11 +2252,11 @@ class Securimage
         $py       = array(); // y coordinates of poles
         $rad      = array(); // radius of distortion from pole
         $amp      = array(); // amplitude
-        $x        = ($this->image_width / 4); // lowest x coordinate of a pole
+        $x        = round ($this->image_width / 4); // lowest x coordinate of a pole
         $maxX     = $this->image_width - $x;  // maximum x coordinate of a pole
-        $dx       = mt_rand($x / 10, $x);     // horizontal distance between poles
+        $dx       = mt_rand(round($x / 10), $x);     // horizontal distance between poles
         $y        = mt_rand(20, $this->image_height - 20);  // random y coord
-        $dy       = mt_rand(20, $this->image_height * 0.7); // y distance
+        $dy       = mt_rand(20, round($this->image_height * 0.7)); // y distance
         $minY     = 20;                                     // minimum y coordinate
         $maxY     = $this->image_height - 20;               // maximum y cooddinate
 
@@ -2291,8 +2294,10 @@ class Securimage
                     $y += $dy * $rscale;
                 }
                 $c = $bgCol;
-                $x *= $this->iscale;
-                $y *= $this->iscale;
+
+                $x = (int) ($x * $this->iscale);
+                $y = (int) ($y * $this->iscale);
+
                 if ($x >= 0 && $x < $width2 && $y >= 0 && $y < $height2) {
                     $c = imagecolorat($this->tmpimg, $x, $y);
                 }
@@ -2315,7 +2320,7 @@ class Securimage
 
             $theta = ($this->frand() - 0.5) * M_PI * 0.33;
             $w = $this->image_width;
-            $len = mt_rand($w * 0.4, $w * 0.7);
+            $len = mt_rand(round($w * 0.4), round($w * 0.7));
             $lwid = mt_rand(0, 2);
 
             $k = $this->frand() * 0.6 + 0.2;
@@ -2333,8 +2338,8 @@ class Securimage
             $ldy = round($dx * $lwid);
 
             for ($i = 0; $i < $n; ++ $i) {
-                $x = $x0 + $i * $dx + $amp * $dy * sin($k * $i * $step + $phi);
-                $y = $y0 + $i * $dy - $amp * $dx * sin($k * $i * $step + $phi);
+                $x = (int) ($x0 + $i * $dx + $amp * $dy * sin($k * $i * $step + $phi));
+                $y = (int) ($y0 + $i * $dy - $amp * $dx * sin($k * $i * $step + $phi));
                 imagefilledrectangle($this->im, $x, $y, $x + $lwid, $y + $lwid, $this->gdlinecolor);
             }
         }
