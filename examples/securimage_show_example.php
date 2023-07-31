@@ -34,9 +34,7 @@
  * If you found this script useful, please take a quick moment to rate it.<br />
  * http://www.hotscripts.com/rate/49400.html  Thanks.
  *
- * @link http://www.phpcaptcha.org Securimage PHP CAPTCHA
- * @link http://www.phpcaptcha.org/latest.zip Download Latest Version
- * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
+ * @link https://github.com/dapphp/securimage Securimage PHP CAPTCHA
  * @copyright 2012 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
  * @package Securimage
@@ -56,7 +54,7 @@ $img->use_transparent_text = true;
 $img->text_transparency_percentage = 30; // 100 = completely transparent
 $img->num_lines = 7;
 $img->line_color = new Securimage_Color("#eaeaea");
-$img->image_signature = 'phpcaptcha.org';
+$img->image_signature = 'Securimage';
 $img->signature_color = new Securimage_Color(rand(0, 64), rand(64, 128), rand(128, 255));
 $img->use_wordlist = true;
 

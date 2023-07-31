@@ -24,9 +24,7 @@
  * If you found this script useful, please take a quick moment to rate it.<br />
  * http://www.hotscripts.com/rate/49400.html  Thanks.
  *
- * @link http://www.phpcaptcha.org Securimage PHP CAPTCHA
- * @link http://www.phpcaptcha.org/latest.zip Download Latest Version
- * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
+ * @link https://github.com/dapphp/securimage Securimage PHP CAPTCHA
  * @copyright 2018 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
  * @version 3.6.8 (May 2020)
@@ -54,7 +52,7 @@ $img = new Securimage();
 //$img->sox_binary_path = 'sox';
 //Securimage::$lame_binary_path = '/usr/bin/lame'; // for mp3 audio support
 
-// To use an alternate language, uncomment the following and download the files from phpcaptcha.org
+// To use an alternate language, uncomment the following and point at a suitable set of audio files
 // $img->audio_path = $img->securimage_path . '/audio/es/';
 
 // If you have more than one captcha on a page, one must use a custom namespace
