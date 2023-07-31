@@ -1,10 +1,9 @@
 /*!
  * Securimage CAPTCHA Audio Library
- * https://www.phpcaptcha.org/
+ * https://github.com/dapphp/securimage
  * 
- * Copyright 2015 phpcaptcha.org
  * Released under the BSD-3 license
- * See https://github.com/dapphp/securimage/blob/master/README.md
+ * See https://github.com/dapphp/securimage/blob/nextgen/README.md
  */
 
 function securimageRefreshCaptcha(captcha_image, captcha_audio)

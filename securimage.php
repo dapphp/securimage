@@ -33,10 +33,7 @@
  * Any modifications to the library should be indicated clearly in the source code
  * to inform users that the changes are not a part of the original software.
  *
- * @link https://www.phpcaptcha.org Securimage Homepage
- * @link https://www.phpcaptcha.org/latest.zip Download Latest Version
- * @link https://github.com/dapphp/securimage GitHub page
- * @link https://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
+ * @link https://github.com/dapphp/securimage Securimage Homepage
  * @copyright 2018 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
  * @version 4.0.2 (March 2018)

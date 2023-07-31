@@ -34,9 +34,7 @@
  * If you found this script useful, please take a quick moment to rate it.<br />
  * http://www.hotscripts.com/rate/49400.html  Thanks.
  *
- * @link http://www.phpcaptcha.org Securimage PHP CAPTCHA
- * @link http://www.phpcaptcha.org/latest.zip Download Latest Version
- * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
+ * @link https://github.com/dapphp/securimage Securimage PHP CAPTCHA
  * @copyright 2012 Drew Phillips
  * @author Drew Phillips <drew@drew-phillips.com>
 * @package Securimage
