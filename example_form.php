@@ -58,31 +58,31 @@ if (isset($_SESSION['ctform']['error']) &&  $_SESSION['ctform']['error'] == true
 <div class="success">The captcha was correct and the message has been sent!  The captcha was solved in <?php echo $_SESSION['ctform']['timetosolve'] ?> seconds.</div><br />
 <?php endif; ?>
 
-<form method="post" action="<?php echo htmlspecialchars($_SERVER['REQUEST_URI'] . $_SERVER['QUERY_STRING']) ?>" id="contact_form">
+<form method="post" action="<?= htmlspecialchars($_SERVER['REQUEST_URI'] . ($_SERVER['QUERY_STRING'] ?? '')) ?>" id="contact_form">
   <input type="hidden" name="do" value="contact">
 
   <p>
     <label for="ct_name">Name*:</label>
     <?php echo @$_SESSION['ctform']['name_error'] ?>
-    <input type="text" id="ct_name" name="ct_name" size="35" value="<?php echo htmlspecialchars(@$_SESSION['ctform']['ct_name']) ?>">
+    <input type="text" id="ct_name" name="ct_name" size="35" value="<?= htmlspecialchars($_SESSION['ctform']['ct_name'] ?? '') ?>">
   </p>
 
   <p>
     <label for="ct_email">Email*:</label>
     <?php echo @$_SESSION['ctform']['email_error'] ?>
-    <input type="text" id="ct_email" name="ct_email" size="35" value="<?php echo htmlspecialchars(@$_SESSION['ctform']['ct_email']) ?>">
+    <input type="text" id="ct_email" name="ct_email" size="35" value="<?= htmlspecialchars($_SESSION['ctform']['ct_email'] ?? '') ?>">
   </p>
 
   <p>
     <label for="ct_URL">URL:</label>
     <?php echo @$_SESSION['ctform']['URL_error'] ?>
-    <input type="text" id="ct_URL" name="ct_URL" size="35" value="<?php echo htmlspecialchars(@$_SESSION['ctform']['ct_URL']) ?>">
+    <input type="text" id="ct_URL" name="ct_URL" size="35" value="<?= htmlspecialchars($_SESSION['ctform']['ct_URL'] ?? '') ?>">
   </p>
 
   <p>
     <label for="ct_message">Message*:</label>
-    <?php echo @$_SESSION['ctform']['message_error'] ?>
-    <textarea id="ct_message" name="ct_message" rows="12" cols="60"><?php echo htmlspecialchars(@$_SESSION['ctform']['ct_message']) ?></textarea>
+    <?= $_SESSION['ctform']['message_error'] ?? '' ?>
+    <textarea id="ct_message" name="ct_message" rows="12" cols="60"><?= htmlspecialchars($_SESSION['ctform']['ct_message'] ?? '') ?></textarea>
   </p>
 
   <div>
